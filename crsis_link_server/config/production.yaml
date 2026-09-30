@@ -21,16 +21,16 @@ webServer:
 
 # PostgreSQL database configuration
 database:
-  host: ${DB_HOST}
+  host: 'localhost'
   port: 5432
-  name: ${DB_NAME}
-  user: ${DB_USER}
+  name: 'db'
+  user: 'postgres'
   requireSsl: true
 
 # Redis configuration (for streaming/scaling)
 redis:
   enabled: true
-  host: ${REDIS_HOST}
+  host: 'localhost'
   port: 6379
 
 maxRequestSize: 524288

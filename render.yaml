@@ -18,32 +18,32 @@ services:
         sync: false
       - key: SERVERPOD_PASSWORD_redis
         value: 'none'
-      - key: DB_HOST
+      - key: SERVERPOD_DATABASE_HOST
         fromDatabase:
           name: crsis-link-db
           property: host
-      - key: DB_PORT
+      - key: SERVERPOD_DATABASE_PORT
         fromDatabase:
           name: crsis-link-db
           property: port
-      - key: DB_NAME
+      - key: SERVERPOD_DATABASE_NAME
         fromDatabase:
           name: crsis-link-db
           property: database
-      - key: DB_USER
+      - key: SERVERPOD_DATABASE_USER
         fromDatabase:
           name: crsis-link-db
           property: user
-      - key: DB_PASSWORD
+      - key: SERVERPOD_PASSWORD_database
         fromDatabase:
           name: crsis-link-db
           property: password
-      - key: REDIS_HOST
+      - key: SERVERPOD_REDIS_HOST
         fromService:
           type: redis
           name: crsis-link-redis
           property: host
-      - key: REDIS_PORT
+      - key: SERVERPOD_REDIS_PORT
         fromService:
           type: redis
           name: crsis-link-redis
