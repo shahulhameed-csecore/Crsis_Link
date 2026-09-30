@@ -22,7 +22,7 @@ webServer:
 # PostgreSQL database configuration
 database:
   host: ${DB_HOST}
-  port: ${DB_PORT}
+  port: 5432
   name: ${DB_NAME}
   user: ${DB_USER}
   requireSsl: true
@@ -31,7 +31,7 @@ database:
 redis:
   enabled: true
   host: ${REDIS_HOST}
-  port: ${REDIS_PORT}
+  port: 6379
 
 maxRequestSize: 524288
 
