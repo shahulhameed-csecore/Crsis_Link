@@ -29,7 +29,7 @@ database:
 
 # Redis configuration (for streaming/scaling)
 redis:
-  enabled: true
+  enabled: false
   host: 'localhost'
   port: 6379
 
