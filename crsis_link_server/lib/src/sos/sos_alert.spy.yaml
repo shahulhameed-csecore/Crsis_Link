@@ -1,0 +1,11 @@
+class: SosAlert
+table: sos_alert
+fields:
+  userInfo: module:auth:UserInfo?, relation
+  latitude: double
+  longitude: double
+  timestamp: DateTime
+  message: String?
+  isActive: bool
+  status: String
+  volunteerId: int?
