@@ -52,5 +52,6 @@ EXPOSE 8080
 EXPOSE 8081
 EXPOSE 8082
 
-# Define the entrypoint command
-ENTRYPOINT ./server --mode=$runmode --server-id=$serverid --logging=$logging --role=$role
+# Write the passwords from the environment variable to the passwords file at runtime
+# This allows secrets to be injected via Render environment variables without committing them to git
+CMD sh -c 'echo "$SERVERPOD_PASSWORDS" > config/passwords.yaml && ./server --mode=$runmode --server-id=$serverid --logging=$logging --role=$role --apply-migrations'
