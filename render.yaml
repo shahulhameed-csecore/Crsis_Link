@@ -16,6 +16,8 @@ services:
         value: crsis-link-api.onrender.com
       - key: SERVERPOD_PASSWORDS
         sync: false
+      - key: SERVERPOD_PASSWORD_redis
+        value: 'none'
       - key: DB_HOST
         fromDatabase:
           name: crsis-link-db
