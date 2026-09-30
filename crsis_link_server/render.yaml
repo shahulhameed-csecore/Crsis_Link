@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: crsis-link-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: runmode
+        value: production
+      - key: PORT
+        value: 8080
+      - key: PUBLIC_HOST
+        value: crsis-link-api.onrender.com
+      - key: SERVERPOD_PASSWORDS
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: crsis-link-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: crsis-link-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: crsis-link-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: crsis-link-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: crsis-link-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: crsis-link-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: crsis-link-redis
+          property: port
+
+databases:
+  - name: crsis-link-db
+    databaseName: serverpod
+    user: postgres
+    plan: starter
+    region: oregon
+
+  - type: redis
+    name: crsis-link-redis
+    plan: free
+    region: oregon
+    ipAllowList: []

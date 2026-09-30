@@ -1,0 +1,39 @@
+# Configuration for the main API server.
+apiServer:
+  port: 8080
+  publicHost: ${PUBLIC_HOST}
+  publicPort: 443
+  publicScheme: https
+
+# Configuration for the Insights server.
+insightsServer:
+  port: 8081
+  publicHost: ${PUBLIC_HOST}
+  publicPort: 443
+  publicScheme: https
+
+# Configuration for the web server.
+webServer:
+  port: 8082
+  publicHost: ${PUBLIC_HOST}
+  publicPort: 443
+  publicScheme: https
+
+# PostgreSQL database configuration
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  name: ${DB_NAME}
+  user: ${DB_USER}
+  requireSsl: true
+
+# Redis configuration (for streaming/scaling)
+redis:
+  enabled: true
+  host: ${REDIS_HOST}
+  port: ${REDIS_PORT}
+
+maxRequestSize: 524288
+
+sessionLogs:
+  consoleEnabled: true
