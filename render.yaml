@@ -47,15 +47,15 @@ services:
           name: crsis-link-redis
           property: port
 
+  - type: redis
+    name: crsis-link-redis
+    plan: free
+    region: oregon
+    ipAllowList: []
+
 databases:
   - name: crsis-link-db
     databaseName: serverpod
     user: postgres
     plan: starter
     region: oregon
-
-  - type: redis
-    name: crsis-link-redis
-    plan: free
-    region: oregon
-    ipAllowList: []
