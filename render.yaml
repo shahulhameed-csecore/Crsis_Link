@@ -56,6 +56,5 @@ services:
 databases:
   - name: crsis-link-db
     databaseName: serverpod
-    user: postgres
     plan: starter
     region: oregon
