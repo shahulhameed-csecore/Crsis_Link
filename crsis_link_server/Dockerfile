@@ -6,7 +6,6 @@ FROM dart:3.8.0 AS build
 
 # Create a minimal workspace that preserves locked server dependency versions.
 WORKDIR /app
-COPY pubspec.lock .
 COPY crsis_link_server crsis_link_server
 RUN printf '%s\n' \
   'name: _' \
