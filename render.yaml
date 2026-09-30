@@ -5,7 +5,7 @@ services:
     dockerfilePath: ./crsis_link_server/Dockerfile
     dockerContext: .
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /
     envVars:
       - key: runmode
@@ -56,5 +56,5 @@ services:
 databases:
   - name: crsis-link-db
     databaseName: serverpod
-    plan: starter
+    plan: free
     region: oregon
