@@ -1,0 +1,19 @@
+emailIdp:
+  - login:
+  - startRegistration:
+  - verifyRegistrationCode:
+  - finishRegistration:
+  - startPasswordReset:
+  - verifyPasswordResetCode:
+  - finishPasswordReset:
+  - hasAccount:
+jwtRefresh:
+  - refreshAccessToken:
+sos:
+  - broadcastSos:
+  - getActiveAlerts:
+  - cancelSos:
+  - claimRescue:
+  - completeRescue:
+greeting:
+  - hello:
