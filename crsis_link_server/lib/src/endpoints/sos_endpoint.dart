@@ -198,7 +198,7 @@ class SosEndpoint extends Endpoint {
     targetAlert.isActive = false;
     await SosAlert.db.updateRow(session, targetAlert);
 
-    session.messages.postMessage('sos_broadcasts', targetAlert);
+    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: targetAlert.deviceId));
     return targetAlert;
   }
 }

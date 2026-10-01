@@ -830,6 +830,35 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                           },
                         ),
                       ],
+                    )
+                  else if (isClaimed && alert.volunteerDeviceId == AuthManager.deviceId)
+                    CapsuleButton(
+                      text: 'COMPLETE RESCUE',
+                      style: CapsuleStyle.primary,
+                      isLoading: isSubmitting,
+                      onPressed: () async {
+                        setModalState(() => isSubmitting = true);
+                        try {
+                          await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.id!);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            widget.onResolve(alert.id!);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Rescue Completed Successfully!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Failed to complete: $e')),
+                            );
+                          }
+                          setModalState(() => isSubmitting = false);
+                        }
+                      },
                     ),
                   const SizedBox(height: 16),
                 ],
