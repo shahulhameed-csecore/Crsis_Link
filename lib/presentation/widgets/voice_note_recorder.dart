@@ -142,7 +142,10 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       }
       
       // Replace Serverpod's placeholder with the actual host
-      uploadUrl = uploadUrl.replaceAll('\${public_host}', 'crsis-link-api.onrender.com');
+      // Handle both unencoded and URL-encoded versions of ${public_host}
+      uploadUrl = uploadUrl
+          .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
+          .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
 
       // Step 2: Upload the file
       final bytes = await file.readAsBytes();
@@ -158,7 +161,9 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
 
       // Step 3: Verify and get public URL
       String publicUrl = await AuthManager.client.audio.verifyUpload(fileName);
-      publicUrl = publicUrl.replaceAll('\${public_host}', 'crsis-link-api.onrender.com');
+      publicUrl = publicUrl
+          .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
+          .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
 
       setState(() {
         _uploadedUrl = publicUrl;
