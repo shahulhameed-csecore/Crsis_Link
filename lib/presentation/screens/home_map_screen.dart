@@ -454,6 +454,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                           width: 40,
                           height: 40,
                           child: _AnimatedSosMarker(
+                            key: ValueKey('${alert.id}_${alert.status}'),
                             alert: alert,
                             onIgnore: (id) {
                               setState(() {
@@ -667,7 +668,7 @@ class _AnimatedSosMarker extends StatefulWidget {
   final SosAlert alert;
   final void Function(int) onIgnore;
   final void Function(int) onResolve;
-  const _AnimatedSosMarker({required this.alert, required this.onIgnore, required this.onResolve});
+  const _AnimatedSosMarker({super.key, required this.alert, required this.onIgnore, required this.onResolve});
 
   @override
   State<_AnimatedSosMarker> createState() => _AnimatedSosMarkerState();
@@ -693,6 +694,14 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
   }
 
   @override
+  void didUpdateWidget(_AnimatedSosMarker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.alert.status != widget.alert.status) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isOwnPin = widget.alert.deviceId == AuthManager.deviceId;
     
@@ -707,7 +716,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
           ) : null,
           child: Icon(
             Icons.warning, 
-            color: widget.alert.status == 'CLAIMED' ? Colors.green : AppColors.emergencyRed, 
+            color: widget.alert.status == 'CLAIMED' ? const Color(0xFF28A745) : AppColors.emergencyRed, 
             size: 40
           ),
         ),
