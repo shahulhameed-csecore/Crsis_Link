@@ -168,11 +168,22 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         throw Exception('Location permissions permanently denied');
       }
 
-      Position? position = await Geolocator.getLastKnownPosition();
-      if (position == null) {
+      Position? position;
+      try {
         position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
         ).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        position = await Geolocator.getLastKnownPosition();
+        if (position == null) {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          ).timeout(const Duration(seconds: 5));
+        }
+      }
+      
+      if (position == null) {
+        throw Exception('Could not determine location. Please ensure your GPS is active.');
       }
       
       if (mounted) {

@@ -61,9 +61,27 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         throw Exception('Location permissions permanently denied');
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
-      ).timeout(const Duration(seconds: 8));
+      Position? position;
+      try {
+        // Try getting the high-accuracy position first
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
+        ).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        // If it times out or fails, fallback to last known position immediately
+        position = await Geolocator.getLastKnownPosition();
+        
+        // If there's no last known position, try one more time with low accuracy (network/cell tower)
+        if (position == null) {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          ).timeout(const Duration(seconds: 5));
+        }
+      }
+      
+      if (position == null) {
+        throw Exception('Could not determine location after multiple attempts. Please ensure your GPS is active.');
+      }
       
       if (mounted) {
         setState(() {
