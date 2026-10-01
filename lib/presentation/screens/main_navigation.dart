@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/design_system.dart';
 import 'home_map_screen.dart';
 import 'alerts_screen.dart';
@@ -21,6 +22,7 @@ class _MainNavigationState extends State<MainNavigation> {
   ];
 
   void _onTabTapped(int index) {
+    HapticFeedback.lightImpact();
     setState(() {
       _currentIndex = index;
     });
@@ -60,17 +62,17 @@ class _MainNavigationState extends State<MainNavigation> {
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
+              activeIcon: Icon(Icons.map_outlined),
               label: 'Map',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.notifications_outlined),
-              activeIcon: Icon(Icons.notifications),
+              activeIcon: Icon(Icons.notifications_outlined),
               label: 'Alerts',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              activeIcon: Icon(Icons.person_outline),
               label: 'Profile',
             ),
           ],

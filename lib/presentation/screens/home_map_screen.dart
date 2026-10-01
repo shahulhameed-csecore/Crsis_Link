@@ -9,6 +9,7 @@ import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import '../widgets/voice_note_recorder.dart';
+import '../widgets/capsule_button.dart';
 import 'auth/login_screen.dart';
 
 class HomeMapScreen extends StatefulWidget {
@@ -109,9 +110,28 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   void dispose() {
     _sosSubscription?.cancel();
     AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
-    // Do NOT close the streaming connection here — it is app-level and
-    // should persist across navigation. Closing it would break other screens.
     super.dispose();
+  }
+
+  Future<void> _manualRefresh() async {
+    HapticFeedback.mediumImpact();
+    
+    // Attempt to re-establish connection if needed
+    if (!AuthManager.client.streamingConnectionStatus.isConnected) {
+      await AuthManager.client.openStreamingConnection();
+    }
+    
+    await _fetchActiveSos();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Map and radar data refreshed'),
+          backgroundColor: AppColors.pitchBlack,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _fetchActiveSos() async {
@@ -270,73 +290,50 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.emergencyRed,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      ),
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              setModalState(() => isSubmitting = true);
-                              try {
-                                final response = await AuthManager.client.sos.broadcastSos(
-                                  AuthManager.deviceId,
-                                  AuthManager.displayName,
-                                  position.latitude,
-                                  position.longitude,
-                                  messageController.text.trim().isEmpty ? null : messageController.text.trim(),
-                                  _pendingAudioUrl,
-                                );
-                                setState(() {
-                                  // Remove any previous pin by this user to keep it simple, 
-                                  // or just refresh the list. Let's just refresh.
-                                  _sosPins.add(response.alert);
-                                });
-                                _fetchActiveSos(); // Ensure sync
-                                if (ctx.mounted) {
-                                  Navigator.pop(ctx);
-                                  if (response.notifiedCount == 0) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No one is available near you at the moment. Your request is still active.'),
-                                        backgroundColor: AppColors.emergencyRed,
-                                        duration: Duration(seconds: 5),
-                                      ),
-                                    );
-                                  }
-                                }
-                              } catch (e) {
-                                debugPrint('SOS Broadcast failed: $e');
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Failed to drop pin: $e'),
-                                      backgroundColor: AppColors.emergencyRed,
-                                    ),
-                                  );
-                                }
-                                setModalState(() => isSubmitting = false);
-                              }
-                            },
-                      child: isSubmitting
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : const Text(
-                              'BROADCAST SOS',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
+                  CapsuleButton(
+                    text: 'BROADCAST SOS',
+                    style: CapsuleStyle.emergency,
+                    isLoading: isSubmitting,
+                    onPressed: () async {
+                      setModalState(() => isSubmitting = true);
+                      try {
+                        final response = await AuthManager.client.sos.broadcastSos(
+                          AuthManager.deviceId,
+                          AuthManager.displayName,
+                          position.latitude,
+                          position.longitude,
+                          messageController.text.trim().isEmpty ? null : messageController.text.trim(),
+                          _pendingAudioUrl,
+                        );
+                        setState(() {
+                          _sosPins.add(response.alert);
+                        });
+                        _fetchActiveSos(); // Ensure sync
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          if (response.notifiedCount == 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No one is available near you at the moment. Your request is still active.'),
+                                backgroundColor: AppColors.emergencyRed,
+                                duration: Duration(seconds: 5),
                               ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        debugPrint('SOS Broadcast failed: $e');
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to drop pin: $e'),
+                              backgroundColor: AppColors.emergencyRed,
                             ),
-                    ),
+                          );
+                        }
+                        setModalState(() => isSubmitting = false);
+                      }
+                    },
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -545,10 +542,14 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                     ],
                   ),
                   
-                  Row(
+                  Column(
                     mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      _ManualRefreshButton(onRefresh: _manualRefresh),
+                      const SizedBox(height: 12),
                       FloatingActionButton(
+                        heroTag: 'recenterBtn',
                         onPressed: _recenterMap,
                         backgroundColor: AppColors.pitchBlack,
                         foregroundColor: Colors.white,
@@ -689,73 +690,55 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                   ],
                   const SizedBox(height: 24),
                   if (isOwnPin)
-                    SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        ),
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setModalState(() => isSubmitting = true);
-                                try {
-                                  await AuthManager.client.sos.resolveSOS(alert.id!, AuthManager.deviceId);
-                                  if (ctx.mounted) {
-                                    Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('SOS Resolved / Cleared.')),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
-                                  }
-                                  setModalState(() => isSubmitting = false);
-                                }
-                              },
-                        child: isSubmitting
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('RESOLVE / CLEAR SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                      ),
+                    CapsuleButton(
+                      text: 'RESOLVE / CLEAR SOS',
+                      style: CapsuleStyle.secondary,
+                      isLoading: isSubmitting,
+                      onPressed: () async {
+                        setModalState(() => isSubmitting = true);
+                        try {
+                          await AuthManager.client.sos.resolveSOS(alert.id!, AuthManager.deviceId);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('SOS Resolved / Cleared.')),
+                            );
+                          }
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
+                          }
+                          setModalState(() => isSubmitting = false);
+                        }
+                      },
                     )
                   else if (!isClaimed)
-                    SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.emergencyRed,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        ),
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setModalState(() => isSubmitting = true);
-                                try {
-                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
-                                  if (ctx.mounted) {
-                                    Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Rescue Claimed Successfully!'),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      SnackBar(content: Text('Failed to claim: $e')),
-                                    );
-                                  }
-                                  setModalState(() => isSubmitting = false);
-                                }
-                              },
-                        child: isSubmitting
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('ACCEPT RESCUE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                      ),
+                    CapsuleButton(
+                      text: 'ACCEPT RESCUE',
+                      style: CapsuleStyle.emergency,
+                      isLoading: isSubmitting,
+                      onPressed: () async {
+                        setModalState(() => isSubmitting = true);
+                        try {
+                          await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Rescue Claimed Successfully!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Failed to claim: $e')),
+                            );
+                          }
+                          setModalState(() => isSubmitting = false);
+                        }
+                      },
                     ),
                   const SizedBox(height: 16),
                 ],
@@ -889,6 +872,67 @@ class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ManualRefreshButton extends StatefulWidget {
+  final Future<void> Function() onRefresh;
+  const _ManualRefreshButton({required this.onRefresh});
+
+  @override
+  State<_ManualRefreshButton> createState() => _ManualRefreshButtonState();
+}
+
+class _ManualRefreshButtonState extends State<_ManualRefreshButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this, 
+      duration: const Duration(milliseconds: 1000),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    if (_isRefreshing) return;
+    
+    setState(() => _isRefreshing = true);
+    _controller.repeat();
+    
+    await widget.onRefresh();
+    
+    if (mounted) {
+      _controller.stop();
+      _controller.reset();
+      setState(() => _isRefreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton(
+      heroTag: 'refreshBtn',
+      onPressed: _handleRefresh,
+      backgroundColor: Colors.white,
+      foregroundColor: AppColors.pitchBlack,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+        side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
+      ),
+      child: RotationTransition(
+        turns: _controller,
+        child: const Icon(Icons.refresh),
       ),
     );
   }
