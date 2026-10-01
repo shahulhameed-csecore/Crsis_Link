@@ -9,7 +9,7 @@ class AuthManager {
 
   static Future<void> initialize() async {
     // Toggle this to true when building for production (Render)
-    const bool isProduction = false; 
+    const bool isProduction = true; 
 
     // Default to localhost for local testing (use 10.0.2.2 for Android emulator)
     String serverUrl = 'http://localhost:8080/';
