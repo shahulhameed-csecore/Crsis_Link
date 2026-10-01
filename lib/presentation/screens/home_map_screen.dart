@@ -23,6 +23,9 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   List<SosAlert> _sosPins = [];
   StreamSubscription? _sosSubscription;
   bool _isConnected = true;
+  // Default center (India) shown instantly while GPS resolves
+  LatLng _mapCenter = const LatLng(20.5937, 78.9629);
+  double _mapZoom = 5.0;
 
   @override
   void initState() {
@@ -149,8 +152,11 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       if (mounted) {
         setState(() {
           _currentLocation = LatLng(position!.latitude, position.longitude);
+          _mapCenter = _currentLocation!;
+          _mapZoom = 15.0;
           _errorMsg = '';
         });
+        _mapController.move(_currentLocation!, 15.0);
         
         // Push the location to the server for spatial broadcasting
         try {
@@ -344,25 +350,35 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       backgroundColor: AppColors.pitchBlack,
       body: Stack(
         children: [
+          // Dark background so map never shows white
+          Positioned.fill(
+            child: Container(color: const Color(0xFF1a1a2e)),
+          ),
           if (_currentLocation != null)
             Positioned.fill(
               child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: _currentLocation!,
-                  initialZoom: 15.0,
-                  minZoom: 3.0, // Prevents zooming out too far (stops multiple Earths from rendering)
+                  initialCenter: _mapCenter,
+                  initialZoom: _mapZoom,
+                  minZoom: 3.0,
                   interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all, // Rotation restored
+                    flags: InteractiveFlag.all,
                   ),
                   onLongPress: (tapPosition, point) => _showSosModal(point),
                 ),
                 children: [
                   ColorFiltered(
                     colorFilter: greyscaleAndInvert,
-                    child: TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.crsis_link',
+                    child: ColoredBox(
+                      color: Colors.white, // white inverts to dark via matrix
+                      child: TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.crsis_link.app',
+                        errorTileCallback: (tile, error, stackTrace) {
+                          debugPrint('Tile load error: $error');
+                        },
+                      ),
                     ),
                   ),
                   MarkerLayer(
@@ -410,33 +426,70 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                 ],
               ),
             )
-          else if (_errorMsg.isNotEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.location_off, color: AppColors.emergencyRed, size: 48),
-                    const SizedBox(height: 16),
-                    Text(
-                      _errorMsg,
-                      textAlign: TextAlign.center,
-                      style: AppTypography.body.copyWith(color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _determinePosition,
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.emergencyRed),
-                      child: const Text('RETRY', style: TextStyle(color: Colors.white)),
-                    )
-                  ],
-                ),
-              ),
-            )
           else
-            const Center(
-              child: CircularProgressIndicator(color: AppColors.emergencyRed),
+            // Show map immediately at default center even before GPS resolves
+            Positioned.fill(
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _mapCenter,
+                  initialZoom: _mapZoom,
+                  minZoom: 3.0,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
+                  ),
+                  onLongPress: _currentLocation != null
+                      ? (tapPosition, point) => _showSosModal(point)
+                      : null,
+                ),
+                children: [
+                  ColorFiltered(
+                    colorFilter: ColorFilter.matrix(<double>[
+                      -1,  0,  0, 0, 255,
+                       0, -1,  0, 0, 255,
+                       0,  0, -1, 0, 255,
+                       0,  0,  0, 1,   0,
+                    ]),
+                    child: ColoredBox(
+                      color: Colors.white, // white inverts to dark via matrix
+                      child: TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.crsis_link.app',
+                      ),
+                    ),
+                  ),
+                  if (_errorMsg.isNotEmpty)
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.emergencyRed),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_off, color: AppColors.emergencyRed, size: 40),
+                            const SizedBox(height: 12),
+                            Text(_errorMsg.replaceAll('Exception: ', ''),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white)),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _determinePosition,
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.emergencyRed),
+                              child: const Text('RETRY GPS', style: TextStyle(color: Colors.white)),
+                            )
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    const Center(child: CircularProgressIndicator(color: AppColors.emergencyRed)),
+                ],
+              ),
             ),
             
           SafeArea(
