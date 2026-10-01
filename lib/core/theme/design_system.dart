@@ -10,6 +10,7 @@ class AppColors {
   static const Color cleanBackground = Color(0xFFF8F9FA);
   static const Color surfaceCards = Color(0xFFFFFFFF);
   static const Color surfaceBorder = Color(0xFFEDEDED);
+  static const Color radarGreen = Color(0xFF198754);
 }
 
 class AppTypography {
@@ -27,6 +28,10 @@ class AppTypography {
   static TextStyle get body => GoogleFonts.inter(
         color: AppColors.pitchBlack,
         fontWeight: FontWeight.w500,
+      );
+
+  static TextStyle get button => GoogleFonts.inter(
+        fontWeight: FontWeight.bold,
       );
 }
 

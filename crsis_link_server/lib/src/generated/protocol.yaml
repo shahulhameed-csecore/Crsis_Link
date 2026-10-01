@@ -9,6 +9,8 @@ emailIdp:
   - hasAccount:
 jwtRefresh:
   - refreshAccessToken:
+demoAuth:
+  - demoLogin:
 sos:
   - broadcastSos:
   - getActiveAlerts:

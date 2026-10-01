@@ -68,6 +68,43 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleDemoLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await AuthManager.client.demoAuth.demoLogin();
+
+      if (response.success && response.userInfo != null) {
+        final sessionManager = await SessionManager.instance;
+        await sessionManager.registerSignedInUser(
+          response.userInfo!,
+          response.keyId!,
+          response.key!,
+        );
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/main');
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Demo Login failed.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Network error: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,9 +159,18 @@ class _LoginScreenState extends State<LoginScreen> {
             
             _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.pitchBlack))
-                : CapsulePillButton(
-                    label: 'Sign In',
-                    onPressed: _handleLogin,
+                : Column(
+                    children: [
+                      CapsulePillButton(
+                        label: 'Sign In',
+                        onPressed: _handleLogin,
+                      ),
+                      const SizedBox(height: 16),
+                      CapsulePillButton(
+                        label: '1-Tap Demo Login',
+                        onPressed: _handleDemoLogin,
+                      ),
+                    ],
                   ),
                   
             const SizedBox(height: 24),

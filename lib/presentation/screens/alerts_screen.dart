@@ -67,7 +67,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.pitchBlack))
           : _myRescues.isEmpty
-              ? const Center(child: Text('You have no active rescues.', style: AppTypography.body))
+              ? Center(child: Text('You have no active rescues.', style: AppTypography.body))
               : ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemCount: _myRescues.length,

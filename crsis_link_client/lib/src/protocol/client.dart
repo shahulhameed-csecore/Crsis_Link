@@ -17,9 +17,9 @@ import 'package:serverpod_client/serverpod_client.dart' as _i2;
 import 'dart:async' as _i3;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
-import 'package:crsis_link_client/src/protocol/sos/sos_alert.dart' as _i5;
-import 'package:crsis_link_client/src/protocol/greetings/greeting.dart' as _i6;
-import 'package:serverpod_auth_client/serverpod_auth_client.dart' as _i7;
+import 'package:serverpod_auth_client/serverpod_auth_client.dart' as _i5;
+import 'package:crsis_link_client/src/protocol/sos/sos_alert.dart' as _i6;
+import 'package:crsis_link_client/src/protocol/greetings/greeting.dart' as _i7;
 import 'protocol.dart' as _i8;
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
@@ -243,6 +243,21 @@ class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
   );
 }
 
+/// {@category Endpoint}
+class EndpointDemoAuth extends _i2.EndpointRef {
+  EndpointDemoAuth(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'demoAuth';
+
+  _i3.Future<_i5.AuthenticationResponse> demoLogin() =>
+      caller.callServerEndpoint<_i5.AuthenticationResponse>(
+        'demoAuth',
+        'demoLogin',
+        {},
+      );
+}
+
 /// Endpoint for handling SOS Alerts.
 /// Only authenticated users can access these methods.
 /// {@category Endpoint}
@@ -253,11 +268,11 @@ class EndpointSos extends _i2.EndpointRef {
   String get name => 'sos';
 
   /// Creates or updates an active SOS alert for the currently logged in user.
-  _i3.Future<_i5.SosAlert> broadcastSos(
+  _i3.Future<_i6.SosAlert> broadcastSos(
     double latitude,
     double longitude,
     String? message,
-  ) => caller.callServerEndpoint<_i5.SosAlert>(
+  ) => caller.callServerEndpoint<_i6.SosAlert>(
     'sos',
     'broadcastSos',
     {
@@ -268,8 +283,8 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Retrieves all currently active SOS alerts.
-  _i3.Future<List<_i5.SosAlert>> getActiveAlerts() =>
-      caller.callServerEndpoint<List<_i5.SosAlert>>(
+  _i3.Future<List<_i6.SosAlert>> getActiveAlerts() =>
+      caller.callServerEndpoint<List<_i6.SosAlert>>(
         'sos',
         'getActiveAlerts',
         {},
@@ -283,16 +298,16 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Claims an active SOS alert
-  _i3.Future<_i5.SosAlert> claimRescue(int sosId) =>
-      caller.callServerEndpoint<_i5.SosAlert>(
+  _i3.Future<_i6.SosAlert> claimRescue(int sosId) =>
+      caller.callServerEndpoint<_i6.SosAlert>(
         'sos',
         'claimRescue',
         {'sosId': sosId},
       );
 
   /// Completes an active SOS alert (called when rescuer is safe)
-  _i3.Future<_i5.SosAlert> completeRescue(int sosId) =>
-      caller.callServerEndpoint<_i5.SosAlert>(
+  _i3.Future<_i6.SosAlert> completeRescue(int sosId) =>
+      caller.callServerEndpoint<_i6.SosAlert>(
         'sos',
         'completeRescue',
         {'sosId': sosId},
@@ -309,8 +324,8 @@ class EndpointGreeting extends _i2.EndpointRef {
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i6.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i6.Greeting>(
+  _i3.Future<_i7.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i7.Greeting>(
         'greeting',
         'hello',
         {'name': name},
@@ -320,13 +335,13 @@ class EndpointGreeting extends _i2.EndpointRef {
 class Modules {
   Modules(Client client) {
     serverpod_auth_idp = _i1.Caller(client);
-    auth = _i7.Caller(client);
+    auth = _i5.Caller(client);
     serverpod_auth_core = _i4.Caller(client);
   }
 
   late final _i1.Caller serverpod_auth_idp;
 
-  late final _i7.Caller auth;
+  late final _i5.Caller auth;
 
   late final _i4.Caller serverpod_auth_core;
 }
@@ -362,6 +377,7 @@ class Client extends _i2.ServerpodClientShared {
        ) {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
+    demoAuth = EndpointDemoAuth(this);
     sos = EndpointSos(this);
     greeting = EndpointGreeting(this);
     modules = Modules(this);
@@ -370,6 +386,8 @@ class Client extends _i2.ServerpodClientShared {
   late final EndpointEmailIdp emailIdp;
 
   late final EndpointJwtRefresh jwtRefresh;
+
+  late final EndpointDemoAuth demoAuth;
 
   late final EndpointSos sos;
 
@@ -381,6 +399,7 @@ class Client extends _i2.ServerpodClientShared {
   Map<String, _i2.EndpointRef> get endpointRefLookup => {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
+    'demoAuth': demoAuth,
     'sos': sos,
     'greeting': greeting,
   };
