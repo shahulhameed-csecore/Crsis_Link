@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/design_system.dart';
 import 'presentation/screens/main_navigation.dart';
-import 'presentation/screens/auth/login_screen.dart';
 import 'core/error/global_error_handler.dart';
 import 'core/auth/auth_manager.dart';
 
@@ -34,9 +33,6 @@ class CrsisLinkApp extends StatelessWidget {
       title: 'Crsis Link',
       theme: AppTheme.lightTheme,
       home: MainNavigation(key: globalNavKey),
-      routes: {
-        '/main': (context) => MainNavigation(key: globalNavKey),
-      },
       builder: (context, widget) {
         return widget ?? const SizedBox();
       },

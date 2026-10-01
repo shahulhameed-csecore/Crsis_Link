@@ -12,7 +12,6 @@ import '../../core/state/alerts_manager.dart';
 import '../widgets/voice_note_recorder.dart';
 import '../widgets/capsule_button.dart';
 import '../../core/state/map_pins_manager.dart';
-import 'auth/login_screen.dart';
 
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});

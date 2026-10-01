@@ -12,13 +12,10 @@ jwtRefresh:
 audio:
   - getUploadDescription:
   - verifyUpload:
-demoAuth:
-  - demoLogin:
 sos:
   - updateLocation:
   - broadcastSos:
   - getActiveAlerts:
-  - cancelSos:
   - resolveSOS:
   - claimRescue:
   - completeRescue:

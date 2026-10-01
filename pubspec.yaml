@@ -38,8 +38,6 @@ dependencies:
   crsis_link_client:
     path: ./crsis_link_client
   serverpod_flutter: ^3.4.13
-  serverpod_auth_shared_flutter: ^3.4.13
-  serverpod_auth_email_flutter: ^3.4.13
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   geolocator: ^14.0.2
