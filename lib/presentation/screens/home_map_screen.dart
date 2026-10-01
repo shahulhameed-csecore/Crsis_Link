@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -117,7 +118,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     HapticFeedback.mediumImpact();
     
     // Attempt to re-establish connection if needed
-    if (!AuthManager.client.streamingConnectionStatus.isConnected) {
+    if (AuthManager.client.streamingConnectionStatus != StreamingConnectionStatus.connected) {
       await AuthManager.client.openStreamingConnection();
     }
     
