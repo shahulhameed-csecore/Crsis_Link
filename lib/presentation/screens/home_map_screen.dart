@@ -401,7 +401,15 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                           point: LatLng(alert.latitude, alert.longitude),
                           width: 40,
                           height: 40,
-                          child: _AnimatedSosMarker(alert: alert),
+                          child: _AnimatedSosMarker(
+                            alert: alert,
+                            onIgnore: (id) {
+                              setState(() {
+                                _ignoredSosIds.add(id);
+                                _sosPins.removeWhere((a) => a.id == id);
+                              });
+                            },
+                          ),
                         );
                       }),
                       
@@ -599,7 +607,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
 
 class _AnimatedSosMarker extends StatefulWidget {
   final SosAlert alert;
-  const _AnimatedSosMarker({required this.alert});
+  final void Function(int) onIgnore;
+  const _AnimatedSosMarker({required this.alert, required this.onIgnore});
 
   @override
   State<_AnimatedSosMarker> createState() => _AnimatedSosMarkerState();
@@ -752,10 +761,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                           text: 'IGNORE / REJECT',
                           style: CapsuleStyle.secondary,
                           onPressed: () {
-                            setState(() {
-                              _ignoredSosIds.add(alert.id!);
-                              _sosPins.removeWhere((a) => a.id == alert.id);
-                            });
+                            widget.onIgnore(alert.id!);
                             Navigator.pop(ctx);
                           },
                         ),
