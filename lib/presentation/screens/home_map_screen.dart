@@ -461,6 +461,12 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                                 _sosPins.removeWhere((a) => a.id == id);
                               });
                             },
+                            onResolve: (id) {
+                              setState(() {
+                                _sosPins.removeWhere((a) => a.id == id);
+                              });
+                              AlertsManager().resolveSosAlert(id);
+                            },
                           ),
                         );
                       }),
@@ -660,7 +666,8 @@ class HomeMapScreenState extends State<HomeMapScreen> {
 class _AnimatedSosMarker extends StatefulWidget {
   final SosAlert alert;
   final void Function(int) onIgnore;
-  const _AnimatedSosMarker({required this.alert, required this.onIgnore});
+  final void Function(int) onResolve;
+  const _AnimatedSosMarker({required this.alert, required this.onIgnore, required this.onResolve});
 
   @override
   State<_AnimatedSosMarker> createState() => _AnimatedSosMarkerState();
@@ -765,6 +772,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                           await AuthManager.client.sos.resolveSOS(alert.id!, AuthManager.deviceId);
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
+                            widget.onResolve(alert.id!);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('SOS Resolved / Cleared.')),
                             );

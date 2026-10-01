@@ -75,15 +75,22 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     ];
   }
 
+  void resolveSosAlert(int sosId) {
+    final newList = List<AlertNotification>.from(value);
+    newList.removeWhere((n) => n.sosId == sosId);
+    
+    newList.insert(0, AlertNotification(
+      sosId: sosId,
+      timestamp: DateTime.now(),
+      title: 'SOS Resolved',
+      description: 'An emergency has been resolved safely.',
+      type: AlertType.resolved,
+    ));
+    
+    value = newList;
+  }
+
   void addResolvedEvent(SosResolvedEvent event) {
-    value = [
-      AlertNotification(
-        timestamp: DateTime.now(),
-        title: 'SOS Resolved',
-        description: 'An emergency has been resolved safely.',
-        type: AlertType.resolved,
-      ),
-      ...value,
-    ];
+    resolveSosAlert(event.sosId);
   }
 }
