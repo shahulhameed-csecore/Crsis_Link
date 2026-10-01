@@ -12,45 +12,36 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 
 import 'package:serverpod_client/serverpod_client.dart' as _i1;
-import 'package:serverpod_auth_client/serverpod_auth_client.dart' as _i2;
-import 'package:crsis_link_client/src/protocol/protocol.dart' as _i3;
 
 abstract class SosAlert implements _i1.SerializableModel {
   SosAlert._({
     this.id,
-    required this.userInfoId,
-    this.userInfo,
+    required this.deviceId,
     required this.latitude,
     required this.longitude,
     required this.timestamp,
     this.message,
     required this.isActive,
     required this.status,
-    this.volunteerId,
+    this.volunteerDeviceId,
   });
 
   factory SosAlert({
     int? id,
-    required int userInfoId,
-    _i2.UserInfo? userInfo,
+    required String deviceId,
     required double latitude,
     required double longitude,
     required DateTime timestamp,
     String? message,
     required bool isActive,
     required String status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
     return SosAlert(
       id: jsonSerialization['id'] as int?,
-      userInfoId: jsonSerialization['userInfoId'] as int,
-      userInfo: jsonSerialization['userInfo'] == null
-          ? null
-          : _i3.Protocol().deserialize<_i2.UserInfo>(
-              jsonSerialization['userInfo'],
-            ),
+      deviceId: jsonSerialization['deviceId'] as String,
       latitude: (jsonSerialization['latitude'] as num).toDouble(),
       longitude: (jsonSerialization['longitude'] as num).toDouble(),
       timestamp: _i1.DateTimeJsonExtension.fromJson(
@@ -59,7 +50,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       message: jsonSerialization['message'] as String?,
       isActive: _i1.BoolJsonExtension.fromJson(jsonSerialization['isActive']),
       status: jsonSerialization['status'] as String,
-      volunteerId: jsonSerialization['volunteerId'] as int?,
+      volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
     );
   }
 
@@ -68,9 +59,7 @@ abstract class SosAlert implements _i1.SerializableModel {
   /// the id will be null.
   int? id;
 
-  int userInfoId;
-
-  _i2.UserInfo? userInfo;
+  String deviceId;
 
   double latitude;
 
@@ -84,37 +73,35 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String status;
 
-  int? volunteerId;
+  String? volunteerDeviceId;
 
   /// Returns a shallow copy of this [SosAlert]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
   SosAlert copyWith({
     int? id,
-    int? userInfoId,
-    _i2.UserInfo? userInfo,
+    String? deviceId,
     double? latitude,
     double? longitude,
     DateTime? timestamp,
     String? message,
     bool? isActive,
     String? status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   });
   @override
   Map<String, dynamic> toJson() {
     return {
       '__className__': 'SosAlert',
       if (id != null) 'id': id,
-      'userInfoId': userInfoId,
-      if (userInfo != null) 'userInfo': userInfo?.toJson(),
+      'deviceId': deviceId,
       'latitude': latitude,
       'longitude': longitude,
       'timestamp': timestamp.toJson(),
       if (message != null) 'message': message,
       'isActive': isActive,
       'status': status,
-      if (volunteerId != null) 'volunteerId': volunteerId,
+      if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
     };
   }
 
@@ -129,26 +116,24 @@ class _Undefined {}
 class _SosAlertImpl extends SosAlert {
   _SosAlertImpl({
     int? id,
-    required int userInfoId,
-    _i2.UserInfo? userInfo,
+    required String deviceId,
     required double latitude,
     required double longitude,
     required DateTime timestamp,
     String? message,
     required bool isActive,
     required String status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   }) : super._(
          id: id,
-         userInfoId: userInfoId,
-         userInfo: userInfo,
+         deviceId: deviceId,
          latitude: latitude,
          longitude: longitude,
          timestamp: timestamp,
          message: message,
          isActive: isActive,
          status: status,
-         volunteerId: volunteerId,
+         volunteerDeviceId: volunteerDeviceId,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -157,29 +142,27 @@ class _SosAlertImpl extends SosAlert {
   @override
   SosAlert copyWith({
     Object? id = _Undefined,
-    int? userInfoId,
-    Object? userInfo = _Undefined,
+    String? deviceId,
     double? latitude,
     double? longitude,
     DateTime? timestamp,
     Object? message = _Undefined,
     bool? isActive,
     String? status,
-    Object? volunteerId = _Undefined,
+    Object? volunteerDeviceId = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
-      userInfoId: userInfoId ?? this.userInfoId,
-      userInfo: userInfo is _i2.UserInfo?
-          ? userInfo
-          : this.userInfo?.copyWith(),
+      deviceId: deviceId ?? this.deviceId,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       timestamp: timestamp ?? this.timestamp,
       message: message is String? ? message : this.message,
       isActive: isActive ?? this.isActive,
       status: status ?? this.status,
-      volunteerId: volunteerId is int? ? volunteerId : this.volunteerId,
+      volunteerDeviceId: volunteerDeviceId is String?
+          ? volunteerDeviceId
+          : this.volunteerDeviceId,
     );
   }
 }

@@ -1,11 +1,11 @@
 import 'package:crsis_link_client/crsis_link_client.dart';
-import 'package:serverpod_flutter/serverpod_flutter.dart';
-import 'package:serverpod_auth_shared_flutter/serverpod_auth_shared_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class AuthManager {
   static late Client client;
-  static late SessionManager sessionManager;
+  static late String deviceId;
 
   static Future<void> initialize() async {
     // Toggle this to true when building for production (Render)
@@ -20,16 +20,19 @@ class AuthManager {
       serverUrl = 'http://localhost:8080/';
     }
 
-    client = Client(
-      serverUrl,
-      authenticationKeyManager: FlutterAuthenticationKeyManager(),
-    )..connectivityMonitor = FlutterConnectivityMonitor();
+    client = Client(serverUrl);
 
-    // The session manager keeps track of the signed-in state of the user.
-    sessionManager = SessionManager(
-      caller: client.modules.auth,
-    );
-
-    await sessionManager.initialize();
+    // Initialize Device Identity
+    final prefs = await SharedPreferences.getInstance();
+    String? storedId = prefs.getString('device_id');
+    if (storedId == null) {
+      storedId = 'dev_${const Uuid().v4()}';
+      await prefs.setString('device_id', storedId);
+    }
+    deviceId = storedId;
+    
+    // Open streaming connection for WebSocket
+    client.openStreamingConnection();
   }
 }
+

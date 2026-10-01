@@ -8,50 +8,41 @@
 // ignore_for_file: type_literal_in_constant_pattern
 // ignore_for_file: use_super_parameters
 // ignore_for_file: invalid_use_of_internal_member
+
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-// ignore_for_file: unnecessary_null_comparison
 
 import 'package:serverpod/serverpod.dart' as _i1;
-import 'package:serverpod_auth_server/serverpod_auth_server.dart' as _i2;
-import 'package:crsis_link_server/src/generated/protocol.dart' as _i3;
 
 abstract class SosAlert
     implements _i1.TableRow<int?>, _i1.ProtocolSerialization {
   SosAlert._({
     this.id,
-    required this.userInfoId,
-    this.userInfo,
+    required this.deviceId,
     required this.latitude,
     required this.longitude,
     required this.timestamp,
     this.message,
     required this.isActive,
     required this.status,
-    this.volunteerId,
+    this.volunteerDeviceId,
   });
 
   factory SosAlert({
     int? id,
-    required int userInfoId,
-    _i2.UserInfo? userInfo,
+    required String deviceId,
     required double latitude,
     required double longitude,
     required DateTime timestamp,
     String? message,
     required bool isActive,
     required String status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
     return SosAlert(
       id: jsonSerialization['id'] as int?,
-      userInfoId: jsonSerialization['userInfoId'] as int,
-      userInfo: jsonSerialization['userInfo'] == null
-          ? null
-          : _i3.Protocol().deserialize<_i2.UserInfo>(
-              jsonSerialization['userInfo'],
-            ),
+      deviceId: jsonSerialization['deviceId'] as String,
       latitude: (jsonSerialization['latitude'] as num).toDouble(),
       longitude: (jsonSerialization['longitude'] as num).toDouble(),
       timestamp: _i1.DateTimeJsonExtension.fromJson(
@@ -60,7 +51,7 @@ abstract class SosAlert
       message: jsonSerialization['message'] as String?,
       isActive: _i1.BoolJsonExtension.fromJson(jsonSerialization['isActive']),
       status: jsonSerialization['status'] as String,
-      volunteerId: jsonSerialization['volunteerId'] as int?,
+      volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
     );
   }
 
@@ -71,9 +62,7 @@ abstract class SosAlert
   @override
   int? id;
 
-  int userInfoId;
-
-  _i2.UserInfo? userInfo;
+  String deviceId;
 
   double latitude;
 
@@ -87,7 +76,7 @@ abstract class SosAlert
 
   String status;
 
-  int? volunteerId;
+  String? volunteerDeviceId;
 
   @override
   _i1.Table<int?> get table => t;
@@ -97,30 +86,28 @@ abstract class SosAlert
   @_i1.useResult
   SosAlert copyWith({
     int? id,
-    int? userInfoId,
-    _i2.UserInfo? userInfo,
+    String? deviceId,
     double? latitude,
     double? longitude,
     DateTime? timestamp,
     String? message,
     bool? isActive,
     String? status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   });
   @override
   Map<String, dynamic> toJson() {
     return {
       '__className__': 'SosAlert',
       if (id != null) 'id': id,
-      'userInfoId': userInfoId,
-      if (userInfo != null) 'userInfo': userInfo?.toJson(),
+      'deviceId': deviceId,
       'latitude': latitude,
       'longitude': longitude,
       'timestamp': timestamp.toJson(),
       if (message != null) 'message': message,
       'isActive': isActive,
       'status': status,
-      if (volunteerId != null) 'volunteerId': volunteerId,
+      if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
     };
   }
 
@@ -129,20 +116,19 @@ abstract class SosAlert
     return {
       '__className__': 'SosAlert',
       if (id != null) 'id': id,
-      'userInfoId': userInfoId,
-      if (userInfo != null) 'userInfo': userInfo?.toJsonForProtocol(),
+      'deviceId': deviceId,
       'latitude': latitude,
       'longitude': longitude,
       'timestamp': timestamp.toJson(),
       if (message != null) 'message': message,
       'isActive': isActive,
       'status': status,
-      if (volunteerId != null) 'volunteerId': volunteerId,
+      if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
     };
   }
 
-  static SosAlertInclude include({_i2.UserInfoInclude? userInfo}) {
-    return SosAlertInclude._(userInfo: userInfo);
+  static SosAlertInclude include() {
+    return SosAlertInclude._();
   }
 
   static SosAlertIncludeList includeList({
@@ -176,26 +162,24 @@ class _Undefined {}
 class _SosAlertImpl extends SosAlert {
   _SosAlertImpl({
     int? id,
-    required int userInfoId,
-    _i2.UserInfo? userInfo,
+    required String deviceId,
     required double latitude,
     required double longitude,
     required DateTime timestamp,
     String? message,
     required bool isActive,
     required String status,
-    int? volunteerId,
+    String? volunteerDeviceId,
   }) : super._(
          id: id,
-         userInfoId: userInfoId,
-         userInfo: userInfo,
+         deviceId: deviceId,
          latitude: latitude,
          longitude: longitude,
          timestamp: timestamp,
          message: message,
          isActive: isActive,
          status: status,
-         volunteerId: volunteerId,
+         volunteerDeviceId: volunteerDeviceId,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -204,29 +188,27 @@ class _SosAlertImpl extends SosAlert {
   @override
   SosAlert copyWith({
     Object? id = _Undefined,
-    int? userInfoId,
-    Object? userInfo = _Undefined,
+    String? deviceId,
     double? latitude,
     double? longitude,
     DateTime? timestamp,
     Object? message = _Undefined,
     bool? isActive,
     String? status,
-    Object? volunteerId = _Undefined,
+    Object? volunteerDeviceId = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
-      userInfoId: userInfoId ?? this.userInfoId,
-      userInfo: userInfo is _i2.UserInfo?
-          ? userInfo
-          : this.userInfo?.copyWith(),
+      deviceId: deviceId ?? this.deviceId,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       timestamp: timestamp ?? this.timestamp,
       message: message is String? ? message : this.message,
       isActive: isActive ?? this.isActive,
       status: status ?? this.status,
-      volunteerId: volunteerId is int? ? volunteerId : this.volunteerId,
+      volunteerDeviceId: volunteerDeviceId is String?
+          ? volunteerDeviceId
+          : this.volunteerDeviceId,
     );
   }
 }
@@ -234,8 +216,8 @@ class _SosAlertImpl extends SosAlert {
 class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
   SosAlertUpdateTable(super.table);
 
-  _i1.ColumnValue<int, int> userInfoId(int value) => _i1.ColumnValue(
-    table.userInfoId,
+  _i1.ColumnValue<String, String> deviceId(String value) => _i1.ColumnValue(
+    table.deviceId,
     value,
   );
 
@@ -270,17 +252,18 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
     value,
   );
 
-  _i1.ColumnValue<int, int> volunteerId(int? value) => _i1.ColumnValue(
-    table.volunteerId,
-    value,
-  );
+  _i1.ColumnValue<String, String> volunteerDeviceId(String? value) =>
+      _i1.ColumnValue(
+        table.volunteerDeviceId,
+        value,
+      );
 }
 
 class SosAlertTable extends _i1.Table<int?> {
   SosAlertTable({super.tableRelation}) : super(tableName: 'sos_alert') {
     updateTable = SosAlertUpdateTable(this);
-    userInfoId = _i1.ColumnInt(
-      'userInfoId',
+    deviceId = _i1.ColumnString(
+      'deviceId',
       this,
     );
     latitude = _i1.ColumnDouble(
@@ -307,17 +290,15 @@ class SosAlertTable extends _i1.Table<int?> {
       'status',
       this,
     );
-    volunteerId = _i1.ColumnInt(
-      'volunteerId',
+    volunteerDeviceId = _i1.ColumnString(
+      'volunteerDeviceId',
       this,
     );
   }
 
   late final SosAlertUpdateTable updateTable;
 
-  late final _i1.ColumnInt userInfoId;
-
-  _i2.UserInfoTable? _userInfo;
+  late final _i1.ColumnString deviceId;
 
   late final _i1.ColumnDouble latitude;
 
@@ -331,52 +312,27 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString status;
 
-  late final _i1.ColumnInt volunteerId;
-
-  _i2.UserInfoTable get userInfo {
-    if (_userInfo != null) return _userInfo!;
-    _userInfo = _i1.createRelationTable(
-      relationFieldName: 'userInfo',
-      field: SosAlert.t.userInfoId,
-      foreignField: _i2.UserInfo.t.id,
-      tableRelation: tableRelation,
-      createTable: (foreignTableRelation) =>
-          _i2.UserInfoTable(tableRelation: foreignTableRelation),
-    );
-    return _userInfo!;
-  }
+  late final _i1.ColumnString volunteerDeviceId;
 
   @override
   List<_i1.Column> get columns => [
     id,
-    userInfoId,
+    deviceId,
     latitude,
     longitude,
     timestamp,
     message,
     isActive,
     status,
-    volunteerId,
+    volunteerDeviceId,
   ];
-
-  @override
-  _i1.Table? getRelationTable(String relationField) {
-    if (relationField == 'userInfo') {
-      return userInfo;
-    }
-    return null;
-  }
 }
 
 class SosAlertInclude extends _i1.IncludeObject {
-  SosAlertInclude._({_i2.UserInfoInclude? userInfo}) {
-    _userInfo = userInfo;
-  }
-
-  _i2.UserInfoInclude? _userInfo;
+  SosAlertInclude._();
 
   @override
-  Map<String, _i1.Include?> get includes => {'userInfo': _userInfo};
+  Map<String, _i1.Include?> get includes => {};
 
   @override
   _i1.Table<int?> get table => SosAlert.t;
@@ -404,8 +360,6 @@ class SosAlertIncludeList extends _i1.IncludeList {
 
 class SosAlertRepository {
   const SosAlertRepository._();
-
-  final attachRow = const SosAlertAttachRowRepository._();
 
   /// Returns a list of [SosAlert]s matching the given query parameters.
   ///
@@ -438,7 +392,6 @@ class SosAlertRepository {
     bool orderDescending = false,
     _i1.OrderByListBuilder<SosAlertTable>? orderByList,
     _i1.Transaction? transaction,
-    SosAlertInclude? include,
     _i1.LockMode? lockMode,
     _i1.LockBehavior? lockBehavior,
   }) async {
@@ -450,7 +403,6 @@ class SosAlertRepository {
       limit: limit,
       offset: offset,
       transaction: transaction,
-      include: include,
       lockMode: lockMode,
       lockBehavior: lockBehavior,
     );
@@ -481,7 +433,6 @@ class SosAlertRepository {
     bool orderDescending = false,
     _i1.OrderByListBuilder<SosAlertTable>? orderByList,
     _i1.Transaction? transaction,
-    SosAlertInclude? include,
     _i1.LockMode? lockMode,
     _i1.LockBehavior? lockBehavior,
   }) async {
@@ -492,7 +443,6 @@ class SosAlertRepository {
       orderDescending: orderDescending,
       offset: offset,
       transaction: transaction,
-      include: include,
       lockMode: lockMode,
       lockBehavior: lockBehavior,
     );
@@ -503,14 +453,12 @@ class SosAlertRepository {
     _i1.DatabaseSession session,
     int id, {
     _i1.Transaction? transaction,
-    SosAlertInclude? include,
     _i1.LockMode? lockMode,
     _i1.LockBehavior? lockBehavior,
   }) async {
     return session.db.findById<SosAlert>(
       id,
       transaction: transaction,
-      include: include,
       lockMode: lockMode,
       lockBehavior: lockBehavior,
     );
@@ -692,33 +640,6 @@ class SosAlertRepository {
       where: where(SosAlert.t),
       lockMode: lockMode,
       lockBehavior: lockBehavior,
-      transaction: transaction,
-    );
-  }
-}
-
-class SosAlertAttachRowRepository {
-  const SosAlertAttachRowRepository._();
-
-  /// Creates a relation between the given [SosAlert] and [UserInfo]
-  /// by setting the [SosAlert]'s foreign key `userInfoId` to refer to the [UserInfo].
-  Future<void> userInfo(
-    _i1.DatabaseSession session,
-    SosAlert sosAlert,
-    _i2.UserInfo userInfo, {
-    _i1.Transaction? transaction,
-  }) async {
-    if (sosAlert.id == null) {
-      throw ArgumentError.notNull('sosAlert.id');
-    }
-    if (userInfo.id == null) {
-      throw ArgumentError.notNull('userInfo.id');
-    }
-
-    var $sosAlert = sosAlert.copyWith(userInfoId: userInfo.id);
-    await session.db.updateRow<SosAlert>(
-      $sosAlert,
-      columns: [SosAlert.t.userInfoId],
       transaction: transaction,
     );
   }

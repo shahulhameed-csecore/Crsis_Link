@@ -259,7 +259,6 @@ class EndpointDemoAuth extends _i2.EndpointRef {
 }
 
 /// Endpoint for handling SOS Alerts.
-/// Only authenticated users can access these methods.
 /// {@category Endpoint}
 class EndpointSos extends _i2.EndpointRef {
   EndpointSos(_i2.EndpointCaller caller) : super(caller);
@@ -267,21 +266,24 @@ class EndpointSos extends _i2.EndpointRef {
   @override
   String get name => 'sos';
 
-  /// Updates the user's last known location for targeted spatial broadcasting
+  /// Updates the device's last known location for targeted spatial broadcasting
   _i3.Future<void> updateLocation(
+    String deviceId,
     double latitude,
     double longitude,
   ) => caller.callServerEndpoint<void>(
     'sos',
     'updateLocation',
     {
+      'deviceId': deviceId,
       'latitude': latitude,
       'longitude': longitude,
     },
   );
 
-  /// Creates or updates an active SOS alert for the currently logged in user.
+  /// Creates or updates an active SOS alert for the given device.
   _i3.Future<_i6.SosAlert> broadcastSos(
+    String deviceId,
     double latitude,
     double longitude,
     String? message,
@@ -289,6 +291,7 @@ class EndpointSos extends _i2.EndpointRef {
     'sos',
     'broadcastSos',
     {
+      'deviceId': deviceId,
       'latitude': latitude,
       'longitude': longitude,
       'message': message,
@@ -303,28 +306,39 @@ class EndpointSos extends _i2.EndpointRef {
         {},
       );
 
-  /// Cancels the active SOS alert for the logged in user.
-  _i3.Future<bool> cancelSos() => caller.callServerEndpoint<bool>(
-    'sos',
-    'cancelSos',
-    {},
-  );
+  /// Cancels the active SOS alert for the device.
+  _i3.Future<bool> cancelSos(String deviceId) =>
+      caller.callServerEndpoint<bool>(
+        'sos',
+        'cancelSos',
+        {'deviceId': deviceId},
+      );
 
   /// Claims an active SOS alert
-  _i3.Future<_i6.SosAlert> claimRescue(int sosId) =>
-      caller.callServerEndpoint<_i6.SosAlert>(
-        'sos',
-        'claimRescue',
-        {'sosId': sosId},
-      );
+  _i3.Future<_i6.SosAlert> claimRescue(
+    String volunteerDeviceId,
+    int sosId,
+  ) => caller.callServerEndpoint<_i6.SosAlert>(
+    'sos',
+    'claimRescue',
+    {
+      'volunteerDeviceId': volunteerDeviceId,
+      'sosId': sosId,
+    },
+  );
 
   /// Completes an active SOS alert (called when rescuer is safe)
-  _i3.Future<_i6.SosAlert> completeRescue(int sosId) =>
-      caller.callServerEndpoint<_i6.SosAlert>(
-        'sos',
-        'completeRescue',
-        {'sosId': sosId},
-      );
+  _i3.Future<_i6.SosAlert> completeRescue(
+    String volunteerDeviceId,
+    int sosId,
+  ) => caller.callServerEndpoint<_i6.SosAlert>(
+    'sos',
+    'completeRescue',
+    {
+      'volunteerDeviceId': volunteerDeviceId,
+      'sosId': sosId,
+    },
+  );
 }
 
 /// This is an example endpoint that returns a greeting message through

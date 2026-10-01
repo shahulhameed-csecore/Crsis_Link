@@ -20,7 +20,7 @@ class CrsisLinkApp extends StatelessWidget {
     return MaterialApp(
       title: 'Crsis Link',
       theme: AppTheme.lightTheme,
-      home: AuthManager.sessionManager.isSignedIn ? const MainNavigation() : const LoginScreen(),
+      home: const MainNavigation(),
       routes: {
         '/main': (context) => const MainNavigation(),
       },

@@ -545,6 +545,7 @@ class _SosEndpoint {
 
   _i3.Future<void> updateLocation(
     _i1.TestSessionBuilder sessionBuilder,
+    String deviceId,
     double latitude,
     double longitude,
   ) async {
@@ -560,6 +561,7 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'updateLocation',
           parameters: _i1.testObjectToJson({
+            'deviceId': deviceId,
             'latitude': latitude,
             'longitude': longitude,
           }),
@@ -580,6 +582,7 @@ class _SosEndpoint {
 
   _i3.Future<_i6.SosAlert> broadcastSos(
     _i1.TestSessionBuilder sessionBuilder,
+    String deviceId,
     double latitude,
     double longitude,
     String? message,
@@ -596,6 +599,7 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'broadcastSos',
           parameters: _i1.testObjectToJson({
+            'deviceId': deviceId,
             'latitude': latitude,
             'longitude': longitude,
             'message': message,
@@ -645,7 +649,10 @@ class _SosEndpoint {
     });
   }
 
-  _i3.Future<bool> cancelSos(_i1.TestSessionBuilder sessionBuilder) async {
+  _i3.Future<bool> cancelSos(
+    _i1.TestSessionBuilder sessionBuilder,
+    String deviceId,
+  ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
           (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
@@ -657,7 +664,7 @@ class _SosEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'sos',
           methodName: 'cancelSos',
-          parameters: _i1.testObjectToJson({}),
+          parameters: _i1.testObjectToJson({'deviceId': deviceId}),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =
@@ -675,6 +682,7 @@ class _SosEndpoint {
 
   _i3.Future<_i6.SosAlert> claimRescue(
     _i1.TestSessionBuilder sessionBuilder,
+    String volunteerDeviceId,
     int sosId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -688,7 +696,10 @@ class _SosEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'sos',
           methodName: 'claimRescue',
-          parameters: _i1.testObjectToJson({'sosId': sosId}),
+          parameters: _i1.testObjectToJson({
+            'volunteerDeviceId': volunteerDeviceId,
+            'sosId': sosId,
+          }),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =
@@ -706,6 +717,7 @@ class _SosEndpoint {
 
   _i3.Future<_i6.SosAlert> completeRescue(
     _i1.TestSessionBuilder sessionBuilder,
+    String volunteerDeviceId,
     int sosId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -719,7 +731,10 @@ class _SosEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'sos',
           methodName: 'completeRescue',
-          parameters: _i1.testObjectToJson({'sosId': sosId}),
+          parameters: _i1.testObjectToJson({
+            'volunteerDeviceId': volunteerDeviceId,
+            'sosId': sosId,
+          }),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =

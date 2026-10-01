@@ -21,15 +21,8 @@ class SafetyCheckFutureCall extends FutureCall<SosAlert> {
     });
 
     if (alert != null) {
-      final populatedAlert = await SosAlert.db.findById(
-        session,
-        alert.id!,
-        include: SosAlert.include(userInfo: UserInfo.include()),
-      );
-      if (populatedAlert != null) {
-        session.log('SOS $sosId has been ESCALATED due to no safety check-in.', level: LogLevel.warning);
-        session.messages.postMessage('sos_alerts', populatedAlert);
-      }
+      session.log('SOS $sosId has been ESCALATED due to no safety check-in.', level: LogLevel.warning);
+      session.messages.postMessage('sos_broadcasts', alert);
     }
   }
 }

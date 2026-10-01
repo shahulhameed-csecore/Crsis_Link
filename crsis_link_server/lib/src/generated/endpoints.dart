@@ -285,6 +285,11 @@ class Endpoints extends _i1.EndpointDispatch {
         'updateLocation': _i1.MethodConnector(
           name: 'updateLocation',
           params: {
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'latitude': _i1.ParameterDescription(
               name: 'latitude',
               type: _i1.getType<double>(),
@@ -302,6 +307,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).updateLocation(
                 session,
+                params['deviceId'],
                 params['latitude'],
                 params['longitude'],
               ),
@@ -309,6 +315,11 @@ class Endpoints extends _i1.EndpointDispatch {
         'broadcastSos': _i1.MethodConnector(
           name: 'broadcastSos',
           params: {
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'latitude': _i1.ParameterDescription(
               name: 'latitude',
               type: _i1.getType<double>(),
@@ -331,6 +342,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).broadcastSos(
                 session,
+                params['deviceId'],
                 params['latitude'],
                 params['longitude'],
                 params['message'],
@@ -349,17 +361,30 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
         'cancelSos': _i1.MethodConnector(
           name: 'cancelSos',
-          params: {},
+          params: {
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
           call:
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async =>
-                  (endpoints['sos'] as _i5.SosEndpoint).cancelSos(session),
+              ) async => (endpoints['sos'] as _i5.SosEndpoint).cancelSos(
+                session,
+                params['deviceId'],
+              ),
         ),
         'claimRescue': _i1.MethodConnector(
           name: 'claimRescue',
           params: {
+            'volunteerDeviceId': _i1.ParameterDescription(
+              name: 'volunteerDeviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'sosId': _i1.ParameterDescription(
               name: 'sosId',
               type: _i1.getType<int>(),
@@ -372,12 +397,18 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).claimRescue(
                 session,
+                params['volunteerDeviceId'],
                 params['sosId'],
               ),
         ),
         'completeRescue': _i1.MethodConnector(
           name: 'completeRescue',
           params: {
+            'volunteerDeviceId': _i1.ParameterDescription(
+              name: 'volunteerDeviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'sosId': _i1.ParameterDescription(
               name: 'sosId',
               type: _i1.getType<int>(),
@@ -390,6 +421,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).completeRescue(
                 session,
+                params['volunteerDeviceId'],
                 params['sosId'],
               ),
         ),

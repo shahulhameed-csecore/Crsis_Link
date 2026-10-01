@@ -112,7 +112,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         
         // Push the location to the server for spatial broadcasting
         try {
-          AuthManager.client.sos.updateLocation(position!.latitude, position.longitude);
+          AuthManager.client.sos.updateLocation(AuthManager.deviceId, position!.latitude, position.longitude);
         } catch (e) {
           debugPrint('Failed to update location on server: $e');
         }
@@ -120,8 +120,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          // Fallback to New Delhi so we don't show an endless brown ocean (Null Island)
-          _currentLocation = const LatLng(28.6139, 77.2090); 
+          // Explicitly block map rendering instead of falling back to a hardcoded location
+          _currentLocation = null;
           _errorMsg = e.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -225,6 +225,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                               setModalState(() => isSubmitting = true);
                               try {
                                 final newAlert = await AuthManager.client.sos.broadcastSos(
+                                  AuthManager.deviceId,
                                   position.latitude,
                                   position.longitude,
                                   messageController.text.trim(),

@@ -1,40 +1,45 @@
 import 'dart:math';
 import 'package:serverpod/serverpod.dart';
-import 'package:serverpod_auth_server/serverpod_auth_server.dart';
 import '../generated/protocol.dart';
 
 /// Endpoint for handling SOS Alerts.
-/// Only authenticated users can access these methods.
 class SosEndpoint extends Endpoint {
-  @override
-  bool get requireLogin => true;
 
-  // In-memory location tracker for active WebSocket sessions
-  static final Map<int, Map<String, double>> _userLocations = {};
+  // In-memory location tracker for active devices
+  static final Map<String, Map<String, double>> _deviceLocations = {};
+  
+  // Track which deviceId corresponds to which StreamingSession to clean up on disconnect.
+  static final Map<String, String> _sessionToDevice = {};
 
   @override
   Future<void> streamOpened(StreamingSession session) async {
-    if (session.authenticated != null) {
-      final userId = session.authenticated!.userId;
-      // Listen ONLY to this user's targeted SOS channel
-      session.messages.addListener('sos_user_$userId', (message) {
-        sendStreamMessage(session, message);
-      });
-      // Also listen to global cancellations or completions if needed, but let's keep it simple
-    }
+    // We cannot get deviceId here without a message, but we can listen to general messages.
+    // However, we will register listeners dynamically when they call updateLocation or via a setup message.
+    session.messages.addListener('sos_broadcasts', (message) {
+      sendStreamMessage(session, message);
+    });
   }
 
   @override
   Future<void> streamClosed(StreamingSession session) async {
-    if (session.authenticated != null) {
-      _userLocations.remove(session.authenticated!.userId);
+    final deviceId = _sessionToDevice[session.sessionLogId.toString()];
+    if (deviceId != null) {
+      _deviceLocations.remove(deviceId);
+      _sessionToDevice.remove(session.sessionLogId.toString());
     }
   }
 
-  /// Updates the user's last known location for targeted spatial broadcasting
-  Future<void> updateLocation(Session session, double latitude, double longitude) async {
-    if (session.authenticated == null) return;
-    _userLocations[session.authenticated!.userId] = {'lat': latitude, 'lng': longitude};
+  /// Updates the device's last known location for targeted spatial broadcasting
+  Future<void> updateLocation(Session session, String deviceId, double latitude, double longitude) async {
+    _deviceLocations[deviceId] = {'lat': latitude, 'lng': longitude};
+    if (session is StreamingSession) {
+       _sessionToDevice[session.sessionLogId.toString()] = deviceId;
+       
+       // Subscribe this session to targeted messages for this device
+       session.messages.addListener('sos_device_$deviceId', (message) {
+          sendStreamMessage(session, message);
+       });
+    }
   }
 
   // Haversine distance formula (returns meters)
@@ -51,17 +56,13 @@ class SosEndpoint extends Endpoint {
     return R * c;
   }
 
-  /// Creates or updates an active SOS alert for the currently logged in user.
-  Future<SosAlert> broadcastSos(Session session, double latitude, double longitude, String? message) async {
-    if (session.authenticated == null) {
-      throw Exception('Unauthorized access.');
-    }
-    final userId = session.authenticated!.userId;
-    session.log('User $userId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
+  /// Creates or updates an active SOS alert for the given device.
+  Future<SosAlert> broadcastSos(Session session, String deviceId, double latitude, double longitude, String? message) async {
+    session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     final existingAlerts = await SosAlert.db.find(
       session,
-      where: (t) => t.userInfoId.equals(userId) & t.isActive.equals(true),
+      where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
     );
     for (var alert in existingAlerts) {
       alert.isActive = false;
@@ -69,7 +70,7 @@ class SosEndpoint extends Endpoint {
     }
 
     final newAlert = SosAlert(
-      userInfoId: userId,
+      deviceId: deviceId,
       latitude: latitude,
       longitude: longitude,
       timestamp: DateTime.now().toUtc(),
@@ -80,24 +81,16 @@ class SosEndpoint extends Endpoint {
 
     final savedAlert = await SosAlert.db.insertRow(session, newAlert);
     
-    final populatedAlert = await SosAlert.db.findById(
-      session,
-      savedAlert.id!,
-      include: SosAlert.include(userInfo: UserInfo.include()),
-    );
-    
-    if (populatedAlert != null) {
-      // Spatial Filter: Broadcast ONLY to users within 5000 meters
-      for (final entry in _userLocations.entries) {
-        final targetUserId = entry.key;
-        final targetLat = entry.value['lat']!;
-        final targetLng = entry.value['lng']!;
-        
-        final distance = _calculateDistance(latitude, longitude, targetLat, targetLng);
-        
-        if (distance <= 5000) { // 5km radius
-          session.messages.postMessage('sos_user_$targetUserId', populatedAlert);
-        }
+    // Spatial Filter: Broadcast ONLY to devices within 5000 meters
+    for (final entry in _deviceLocations.entries) {
+      final targetDeviceId = entry.key;
+      final targetLat = entry.value['lat']!;
+      final targetLng = entry.value['lng']!;
+      
+      final distance = _calculateDistance(latitude, longitude, targetLat, targetLng);
+      
+      if (distance <= 5000) { // 5km radius
+        session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
       }
     }
     
@@ -106,29 +99,20 @@ class SosEndpoint extends Endpoint {
 
   /// Retrieves all currently active SOS alerts.
   Future<List<SosAlert>> getActiveAlerts(Session session) async {
-    // Implicitly protected by requireLogin = true
-
     final alerts = await SosAlert.db.find(
       session,
       where: (t) => t.isActive.equals(true),
-      include: SosAlert.include(
-        userInfo: UserInfo.include(),
-      ),
     );
-
     return alerts;
   }
 
-  /// Cancels the active SOS alert for the logged in user.
-  Future<bool> cancelSos(Session session) async {
-    if (session.authenticated == null) return false;
-    
-    final userId = session.authenticated!.userId;
-    session.log('User $userId is cancelling their SOS alert.', level: LogLevel.info);
+  /// Cancels the active SOS alert for the device.
+  Future<bool> cancelSos(Session session, String deviceId) async {
+    session.log('Device $deviceId is cancelling their SOS alert.', level: LogLevel.info);
 
     final existingAlerts = await SosAlert.db.find(
       session,
-      where: (t) => t.userInfoId.equals(userId) & t.isActive.equals(true),
+      where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
     );
     
     bool canceledAny = false;
@@ -136,27 +120,15 @@ class SosEndpoint extends Endpoint {
       alert.isActive = false;
       await SosAlert.db.updateRow(session, alert);
       
-      final populatedAlert = await SosAlert.db.findById(
-        session,
-        alert.id!,
-        include: SosAlert.include(userInfo: UserInfo.include()),
-      );
-      if (populatedAlert != null) {
-        session.messages.postMessage('sos_alerts', populatedAlert);
-      }
-      
+      // Notify nearby devices about cancellation if needed.
+      session.messages.postMessage('sos_broadcasts', alert);
       canceledAny = true;
     }
     return canceledAny;
   }
 
   /// Claims an active SOS alert
-  Future<SosAlert> claimRescue(Session session, int sosId) async {
-    if (session.authenticated == null) {
-      throw Exception('Unauthorized access.');
-    }
-    final userId = session.authenticated!.userId;
-
+  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, int sosId) async {
     // Run inside a transaction to prevent race conditions
     final alert = await session.db.transaction((transaction) async {
       final targetAlert = await SosAlert.db.findById(session, sosId, transaction: transaction);
@@ -168,41 +140,21 @@ class SosEndpoint extends Endpoint {
       }
 
       targetAlert.status = 'CLAIMED';
-      targetAlert.volunteerId = userId;
+      targetAlert.volunteerDeviceId = volunteerDeviceId;
       return await SosAlert.db.updateRow(session, targetAlert, transaction: transaction);
     });
 
-    final populatedAlert = await SosAlert.db.findById(
-      session,
-      alert.id!,
-      include: SosAlert.include(userInfo: UserInfo.include()),
-    );
-    
-    if (populatedAlert != null) {
-      session.messages.postMessage('sos_alerts', populatedAlert);
-      
-      // Schedule safety check for 30 seconds (development mode)
-      await session.serverpod.futureCallWithDelay(
-        'safetyCheck',
-        populatedAlert,
-        const Duration(seconds: 30),
-      );
-    }
-    return populatedAlert!;
+    session.messages.postMessage('sos_broadcasts', alert);
+    return alert;
   }
 
   /// Completes an active SOS alert (called when rescuer is safe)
-  Future<SosAlert> completeRescue(Session session, int sosId) async {
-    if (session.authenticated == null) {
-      throw Exception('Unauthorized access.');
-    }
-    final userId = session.authenticated!.userId;
-
+  Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, int sosId) async {
     final targetAlert = await SosAlert.db.findById(session, sosId);
     if (targetAlert == null) {
       throw Exception('SOS alert not found.');
     }
-    if (targetAlert.volunteerId != userId) {
+    if (targetAlert.volunteerDeviceId != volunteerDeviceId) {
       throw Exception('Only the assigned volunteer can complete this rescue.');
     }
 
@@ -210,15 +162,8 @@ class SosEndpoint extends Endpoint {
     targetAlert.isActive = false;
     await SosAlert.db.updateRow(session, targetAlert);
 
-    final populatedAlert = await SosAlert.db.findById(
-      session,
-      targetAlert.id!,
-      include: SosAlert.include(userInfo: UserInfo.include()),
-    );
-    
-    if (populatedAlert != null) {
-      session.messages.postMessage('sos_alerts', populatedAlert);
-    }
-    return populatedAlert!;
+    session.messages.postMessage('sos_broadcasts', targetAlert);
+    return targetAlert;
   }
 }
+
