@@ -137,7 +137,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Claims an active SOS alert
-  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, int sosId) async {
+  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, int sosId) async {
     // Run inside a transaction to prevent race conditions
     final alert = await session.db.transaction((transaction) async {
       final targetAlert = await SosAlert.db.findById(session, sosId, transaction: transaction);
@@ -154,6 +154,13 @@ class SosEndpoint extends Endpoint {
     });
 
     session.messages.postMessage('sos_broadcasts', alert);
+    
+    // Notify the victim specifically
+    session.messages.postMessage(
+      'sos_device_${alert.deviceId}', 
+      RescueAcceptedEvent(victimDeviceId: alert.deviceId, volunteerName: volunteerName)
+    );
+    
     return alert;
   }
 

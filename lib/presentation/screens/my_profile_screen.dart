@@ -3,14 +3,19 @@ import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../screens/auth/login_screen.dart';
 
-class MyProfileScreen extends StatelessWidget {
+class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
+
+  @override
+  State<MyProfileScreen> createState() => _MyProfileScreenState();
+}
+
+class _MyProfileScreenState extends State<MyProfileScreen> {
+  final _nameController = TextEditingController(text: AuthManager.displayName);
 
   Future<void> _handleLogout(BuildContext context) async {
     try {
-      // Force clear local tokens first so we don't get stuck if the server rejects it
       await AuthManager.client.authenticationKeyManager?.remove();
-      // Logout not applicable for device ID
     } catch (e) {
       debugPrint('Server logout threw an error, but local session cleared: $e');
     }
@@ -23,9 +28,40 @@ class MyProfileScreen extends StatelessWidget {
     }
   }
 
+  void _editName() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cleanBackground,
+        title: const Text('Edit Display Name'),
+        content: TextField(
+          controller: _nameController,
+          decoration: const InputDecoration(hintText: 'Enter your name (e.g. Citizen)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_nameController.text.trim().isNotEmpty) {
+                await AuthManager.updateDisplayName(_nameController.text.trim());
+                if (mounted) setState(() {});
+              }
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Save', style: TextStyle(color: AppColors.pitchBlack)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final deviceId = AuthManager.deviceId;
+    final displayName = AuthManager.displayName;
     
     return Scaffold(
       appBar: AppBar(
@@ -44,13 +80,22 @@ class MyProfileScreen extends StatelessWidget {
               child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            Text(
-              deviceId, 
-              style: AppTypography.primaryHeader,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  displayName, 
+                  style: AppTypography.primaryHeader,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
+                  onPressed: _editName,
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Anonymous Device', 
+              'Device ID: $deviceId', 
               style: AppTypography.body.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 16),

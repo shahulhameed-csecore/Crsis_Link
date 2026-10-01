@@ -53,6 +53,25 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
               }
             });
           }
+        } else if (message is RescueAcceptedEvent) {
+          if (message.victimDeviceId == AuthManager.deviceId) {
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.pitchBlack,
+                  title: const Text('Rescue on the way!', style: TextStyle(color: Colors.green)),
+                  content: Text('${message.volunteerName} has accepted your request.', style: const TextStyle(color: Colors.white)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK', style: TextStyle(color: Colors.green)),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
         }
       }, onError: (e) {
         debugPrint('WebSocket stream error: $e');
@@ -103,7 +122,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       Position? position = await Geolocator.getLastKnownPosition();
       if (position == null) {
         position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
         ).timeout(const Duration(seconds: 5));
       }
       
@@ -495,20 +514,28 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
 
   @override
   Widget build(BuildContext context) {
+    final isOwnPin = widget.alert.deviceId == AuthManager.deviceId;
+    
     return ScaleTransition(
       scale: _scaleAnimation,
       child: GestureDetector(
-        onTap: () => _showSosDetails(context, widget.alert),
-        child: Icon(
-          Icons.warning, 
-          color: widget.alert.status == 'CLAIMED' ? Colors.green : AppColors.emergencyRed, 
-          size: 40
+        onTap: () => _showSosDetails(context, widget.alert, isOwnPin),
+        child: Container(
+          decoration: isOwnPin ? BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.blue, width: 2),
+          ) : null,
+          child: Icon(
+            Icons.warning, 
+            color: widget.alert.status == 'CLAIMED' ? Colors.green : AppColors.emergencyRed, 
+            size: 40
+          ),
         ),
       ),
     );
   }
 
-  void _showSosDetails(BuildContext context, SosAlert alert) {
+  void _showSosDetails(BuildContext context, SosAlert alert, bool isOwnPin) {
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -550,7 +577,39 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   const SizedBox(height: 24),
-                  if (!isClaimed)
+                  if (isOwnPin)
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                setModalState(() => isSubmitting = true);
+                                try {
+                                  await AuthManager.client.sos.cancelSos(AuthManager.deviceId);
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Request Cancelled.')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
+                                  }
+                                  setModalState(() => isSubmitting = false);
+                                }
+                              },
+                        child: isSubmitting
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('CANCEL REQUEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                      ),
+                    )
+                  else if (!isClaimed)
                     SizedBox(
                       height: 56,
                       child: ElevatedButton(
@@ -563,7 +622,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             : () async {
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, alert.id!);
+                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
                                   if (ctx.mounted) {
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(

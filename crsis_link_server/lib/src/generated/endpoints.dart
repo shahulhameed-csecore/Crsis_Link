@@ -385,6 +385,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
+            'volunteerName': _i1.ParameterDescription(
+              name: 'volunteerName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'sosId': _i1.ParameterDescription(
               name: 'sosId',
               type: _i1.getType<int>(),
@@ -398,6 +403,7 @@ class Endpoints extends _i1.EndpointDispatch {
               ) async => (endpoints['sos'] as _i5.SosEndpoint).claimRescue(
                 session,
                 params['volunteerDeviceId'],
+                params['volunteerName'],
                 params['sosId'],
               ),
         ),

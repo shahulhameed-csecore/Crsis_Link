@@ -1,0 +1,4 @@
+class: RescueAcceptedEvent
+fields:
+  victimDeviceId: String
+  volunteerName: String

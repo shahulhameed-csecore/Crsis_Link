@@ -685,6 +685,7 @@ class _SosEndpoint {
   _i3.Future<_i7.SosAlert> claimRescue(
     _i1.TestSessionBuilder sessionBuilder,
     String volunteerDeviceId,
+    String volunteerName,
     int sosId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -700,6 +701,7 @@ class _SosEndpoint {
           methodName: 'claimRescue',
           parameters: _i1.testObjectToJson({
             'volunteerDeviceId': volunteerDeviceId,
+            'volunteerName': volunteerName,
             'sosId': sosId,
           }),
           serializationManager: _serializationManager,

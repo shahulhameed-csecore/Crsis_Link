@@ -319,12 +319,14 @@ class EndpointSos extends _i2.EndpointRef {
   /// Claims an active SOS alert
   _i3.Future<_i7.SosAlert> claimRescue(
     String volunteerDeviceId,
+    String volunteerName,
     int sosId,
   ) => caller.callServerEndpoint<_i7.SosAlert>(
     'sos',
     'claimRescue',
     {
       'volunteerDeviceId': volunteerDeviceId,
+      'volunteerName': volunteerName,
       'sosId': sosId,
     },
   );
