@@ -65,7 +65,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     final notifications = AlertsManager().notifications;
 
     return Scaffold(
-      backgroundColor: AppColors.cleanCanvas,
+      backgroundColor: AppColors.cleanBackground,
       appBar: AppBar(
         title: Text('ALERTS FEED', style: AppTypography.primaryHeader.copyWith(fontSize: 22, color: AppColors.pitchBlack)),
         backgroundColor: Colors.transparent,
