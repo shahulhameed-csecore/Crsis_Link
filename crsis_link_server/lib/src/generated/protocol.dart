@@ -20,9 +20,11 @@ import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i5;
 import 'greetings/greeting.dart' as _i6;
 import 'sos/sos_alert.dart' as _i7;
-import 'package:crsis_link_server/src/generated/sos/sos_alert.dart' as _i8;
+import 'sos/sos_broadcast_response.dart' as _i8;
+import 'package:crsis_link_server/src/generated/sos/sos_alert.dart' as _i9;
 export 'greetings/greeting.dart';
 export 'sos/sos_alert.dart';
+export 'sos/sos_broadcast_response.dart';
 
 class Protocol extends _i1.SerializationManagerServer {
   Protocol._();
@@ -151,14 +153,21 @@ class Protocol extends _i1.SerializationManagerServer {
     if (t == _i7.SosAlert) {
       return _i7.SosAlert.fromJson(data) as T;
     }
+    if (t == _i8.SosBroadcastResponse) {
+      return _i8.SosBroadcastResponse.fromJson(data) as T;
+    }
     if (t == _i1.getType<_i6.Greeting?>()) {
       return (data != null ? _i6.Greeting.fromJson(data) : null) as T;
     }
     if (t == _i1.getType<_i7.SosAlert?>()) {
       return (data != null ? _i7.SosAlert.fromJson(data) : null) as T;
     }
-    if (t == List<_i8.SosAlert>) {
-      return (data as List).map((e) => deserialize<_i8.SosAlert>(e)).toList()
+    if (t == _i1.getType<_i8.SosBroadcastResponse?>()) {
+      return (data != null ? _i8.SosBroadcastResponse.fromJson(data) : null)
+          as T;
+    }
+    if (t == List<_i9.SosAlert>) {
+      return (data as List).map((e) => deserialize<_i9.SosAlert>(e)).toList()
           as T;
     }
     try {
@@ -180,6 +189,7 @@ class Protocol extends _i1.SerializationManagerServer {
     return switch (type) {
       _i6.Greeting => 'Greeting',
       _i7.SosAlert => 'SosAlert',
+      _i8.SosBroadcastResponse => 'SosBroadcastResponse',
       _ => null,
     };
   }
@@ -198,6 +208,8 @@ class Protocol extends _i1.SerializationManagerServer {
         return 'Greeting';
       case _i7.SosAlert():
         return 'SosAlert';
+      case _i8.SosBroadcastResponse():
+        return 'SosBroadcastResponse';
     }
     className = _i2.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -229,6 +241,9 @@ class Protocol extends _i1.SerializationManagerServer {
     }
     if (dataClassName == 'SosAlert') {
       return deserialize<_i7.SosAlert>(data['data']);
+    }
+    if (dataClassName == 'SosBroadcastResponse') {
+      return deserialize<_i8.SosBroadcastResponse>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);

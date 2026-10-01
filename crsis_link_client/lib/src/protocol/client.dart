@@ -18,9 +18,11 @@ import 'dart:async' as _i3;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
 import 'package:serverpod_auth_client/serverpod_auth_client.dart' as _i5;
-import 'package:crsis_link_client/src/protocol/sos/sos_alert.dart' as _i6;
-import 'package:crsis_link_client/src/protocol/greetings/greeting.dart' as _i7;
-import 'protocol.dart' as _i8;
+import 'package:crsis_link_client/src/protocol/sos/sos_broadcast_response.dart'
+    as _i6;
+import 'package:crsis_link_client/src/protocol/sos/sos_alert.dart' as _i7;
+import 'package:crsis_link_client/src/protocol/greetings/greeting.dart' as _i8;
+import 'protocol.dart' as _i9;
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
 /// are made available on the server and enable the corresponding sign-in widget
@@ -282,12 +284,12 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Creates or updates an active SOS alert for the given device.
-  _i3.Future<_i6.SosAlert> broadcastSos(
+  _i3.Future<_i6.SosBroadcastResponse> broadcastSos(
     String deviceId,
     double latitude,
     double longitude,
     String? message,
-  ) => caller.callServerEndpoint<_i6.SosAlert>(
+  ) => caller.callServerEndpoint<_i6.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
     {
@@ -299,8 +301,8 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Retrieves all currently active SOS alerts.
-  _i3.Future<List<_i6.SosAlert>> getActiveAlerts() =>
-      caller.callServerEndpoint<List<_i6.SosAlert>>(
+  _i3.Future<List<_i7.SosAlert>> getActiveAlerts() =>
+      caller.callServerEndpoint<List<_i7.SosAlert>>(
         'sos',
         'getActiveAlerts',
         {},
@@ -315,10 +317,10 @@ class EndpointSos extends _i2.EndpointRef {
       );
 
   /// Claims an active SOS alert
-  _i3.Future<_i6.SosAlert> claimRescue(
+  _i3.Future<_i7.SosAlert> claimRescue(
     String volunteerDeviceId,
     int sosId,
-  ) => caller.callServerEndpoint<_i6.SosAlert>(
+  ) => caller.callServerEndpoint<_i7.SosAlert>(
     'sos',
     'claimRescue',
     {
@@ -328,10 +330,10 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Completes an active SOS alert (called when rescuer is safe)
-  _i3.Future<_i6.SosAlert> completeRescue(
+  _i3.Future<_i7.SosAlert> completeRescue(
     String volunteerDeviceId,
     int sosId,
-  ) => caller.callServerEndpoint<_i6.SosAlert>(
+  ) => caller.callServerEndpoint<_i7.SosAlert>(
     'sos',
     'completeRescue',
     {
@@ -351,8 +353,8 @@ class EndpointGreeting extends _i2.EndpointRef {
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i7.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i7.Greeting>(
+  _i3.Future<_i8.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i8.Greeting>(
         'greeting',
         'hello',
         {'name': name},
@@ -393,7 +395,7 @@ class Client extends _i2.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i8.Protocol(),
+         _i9.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,

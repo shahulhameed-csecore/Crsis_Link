@@ -57,7 +57,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosAlert> broadcastSos(Session session, String deviceId, double latitude, double longitude, String? message) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, double latitude, double longitude, String? message) async {
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     final existingAlerts = await SosAlert.db.find(
@@ -81,9 +81,14 @@ class SosEndpoint extends Endpoint {
 
     final savedAlert = await SosAlert.db.insertRow(session, newAlert);
     
+    int notifiedCount = 0;
     // Spatial Filter: Broadcast ONLY to devices within 5000 meters
     for (final entry in _deviceLocations.entries) {
       final targetDeviceId = entry.key;
+      
+      // CRITICAL: Explicitly exclude the senderDeviceId from the list of eligible receivers
+      if (targetDeviceId == deviceId) continue;
+      
       final targetLat = entry.value['lat']!;
       final targetLng = entry.value['lng']!;
       
@@ -91,10 +96,14 @@ class SosEndpoint extends Endpoint {
       
       if (distance <= 5000) { // 5km radius
         session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
+        notifiedCount++;
       }
     }
     
-    return savedAlert;
+    return SosBroadcastResponse(
+      alert: savedAlert,
+      notifiedCount: notifiedCount,
+    );
   }
 
   /// Retrieves all currently active SOS alerts.

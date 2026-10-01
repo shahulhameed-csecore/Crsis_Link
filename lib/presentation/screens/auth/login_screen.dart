@@ -41,11 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (serverResponse.success && serverResponse.userInfo != null) {
         // Use AuthManager.sessionManager directly — same instance as the client
-        await AuthManager.sessionManager.registerSignedInUser(
-          serverResponse.userInfo!,
-          serverResponse.keyId!,
-          serverResponse.key!,
-        );
+        // AuthManager.sessionManager.registerSignedInUser(
+        //   serverResponse.userInfo!,
+        //   serverResponse.keyId!,
+        //   serverResponse.key!,
+        // );
         // Open the streaming connection AFTER the auth key is persisted
         AuthManager.client.openStreamingConnection();
         if (mounted) {
@@ -82,11 +82,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // Use AuthManager.sessionManager directly — same instance as the client.
         // This guarantees the auth key is in the FlutterAuthenticationKeyManager
         // (SharedPreferences) BEFORE the streaming WebSocket connection is opened.
-        await AuthManager.sessionManager.registerSignedInUser(
-          response.userInfo!,
-          response.keyId!,
-          response.key!,
-        );
+        // AuthManager.sessionManager.registerSignedInUser(
+        //   response.userInfo!,
+        //   response.keyId!,
+        //   response.key!,
+        // );
         // Open streaming AFTER auth key is persisted so WebSocket handshake
         // includes the Authorization header and all subsequent calls have a
         // valid session. The map screen's initState will NOT call

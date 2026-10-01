@@ -1,0 +1,4 @@
+class: SosBroadcastResponse
+fields:
+  alert: SosAlert
+  notifiedCount: int

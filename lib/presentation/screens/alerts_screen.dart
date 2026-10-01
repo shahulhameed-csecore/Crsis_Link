@@ -23,10 +23,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Future<void> _fetchMyRescues() async {
     try {
       final allAlerts = await AuthManager.client.sos.getActiveAlerts();
-      final userId = AuthManager.sessionManager.signedInUser?.id;
+      final userId = AuthManager.deviceId;
       
       setState(() {
-        _myRescues = allAlerts.where((a) => a.volunteerId == userId && (a.status == 'CLAIMED' || a.status == 'ESCALATED')).toList();
+        _myRescues = allAlerts.where((a) => a.volunteerDeviceId == userId && (a.status == 'CLAIMED' || a.status == 'ESCALATED')).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -39,7 +39,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Future<void> _completeRescue(SosAlert alert) async {
     try {
-      await AuthManager.client.sos.completeRescue(alert.id!);
+      await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.id!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rescue marked as completed. Stay safe!')),
@@ -113,7 +113,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                             Text(
                               isEscalated 
                                 ? 'You have not checked in! Are you safe? Please confirm your rescue status immediately.'
-                                : 'Rescue in progress for ${alert.userInfo?.userName ?? "Unknown"}.',
+                                : 'Rescue in progress for ${alert.deviceId}.',
                               style: AppTypography.body,
                             ),
                             const SizedBox(height: 24),

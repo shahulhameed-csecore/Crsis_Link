@@ -10,7 +10,7 @@ class MyProfileScreen extends StatelessWidget {
     try {
       // Force clear local tokens first so we don't get stuck if the server rejects it
       await AuthManager.client.authenticationKeyManager?.remove();
-      await AuthManager.sessionManager.signOutDevice();
+      // Logout not applicable for device ID
     } catch (e) {
       debugPrint('Server logout threw an error, but local session cleared: $e');
     }
@@ -25,7 +25,7 @@ class MyProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthManager.sessionManager.signedInUser;
+    final deviceId = AuthManager.deviceId;
     
     return Scaffold(
       appBar: AppBar(
@@ -45,12 +45,12 @@ class MyProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              user?.userName ?? 'GUEST USER', 
+              deviceId, 
               style: AppTypography.primaryHeader,
             ),
             const SizedBox(height: 8),
             Text(
-              user?.email ?? 'No email linked', 
+              'Anonymous Device', 
               style: AppTypography.body.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 16),

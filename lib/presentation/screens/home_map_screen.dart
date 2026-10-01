@@ -36,6 +36,9 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       // so the auth key is guaranteed to be persisted before we listen.
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
         if (message is SosAlert) {
+          // Client-Side Echo Protection
+          if (message.deviceId == AuthManager.deviceId) return;
+          
           if (mounted) {
             setState(() {
               if (message.isActive) {
@@ -224,7 +227,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                           : () async {
                               setModalState(() => isSubmitting = true);
                               try {
-                                final newAlert = await AuthManager.client.sos.broadcastSos(
+                                final response = await AuthManager.client.sos.broadcastSos(
                                   AuthManager.deviceId,
                                   position.latitude,
                                   position.longitude,
@@ -233,10 +236,21 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                                 setState(() {
                                   // Remove any previous pin by this user to keep it simple, 
                                   // or just refresh the list. Let's just refresh.
-                                  _sosPins.add(newAlert);
+                                  _sosPins.add(response.alert);
                                 });
                                 _fetchActiveSos(); // Ensure sync
-                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  if (response.notifiedCount == 0) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('No one is available near you at the moment. Your request is still active.'),
+                                        backgroundColor: AppColors.emergencyRed,
+                                        duration: Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                }
                               } catch (e) {
                                 debugPrint('SOS Broadcast failed: $e');
                                 if (ctx.mounted) {
@@ -527,7 +541,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Victim: ${alert.userInfo?.userName ?? 'Unknown User'}',
+                    'Victim: ${alert.deviceId}',
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
@@ -549,7 +563,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             : () async {
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await AuthManager.client.sos.claimRescue(alert.id!);
+                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, alert.id!);
                                   if (ctx.mounted) {
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
