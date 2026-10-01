@@ -13,22 +13,6 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  void _update() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    AlertsManager().addListener(_update);
-  }
-
-  @override
-  void dispose() {
-    AlertsManager().removeListener(_update);
-    super.dispose();
-  }
-
   String _timeAgo(DateTime d) {
     Duration diff = DateTime.now().difference(d);
     if (diff.inDays > 1) return '${diff.inDays} days ago';
@@ -62,8 +46,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final notifications = AlertsManager().notifications;
-
     return Scaffold(
       backgroundColor: AppColors.cleanBackground,
       appBar: AppBar(
@@ -72,83 +54,88 @@ class _AlertsScreenState extends State<AlertsScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: notifications.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.security, size: 80, color: AppColors.pitchBlack.withValues(alpha: 0.1)),
-                  const SizedBox(height: 16),
-                  Text('No active alerts nearby', style: AppTypography.subtitle.copyWith(color: Colors.grey)),
-                ],
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(24),
-              itemCount: notifications.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final alert = notifications[index];
-                
-                return GestureDetector(
-                  onTap: () => _handleAlertTap(alert),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceCards,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.surfaceBorder, width: 1),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+      body: ValueListenableBuilder<List<AlertNotification>>(
+        valueListenable: AlertsManager(),
+        builder: (context, notifications, child) {
+          return notifications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.security, size: 80, color: AppColors.pitchBlack.withValues(alpha: 0.1)),
+                      const SizedBox(height: 16),
+                      Text('No active alerts nearby', style: AppTypography.subtitle.copyWith(color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final alert = notifications[index];
+                    
+                    return GestureDetector(
+                      onTap: () => _handleAlertTap(alert),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceCards,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.surfaceBorder, width: 1),
+                        ),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _getIconForType(alert.type),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    alert.title,
-                                    style: AppTypography.subtitle.copyWith(
-                                      color: AppColors.pitchBlack,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _getIconForType(alert.type),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        alert.title,
+                                        style: AppTypography.subtitle.copyWith(
+                                          color: AppColors.pitchBlack,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        alert.description,
+                                        style: AppTypography.body.copyWith(
+                                          color: Colors.grey.shade700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    alert.description,
-                                    style: AppTypography.body.copyWith(
-                                      color: Colors.grey.shade700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                _timeAgo(alert.timestamp),
+                                style: AppTypography.body.copyWith(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            _timeAgo(alert.timestamp),
-                            style: AppTypography.body.copyWith(
-                              color: Colors.grey.shade500,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
-              },
-            ),
+        },
+      ),
     );
   }
 }

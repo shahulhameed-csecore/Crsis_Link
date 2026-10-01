@@ -55,6 +55,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
       // so the auth key is guaranteed to be persisted before we listen.
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
         if (message is SosAlert) {
+          debugPrint('[WebSocket] Received SosAlert from: ${message.deviceId}, status: ${message.status}');
           // Client-Side Echo Protection
           if (message.deviceId == AuthManager.deviceId) return;
           
@@ -76,8 +77,13 @@ class HomeMapScreenState extends State<HomeMapScreen> {
             });
           }
         } else if (message is RescueAcceptedEvent) {
+          debugPrint('[WebSocket] Received RescueAcceptedEvent for victim: ${message.victimDeviceId}');
+          // Add to persistent alerts feed for everyone observing the ledger (except the volunteer who already added a local alert)
+          if (message.volunteerDeviceId != AuthManager.deviceId) {
+            AlertsManager().addRescueEvent(message);
+          }
+          
           if (message.victimDeviceId == AuthManager.deviceId) {
-            AlertsManager().addRescueEvent(message); // Add to persistent alerts feed
             if (mounted) {
               showDialog(
                 context: context,
@@ -96,6 +102,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
             }
           }
         } else if (message is SosResolvedEvent) {
+          debugPrint('[WebSocket] Received SosResolvedEvent for SOS ID: ${message.sosId}');
           AlertsManager().addResolvedEvent(message);
           if (mounted) {
             setState(() {
@@ -754,6 +761,11 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             try {
                               await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
                               if (ctx.mounted) {
+                                AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                                  victimDeviceId: alert.deviceId,
+                                  volunteerName: AuthManager.displayName,
+                                  volunteerDeviceId: AuthManager.deviceId,
+                                ));
                                 Navigator.pop(ctx);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(

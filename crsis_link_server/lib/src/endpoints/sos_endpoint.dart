@@ -175,10 +175,10 @@ class SosEndpoint extends Endpoint {
 
     session.messages.postMessage('sos_broadcasts', alert);
     
-    // Notify the victim specifically
+    // Broadcast the RescueAcceptedEvent to all connected devices for the Alerts ledger
     session.messages.postMessage(
-      'sos_device_${alert.deviceId}', 
-      RescueAcceptedEvent(victimDeviceId: alert.deviceId, volunteerName: volunteerName)
+      'sos_broadcasts', 
+      RescueAcceptedEvent(victimDeviceId: alert.deviceId, volunteerName: volunteerName, volunteerDeviceId: volunteerDeviceId)
     );
     
     return alert;

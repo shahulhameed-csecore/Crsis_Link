@@ -2,3 +2,4 @@ class: RescueAcceptedEvent
 fields:
   victimDeviceId: String
   volunteerName: String
+  volunteerDeviceId: String

@@ -21,44 +21,60 @@ class AlertNotification {
   });
 }
 
-class AlertsManager extends ChangeNotifier {
+class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   static final AlertsManager _instance = AlertsManager._internal();
   factory AlertsManager() => _instance;
-  AlertsManager._internal();
+  AlertsManager._internal() : super([]);
 
-  final List<AlertNotification> _notifications = [];
-
-  List<AlertNotification> get notifications => List.unmodifiable(_notifications);
+  List<AlertNotification> get notifications => value;
 
   void addSosAlert(SosAlert alert) {
-    _notifications.insert(0, AlertNotification(
-      timestamp: DateTime.now(),
-      title: 'SOS Alert: ${alert.senderName}',
-      description: alert.message ?? 'Needs emergency assistance.',
-      type: AlertType.sos,
-      latitude: alert.latitude,
-      longitude: alert.longitude,
-    ));
-    notifyListeners();
+    value = [
+      AlertNotification(
+        timestamp: DateTime.now(),
+        title: 'SOS Alert: ${alert.senderName}',
+        description: alert.message ?? 'Needs emergency assistance.',
+        type: AlertType.sos,
+        latitude: alert.latitude,
+        longitude: alert.longitude,
+      ),
+      ...value,
+    ];
   }
 
   void addRescueEvent(RescueAcceptedEvent event) {
-    _notifications.insert(0, AlertNotification(
-      timestamp: DateTime.now(),
-      title: 'Rescue on the way!',
-      description: '${event.volunteerName} has accepted your request.',
-      type: AlertType.accepted,
-    ));
-    notifyListeners();
+    value = [
+      AlertNotification(
+        timestamp: DateTime.now(),
+        title: 'Rescue on the way!',
+        description: '${event.volunteerName} has accepted your request.',
+        type: AlertType.accepted,
+      ),
+      ...value,
+    ];
+  }
+
+  void addSelfRescueEvent(RescueAcceptedEvent event) {
+    value = [
+      AlertNotification(
+        timestamp: DateTime.now(),
+        title: 'Rescue Accepted',
+        description: 'You are on your way to help.',
+        type: AlertType.accepted,
+      ),
+      ...value,
+    ];
   }
 
   void addResolvedEvent(SosResolvedEvent event) {
-    _notifications.insert(0, AlertNotification(
-      timestamp: DateTime.now(),
-      title: 'SOS Resolved',
-      description: 'An emergency has been resolved safely.',
-      type: AlertType.resolved,
-    ));
-    notifyListeners();
+    value = [
+      AlertNotification(
+        timestamp: DateTime.now(),
+        title: 'SOS Resolved',
+        description: 'An emergency has been resolved safely.',
+        type: AlertType.resolved,
+      ),
+      ...value,
+    ];
   }
 }

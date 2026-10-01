@@ -18,17 +18,20 @@ abstract class RescueAcceptedEvent
   RescueAcceptedEvent._({
     required this.victimDeviceId,
     required this.volunteerName,
+    required this.volunteerDeviceId,
   });
 
   factory RescueAcceptedEvent({
     required String victimDeviceId,
     required String volunteerName,
+    required String volunteerDeviceId,
   }) = _RescueAcceptedEventImpl;
 
   factory RescueAcceptedEvent.fromJson(Map<String, dynamic> jsonSerialization) {
     return RescueAcceptedEvent(
       victimDeviceId: jsonSerialization['victimDeviceId'] as String,
       volunteerName: jsonSerialization['volunteerName'] as String,
+      volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String,
     );
   }
 
@@ -36,12 +39,15 @@ abstract class RescueAcceptedEvent
 
   String volunteerName;
 
+  String volunteerDeviceId;
+
   /// Returns a shallow copy of this [RescueAcceptedEvent]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
   RescueAcceptedEvent copyWith({
     String? victimDeviceId,
     String? volunteerName,
+    String? volunteerDeviceId,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -49,6 +55,7 @@ abstract class RescueAcceptedEvent
       '__className__': 'RescueAcceptedEvent',
       'victimDeviceId': victimDeviceId,
       'volunteerName': volunteerName,
+      'volunteerDeviceId': volunteerDeviceId,
     };
   }
 
@@ -58,6 +65,7 @@ abstract class RescueAcceptedEvent
       '__className__': 'RescueAcceptedEvent',
       'victimDeviceId': victimDeviceId,
       'volunteerName': volunteerName,
+      'volunteerDeviceId': volunteerDeviceId,
     };
   }
 
@@ -71,9 +79,11 @@ class _RescueAcceptedEventImpl extends RescueAcceptedEvent {
   _RescueAcceptedEventImpl({
     required String victimDeviceId,
     required String volunteerName,
+    required String volunteerDeviceId,
   }) : super._(
          victimDeviceId: victimDeviceId,
          volunteerName: volunteerName,
+         volunteerDeviceId: volunteerDeviceId,
        );
 
   /// Returns a shallow copy of this [RescueAcceptedEvent]
@@ -83,10 +93,12 @@ class _RescueAcceptedEventImpl extends RescueAcceptedEvent {
   RescueAcceptedEvent copyWith({
     String? victimDeviceId,
     String? volunteerName,
+    String? volunteerDeviceId,
   }) {
     return RescueAcceptedEvent(
       victimDeviceId: victimDeviceId ?? this.victimDeviceId,
       volunteerName: volunteerName ?? this.volunteerName,
+      volunteerDeviceId: volunteerDeviceId ?? this.volunteerDeviceId,
     );
   }
 }
