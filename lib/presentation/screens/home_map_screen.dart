@@ -53,6 +53,13 @@ class HomeMapScreenState extends State<HomeMapScreen> {
     try {
       // The WebSocket connection is opened AFTER login (in login_screen.dart)
       // so the auth key is guaranteed to be persisted before we listen.
+      // Send a Greeting to bind the stream to this deviceId on the server
+      AuthManager.client.sos.sendStreamMessage(Greeting(
+        message: AuthManager.deviceId,
+        author: AuthManager.displayName,
+        timestamp: DateTime.now(),
+      ));
+
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
         if (message is SosAlert) {
           debugPrint('[WebSocket] Received SosAlert from: ${message.deviceId}, status: ${message.status}');

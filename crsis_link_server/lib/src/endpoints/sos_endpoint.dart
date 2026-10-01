@@ -29,6 +29,17 @@ class SosEndpoint extends Endpoint {
     }
   }
 
+  @override
+  Future<void> handleStreamMessage(StreamingSession session, SerializableEntity message) async {
+    if (message is Greeting) {
+      final deviceId = message.message;
+      _sessionToDevice[session.sessionLogId.toString()] = deviceId;
+      session.messages.addListener('sos_device_$deviceId', (msg) {
+        sendStreamMessage(session, msg);
+      });
+    }
+  }
+
   /// Updates the device's last known location for targeted spatial broadcasting
   Future<void> updateLocation(Session session, String deviceId, double latitude, double longitude) async {
     _deviceLocations[deviceId] = {'lat': latitude, 'lng': longitude};
