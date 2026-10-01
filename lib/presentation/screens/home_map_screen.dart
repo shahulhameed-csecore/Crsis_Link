@@ -222,8 +222,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                                 debugPrint('SOS Broadcast failed: $e');
                                 if (ctx.mounted) {
                                   ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Failed to drop pin. Try again.'),
+                                    SnackBar(
+                                      content: Text('Failed to drop pin: $e'),
                                       backgroundColor: AppColors.emergencyRed,
                                     ),
                                   );
