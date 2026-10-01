@@ -50,9 +50,26 @@ class HomeMapScreenState extends State<HomeMapScreen> {
   }
 
   void _initStreaming() {
+    // 1. Listen to streaming status changes to handle reconnects safely
+    AuthManager.client.addStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
+
+    // 2. If already connected when this runs, immediately bind
+    if (AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
+      _bindStream();
+    }
+  }
+
+  void _onStreamingConnectionStatusChanged(StreamingConnectionStatus status) {
+    if (status == StreamingConnectionStatus.connected) {
+      _bindStream();
+    }
+  }
+
+  void _bindStream() {
     try {
-      // The WebSocket connection is opened AFTER login (in login_screen.dart)
-      // so the auth key is guaranteed to be persisted before we listen.
+      // Ensure we don't duplicate subscriptions on reconnect
+      _sosSubscription?.cancel();
+      
       // Send a Greeting to bind the stream to this deviceId on the server
       AuthManager.client.sos.sendStreamMessage(Greeting(
         message: AuthManager.deviceId,
@@ -121,13 +138,14 @@ class HomeMapScreenState extends State<HomeMapScreen> {
         debugPrint('WebSocket stream error: $e');
       });
     } catch (e) {
-      debugPrint('Failed to initialize streaming: $e');
+      debugPrint('Failed to bind streaming: $e');
     }
   }
 
   @override
   void dispose() {
     _sosSubscription?.cancel();
+    AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
     AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
     super.dispose();
   }
