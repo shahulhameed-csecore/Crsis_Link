@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -120,15 +121,34 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
 
       // Step 1: Get signed upload URL from Serverpod
       final uploadDescription = await AuthManager.client.audio.getUploadDescription(fileName);
-
-      // Step 2: Upload the file using the signed URL (multipart PUT)
-      final uploadData = Uri.dataFromString(uploadDescription);
-      final uploadUrl = uploadData.queryParameters['url'] ?? uploadDescription;
       
+      String uploadUrl = '';
+      Map<String, String> headers = {'Content-Type': 'audio/mp4'};
+      
+      try {
+        final decoded = jsonDecode(uploadDescription);
+        if (decoded is Map) {
+          uploadUrl = decoded['url'] ?? '';
+          if (decoded['headers'] is Map) {
+            Map<String, dynamic> rawHeaders = decoded['headers'];
+            for (final key in rawHeaders.keys) {
+              headers[key] = rawHeaders[key].toString();
+            }
+          }
+        }
+      } catch (e) {
+        // Fallback in case it's just a raw URL string
+        uploadUrl = uploadDescription;
+      }
+      
+      // Replace Serverpod's placeholder with the actual host
+      uploadUrl = uploadUrl.replaceAll('\${public_host}', 'crsis-link-api.onrender.com');
+
+      // Step 2: Upload the file
       final bytes = await file.readAsBytes();
       final response = await http.put(
         Uri.parse(uploadUrl),
-        headers: {'Content-Type': 'audio/mp4'},
+        headers: headers,
         body: bytes,
       );
 
@@ -137,7 +157,8 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       }
 
       // Step 3: Verify and get public URL
-      final publicUrl = await AuthManager.client.audio.verifyUpload(fileName);
+      String publicUrl = await AuthManager.client.audio.verifyUpload(fileName);
+      publicUrl = publicUrl.replaceAll('\${public_host}', 'crsis-link-api.onrender.com');
 
       setState(() {
         _uploadedUrl = publicUrl;
