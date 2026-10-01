@@ -11,6 +11,9 @@ class SosEndpoint extends Endpoint {
   // Track which deviceId corresponds to which StreamingSession to clean up on disconnect.
   static final Map<String, String> _sessionToDevice = {};
 
+  // Track active targeted listeners per session to prevent duplicates
+  static final Map<String, MessageCentralListenerCallback> _sessionListeners = {};
+
   @override
   Future<void> streamOpened(StreamingSession session) async {
     // We cannot get deviceId here without a message, but we can listen to general messages.
@@ -22,35 +25,41 @@ class SosEndpoint extends Endpoint {
 
   @override
   Future<void> streamClosed(StreamingSession session) async {
-    final deviceId = _sessionToDevice[session.sessionLogId.toString()];
+    final sessionId = session.sessionLogId.toString();
+    final deviceId = _sessionToDevice[sessionId];
+    
     if (deviceId != null) {
+      final listener = _sessionListeners[sessionId];
+      if (listener != null) {
+        session.messages.removeListener('sos_device_$deviceId', listener);
+        _sessionListeners.remove(sessionId);
+      }
       _deviceLocations.remove(deviceId);
-      _sessionToDevice.remove(session.sessionLogId.toString());
+      _sessionToDevice.remove(sessionId);
     }
   }
 
   @override
-  Future<void> handleStreamMessage(StreamingSession session, SerializableEntity message) async {
+  Future<void> handleStreamMessage(StreamingSession session, SerializableModel message) async {
     if (message is Greeting) {
       final deviceId = message.message;
-      _sessionToDevice[session.sessionLogId.toString()] = deviceId;
-      session.messages.addListener('sos_device_$deviceId', (msg) {
-        sendStreamMessage(session, msg);
-      });
+      final sessionId = session.sessionLogId.toString();
+      
+      _sessionToDevice[sessionId] = deviceId;
+      
+      if (!_sessionListeners.containsKey(sessionId)) {
+        final MessageCentralListenerCallback listener = (msg) {
+          sendStreamMessage(session, msg);
+        };
+        session.messages.addListener('sos_device_$deviceId', listener);
+        _sessionListeners[sessionId] = listener;
+      }
     }
   }
 
   /// Updates the device's last known location for targeted spatial broadcasting
   Future<void> updateLocation(Session session, String deviceId, double latitude, double longitude) async {
     _deviceLocations[deviceId] = {'lat': latitude, 'lng': longitude};
-    if (session is StreamingSession) {
-       _sessionToDevice[session.sessionLogId.toString()] = deviceId;
-       
-       // Subscribe this session to targeted messages for this device
-       session.messages.addListener('sos_device_$deviceId', (message) {
-          sendStreamMessage(session, message);
-       });
-    }
   }
 
   // Haversine distance formula (returns meters)
