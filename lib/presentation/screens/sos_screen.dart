@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
+import '../../core/state/map_pins_manager.dart';
+import '../../core/state/alerts_manager.dart';
+import 'main_navigation.dart';
 import '../widgets/voice_note_recorder.dart';
 import '../widgets/capsule_button.dart';
 
@@ -192,6 +195,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           pendingAudioUrl,
                         );
                         
+                        MapPinsManager().addOrUpdatePin(response.alert);
+                        AlertsManager().addSosAlert(response.alert);
+                        
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -203,6 +209,10 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                               duration: const Duration(seconds: 5),
                             ),
                           );
+                          
+                          // Bridge to Map Screen automatically
+                          MainNavigation.jumpToMap();
+                          globalHomeMapKey.currentState?.jumpToCurrentLocation();
                         }
                       } catch (e) {
                         debugPrint('SOS Broadcast failed: $e');

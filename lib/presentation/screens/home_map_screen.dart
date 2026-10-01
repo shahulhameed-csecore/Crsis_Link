@@ -11,6 +11,7 @@ import '../../core/auth/auth_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import '../widgets/voice_note_recorder.dart';
 import '../widgets/capsule_button.dart';
+import '../../core/state/map_pins_manager.dart';
 import 'auth/login_screen.dart';
 
 class HomeMapScreen extends StatefulWidget {
@@ -24,7 +25,6 @@ class HomeMapScreenState extends State<HomeMapScreen> {
   LatLng? _currentLocation;
   final MapController _mapController = MapController();
   String _errorMsg = '';
-  List<SosAlert> _sosPins = [];
   final Set<int> _ignoredSosIds = {};
   StreamSubscription? _sosSubscription;
   bool _isConnected = true;
@@ -35,6 +35,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
   @override
   void initState() {
     super.initState();
+    MapPinsManager().addListener(_onPinsChanged);
     _determinePosition();
     _fetchActiveSos();
     _initStreaming();
@@ -47,6 +48,16 @@ class HomeMapScreenState extends State<HomeMapScreen> {
         _isConnected = connected;
       });
     }
+  }
+
+  void _onPinsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void jumpToCurrentLocation() {
+    _recenterMap();
   }
 
   void _initStreaming() {
@@ -89,18 +100,10 @@ class HomeMapScreenState extends State<HomeMapScreen> {
           if (mounted) {
             setState(() {
               if (message.isActive) {
-                  final idx = _sosPins.indexWhere((a) => a.id == message.id);
-                  if (idx >= 0) {
-                    // Branch A: Existing Pin Update
-                    _sosPins[idx] = message;
-                    AlertsManager().addSosAlert(message);
-                  } else {
-                    // Branch B: New Pin
-                    _sosPins.add(message);
-                    AlertsManager().addSosAlert(message);
-                  }
+                  MapPinsManager().addOrUpdatePin(message);
+                  AlertsManager().addSosAlert(message);
               } else {
-                _sosPins.removeWhere((a) => a.id == message.id);
+                MapPinsManager().removePin(message.id!);
               }
             });
           }
@@ -132,11 +135,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
         } else if (message is SosResolvedEvent) {
           debugPrint('[WebSocket] Received SosResolvedEvent for SOS ID: ${message.sosId}');
           AlertsManager().addResolvedEvent(message);
-          if (mounted) {
-            setState(() {
-              _sosPins.removeWhere((a) => a.id == message.sosId);
-            });
-          }
+          MapPinsManager().removePin(message.sosId);
         }
       }, onError: (e) {
         debugPrint('WebSocket stream error: $e');
@@ -148,6 +147,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
 
   @override
   void dispose() {
+    MapPinsManager().removeListener(_onPinsChanged);
     _sosSubscription?.cancel();
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
     AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
@@ -179,9 +179,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
     try {
       final alerts = await AuthManager.client.sos.getActiveAlerts();
       if (mounted) {
-        setState(() {
-          _sosPins = alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList();
-        });
+        MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList());
       }
     } catch (e) {
       debugPrint('Error fetching SOS pins: $e');
@@ -448,7 +446,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                   MarkerLayer(
                     markers: [
                       // Render dropped SOS pins
-                      ..._sosPins.map((alert) {
+                      ...MapPinsManager().pins.map((alert) {
                         return Marker(
                           point: LatLng(alert.latitude, alert.longitude),
                           width: 40,
@@ -457,15 +455,11 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                             key: ValueKey('${alert.id}_${alert.status}'),
                             alert: alert,
                             onIgnore: (id) {
-                              setState(() {
-                                _ignoredSosIds.add(id);
-                                _sosPins.removeWhere((a) => a.id == id);
-                              });
+                              _ignoredSosIds.add(id);
+                              MapPinsManager().removePin(id);
                             },
                             onResolve: (id) {
-                              setState(() {
-                                _sosPins.removeWhere((a) => a.id == id);
-                              });
+                              MapPinsManager().removePin(id);
                               AlertsManager().resolveSosAlert(id);
                             },
                           ),
