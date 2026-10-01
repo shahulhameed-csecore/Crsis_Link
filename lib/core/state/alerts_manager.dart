@@ -1,17 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 
+enum AlertType { sos, accepted, resolved }
+
 class AlertNotification {
   final DateTime timestamp;
   final String title;
   final String description;
-  final bool isRescue;
+  final AlertType type;
+  final double? latitude;
+  final double? longitude;
 
   AlertNotification({
     required this.timestamp,
     required this.title,
     required this.description,
-    this.isRescue = false,
+    required this.type,
+    this.latitude,
+    this.longitude,
   });
 }
 
@@ -29,7 +35,9 @@ class AlertsManager extends ChangeNotifier {
       timestamp: DateTime.now(),
       title: 'SOS Alert: ${alert.senderName}',
       description: alert.message ?? 'Needs emergency assistance.',
-      isRescue: false,
+      type: AlertType.sos,
+      latitude: alert.latitude,
+      longitude: alert.longitude,
     ));
     notifyListeners();
   }
@@ -39,7 +47,17 @@ class AlertsManager extends ChangeNotifier {
       timestamp: DateTime.now(),
       title: 'Rescue on the way!',
       description: '${event.volunteerName} has accepted your request.',
-      isRescue: true,
+      type: AlertType.accepted,
+    ));
+    notifyListeners();
+  }
+
+  void addResolvedEvent(SosResolvedEvent event) {
+    _notifications.insert(0, AlertNotification(
+      timestamp: DateTime.now(),
+      title: 'SOS Resolved',
+      description: 'An emergency has been resolved safely.',
+      type: AlertType.resolved,
     ));
     notifyListeners();
   }

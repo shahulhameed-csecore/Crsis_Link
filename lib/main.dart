@@ -33,9 +33,9 @@ class CrsisLinkApp extends StatelessWidget {
     return MaterialApp(
       title: 'Crsis Link',
       theme: AppTheme.lightTheme,
-      home: const MainNavigation(),
+      home: MainNavigation(key: globalNavKey),
       routes: {
-        '/main': (context) => const MainNavigation(),
+        '/main': (context) => MainNavigation(key: globalNavKey),
       },
       builder: (context, widget) {
         return widget ?? const SizedBox();

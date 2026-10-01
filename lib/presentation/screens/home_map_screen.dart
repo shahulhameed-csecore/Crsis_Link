@@ -17,10 +17,10 @@ class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
 
   @override
-  State<HomeMapScreen> createState() => _HomeMapScreenState();
+  State<HomeMapScreen> createState() => HomeMapScreenState();
 }
 
-class _HomeMapScreenState extends State<HomeMapScreen> {
+class HomeMapScreenState extends State<HomeMapScreen> {
   LatLng? _currentLocation;
   final MapController _mapController = MapController();
   String _errorMsg = '';
@@ -96,6 +96,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             }
           }
         } else if (message is SosResolvedEvent) {
+          AlertsManager().addResolvedEvent(message);
           if (mounted) {
             setState(() {
               _sosPins.removeWhere((a) => a.id == message.sosId);
@@ -231,6 +232,10 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     if (_currentLocation != null) {
       _mapController.move(_currentLocation!, 15.0);
     }
+  }
+
+  void panTo(LatLng position) {
+    _mapController.move(position, 16.0);
   }
 
   void _showSosModal(LatLng position) {

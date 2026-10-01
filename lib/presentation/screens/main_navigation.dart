@@ -6,8 +6,15 @@ import 'alerts_screen.dart';
 import 'my_profile_screen.dart';
 import 'sos_screen.dart';
 
+final GlobalKey<_MainNavigationState> globalNavKey = GlobalKey<_MainNavigationState>();
+final GlobalKey<HomeMapScreenState> globalHomeMapKey = GlobalKey<HomeMapScreenState>();
+
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
+
+  static void jumpToMap() {
+    globalNavKey.currentState?.switchToMap();
+  }
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -16,12 +23,20 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    SosScreen(),
-    HomeMapScreen(),
-    AlertsScreen(),
-    MyProfileScreen(),
+  final List<Widget> _screens = [
+    const SosScreen(),
+    HomeMapScreen(key: globalHomeMapKey),
+    const AlertsScreen(),
+    const MyProfileScreen(),
   ];
+
+  void switchToMap() {
+    if (_currentIndex != 1) {
+      setState(() {
+        _currentIndex = 1;
+      });
+    }
+  }
 
   void _onTabTapped(int index) {
     HapticFeedback.lightImpact();
