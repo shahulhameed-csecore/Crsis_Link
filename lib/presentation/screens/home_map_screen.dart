@@ -99,12 +99,8 @@ class HomeMapScreenState extends State<HomeMapScreen> {
           
           if (mounted) {
             setState(() {
-              if (message.isActive) {
-                  MapPinsManager().addOrUpdatePin(message);
-                  AlertsManager().addSosAlert(message);
-              } else {
-                MapPinsManager().removePin(message.id!);
-              }
+              MapPinsManager().addOrUpdatePin(message);
+              AlertsManager().addSosAlert(message);
             });
           }
         } else if (message is RescueAcceptedEvent) {

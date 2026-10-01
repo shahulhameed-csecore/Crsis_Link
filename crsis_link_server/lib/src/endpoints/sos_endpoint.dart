@@ -137,27 +137,7 @@ class SosEndpoint extends Endpoint {
     return alerts;
   }
 
-  /// Cancels the active SOS alert for the device.
-  Future<bool> cancelSos(Session session, String deviceId) async {
-    session.log('Device $deviceId is cancelling their SOS alert.', level: LogLevel.info);
 
-    final existingAlerts = await SosAlert.db.find(
-      session,
-      where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
-    );
-    
-    bool canceledAny = false;
-    for (var alert in existingAlerts) {
-      alert.isActive = false;
-      alert.status = 'CANCELLED';
-      await SosAlert.db.updateRow(session, alert);
-      
-      // Notify nearby devices about cancellation if needed.
-      session.messages.postMessage('sos_broadcasts', alert);
-      canceledAny = true;
-    }
-    return canceledAny;
-  }
   
   /// Resolves an active SOS alert
   Future<bool> resolveSOS(Session session, int sosId, String deviceId) async {
