@@ -83,17 +83,21 @@ class HomeMapScreenState extends State<HomeMapScreen> {
           // Client-Side Echo Protection
           if (message.deviceId == AuthManager.deviceId) return;
           
+          // Early Exit Guard Clause: If user ignored this pin, drop it entirely
+          if (_ignoredSosIds.contains(message.id)) return;
+          
           if (mounted) {
             setState(() {
               if (message.isActive) {
                   final idx = _sosPins.indexWhere((a) => a.id == message.id);
                   if (idx >= 0) {
+                    // Branch A: Existing Pin Update
                     _sosPins[idx] = message;
+                    AlertsManager().addSosAlert(message);
                   } else {
-                    if (!_ignoredSosIds.contains(message.id)) {
-                      _sosPins.add(message);
-                    }
-                    AlertsManager().addSosAlert(message); // Add to persistent alerts feed
+                    // Branch B: New Pin
+                    _sosPins.add(message);
+                    AlertsManager().addSosAlert(message);
                   }
               } else {
                 _sosPins.removeWhere((a) => a.id == message.id);

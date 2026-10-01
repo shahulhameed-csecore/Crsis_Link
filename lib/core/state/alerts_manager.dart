@@ -4,6 +4,7 @@ import 'package:crsis_link_client/crsis_link_client.dart';
 enum AlertType { sos, accepted, resolved }
 
 class AlertNotification {
+  final int? sosId;
   final DateTime timestamp;
   final String title;
   final String description;
@@ -12,6 +13,7 @@ class AlertNotification {
   final double? longitude;
 
   AlertNotification({
+    this.sosId,
     required this.timestamp,
     required this.title,
     required this.description,
@@ -29,17 +31,24 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   List<AlertNotification> get notifications => value;
 
   void addSosAlert(SosAlert alert) {
-    value = [
-      AlertNotification(
-        timestamp: DateTime.now(),
-        title: 'SOS Alert: ${alert.senderName}',
-        description: alert.message ?? 'Needs emergency assistance.',
-        type: AlertType.sos,
-        latitude: alert.latitude,
-        longitude: alert.longitude,
-      ),
-      ...value,
-    ];
+    final idx = value.indexWhere((n) => n.sosId != null && n.sosId == alert.id);
+    final notification = AlertNotification(
+      sosId: alert.id,
+      timestamp: DateTime.now(),
+      title: 'SOS Alert: ${alert.senderName}',
+      description: alert.status == 'CLAIMED' ? 'Rescue on the way' : (alert.message ?? 'Needs emergency assistance.'),
+      type: AlertType.sos,
+      latitude: alert.latitude,
+      longitude: alert.longitude,
+    );
+
+    if (idx >= 0) {
+      final newList = List<AlertNotification>.from(value);
+      newList[idx] = notification;
+      value = newList;
+    } else {
+      value = [notification, ...value];
+    }
   }
 
   void addRescueEvent(RescueAcceptedEvent event) {
