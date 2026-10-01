@@ -221,21 +221,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                               } catch (e) {
                                 debugPrint('SOS Broadcast failed: $e');
                                 if (ctx.mounted) {
-                                  if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(content: Text('Session expired. Please log in again.')),
-                                    );
-                                    AuthManager.client.authenticationKeyManager?.remove();
-                                    AuthManager.sessionManager.signOutDevice();
-                                    Navigator.of(context).pushAndRemoveUntil(
-                                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                      (Route<dynamic> route) => false,
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      SnackBar(content: Text('Failed to broadcast: $e')),
-                                    );
-                                  }
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to drop pin. Try again.'),
+                                      backgroundColor: AppColors.emergencyRed,
+                                    ),
+                                  );
                                 }
                                 setModalState(() => isSubmitting = false);
                               }

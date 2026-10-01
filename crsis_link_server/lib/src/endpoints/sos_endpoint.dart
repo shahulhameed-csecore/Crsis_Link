@@ -18,11 +18,10 @@ class SosEndpoint extends Endpoint {
   /// Creates or updates an active SOS alert for the currently logged in user.
   Future<SosAlert> broadcastSos(Session session, double latitude, double longitude, String? message) async {
     // 1. Get the authenticated user ID
-    final authInfo = session.authenticated;
-    if (authInfo == null) {
+    if (session.authenticated == null) {
       throw Exception('Unauthorized access.');
     }
-    final userId = int.parse(authInfo.userIdentifier);
+    final userId = session.authenticated!.userId;
 
     // 2. Log the security event
     session.log('User $userId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
@@ -82,10 +81,9 @@ class SosEndpoint extends Endpoint {
 
   /// Cancels the active SOS alert for the logged in user.
   Future<bool> cancelSos(Session session) async {
-    final authInfo = session.authenticated;
-    if (authInfo == null) return false;
+    if (session.authenticated == null) return false;
     
-    final userId = int.parse(authInfo.userIdentifier);
+    final userId = session.authenticated!.userId;
     session.log('User $userId is cancelling their SOS alert.', level: LogLevel.info);
 
     final existingAlerts = await SosAlert.db.find(
@@ -114,11 +112,10 @@ class SosEndpoint extends Endpoint {
 
   /// Claims an active SOS alert
   Future<SosAlert> claimRescue(Session session, int sosId) async {
-    final authInfo = session.authenticated;
-    if (authInfo == null) {
+    if (session.authenticated == null) {
       throw Exception('Unauthorized access.');
     }
-    final userId = int.parse(authInfo.userIdentifier);
+    final userId = session.authenticated!.userId;
 
     // Run inside a transaction to prevent race conditions
     final alert = await session.db.transaction((transaction) async {
@@ -156,11 +153,10 @@ class SosEndpoint extends Endpoint {
 
   /// Completes an active SOS alert (called when rescuer is safe)
   Future<SosAlert> completeRescue(Session session, int sosId) async {
-    final authInfo = session.authenticated;
-    if (authInfo == null) {
+    if (session.authenticated == null) {
       throw Exception('Unauthorized access.');
     }
-    final userId = int.parse(authInfo.userIdentifier);
+    final userId = session.authenticated!.userId;
 
     final targetAlert = await SosAlert.db.findById(session, sosId);
     if (targetAlert == null) {
