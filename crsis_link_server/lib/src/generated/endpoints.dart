@@ -282,6 +282,30 @@ class Endpoints extends _i1.EndpointDispatch {
       name: 'sos',
       endpoint: endpoints['sos']!,
       methodConnectors: {
+        'updateLocation': _i1.MethodConnector(
+          name: 'updateLocation',
+          params: {
+            'latitude': _i1.ParameterDescription(
+              name: 'latitude',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'longitude': _i1.ParameterDescription(
+              name: 'longitude',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['sos'] as _i5.SosEndpoint).updateLocation(
+                session,
+                params['latitude'],
+                params['longitude'],
+              ),
+        ),
         'broadcastSos': _i1.MethodConnector(
           name: 'broadcastSos',
           params: {

@@ -543,6 +543,41 @@ class _SosEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
+  _i3.Future<void> updateLocation(
+    _i1.TestSessionBuilder sessionBuilder,
+    double latitude,
+    double longitude,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'updateLocation',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'updateLocation',
+          parameters: _i1.testObjectToJson({
+            'latitude': latitude,
+            'longitude': longitude,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<void>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _i3.Future<_i6.SosAlert> broadcastSos(
     _i1.TestSessionBuilder sessionBuilder,
     double latitude,

@@ -12,6 +12,7 @@ jwtRefresh:
 demoAuth:
   - demoLogin:
 sos:
+  - updateLocation:
   - broadcastSos:
   - getActiveAlerts:
   - cancelSos:

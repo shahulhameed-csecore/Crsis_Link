@@ -112,14 +112,35 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           _currentLocation = LatLng(position!.latitude, position.longitude);
           _errorMsg = '';
         });
+        
+        // Push the location to the server for spatial broadcasting
+        try {
+          AuthManager.client.sos.updateLocation(position!.latitude, position.longitude);
+        } catch (e) {
+          debugPrint('Failed to update location on server: $e');
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           // Fallback to New Delhi so we don't show an endless brown ocean (Null Island)
           _currentLocation = const LatLng(28.6139, 77.2090); 
-          _errorMsg = ''; // Clear error so map renders
+          _errorMsg = e.toString();
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppColors.emergencyRed,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'RETRY',
+              textColor: Colors.white,
+              onPressed: () {
+                _determinePosition();
+              },
+            ),
+          ),
+        );
       }
     }
   }

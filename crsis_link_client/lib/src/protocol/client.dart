@@ -267,6 +267,19 @@ class EndpointSos extends _i2.EndpointRef {
   @override
   String get name => 'sos';
 
+  /// Updates the user's last known location for targeted spatial broadcasting
+  _i3.Future<void> updateLocation(
+    double latitude,
+    double longitude,
+  ) => caller.callServerEndpoint<void>(
+    'sos',
+    'updateLocation',
+    {
+      'latitude': latitude,
+      'longitude': longitude,
+    },
+  );
+
   /// Creates or updates an active SOS alert for the currently logged in user.
   _i3.Future<_i6.SosAlert> broadcastSos(
     double latitude,
