@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:http/http.dart' as http;
+import 'package:serverpod_client/serverpod_client.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/theme/design_system.dart';
 
@@ -120,43 +122,25 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       final fileName = 'sos_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       // Step 1: Get signed upload URL from Serverpod
-      final uploadDescription = await AuthManager.client.audio.getUploadDescription(fileName);
-      
-      String uploadUrl = '';
-      Map<String, String> headers = {'Content-Type': 'audio/mp4'};
-      
-      try {
-        final decoded = jsonDecode(uploadDescription);
-        if (decoded is Map) {
-          uploadUrl = decoded['url'] ?? '';
-          if (decoded['headers'] is Map) {
-            Map<String, dynamic> rawHeaders = decoded['headers'];
-            for (final key in rawHeaders.keys) {
-              headers[key] = rawHeaders[key].toString();
-            }
-          }
-        }
-      } catch (e) {
-        // Fallback in case it's just a raw URL string
-        uploadUrl = uploadDescription;
-      }
+      String uploadDescription = await AuthManager.client.audio.getUploadDescription(fileName);
       
       // Replace Serverpod's placeholder with the actual host
       // Handle both unencoded and URL-encoded versions of ${public_host}
-      uploadUrl = uploadUrl
+      uploadDescription = uploadDescription
           .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
           .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
 
       // Step 2: Upload the file
       final bytes = await file.readAsBytes();
-      final response = await http.put(
-        Uri.parse(uploadUrl),
-        headers: headers,
-        body: bytes,
-      );
+      
+      // We must use ByteData for FileUploader
+      final byteData = ByteData.view(bytes.buffer);
+      
+      final uploader = FileUploader(uploadDescription);
+      final success = await uploader.uploadByteData(byteData);
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Upload failed with status ${response.statusCode}');
+      if (!success) {
+        throw Exception('File upload failed.');
       }
 
       // Step 3: Verify and get public URL
