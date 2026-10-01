@@ -32,16 +32,13 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
 
   void _initStreaming() {
     try {
-      // Open Serverpod WebSockets connection
-      AuthManager.client.openStreamingConnection();
-      
-      // Listen to real-time SOS broadcasts
+      // The WebSocket connection is opened AFTER login (in login_screen.dart)
+      // so the auth key is guaranteed to be persisted before we listen.
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
         if (message is SosAlert) {
           if (mounted) {
             setState(() {
               if (message.isActive) {
-                // Add or update the pin instantly
                 final idx = _sosPins.indexWhere((a) => a.id == message.id);
                 if (idx >= 0) {
                   _sosPins[idx] = message;
@@ -49,7 +46,6 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                   _sosPins.add(message);
                 }
               } else {
-                // Remove if the alert was cancelled
                 _sosPins.removeWhere((a) => a.id == message.id);
               }
             });
@@ -66,7 +62,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   @override
   void dispose() {
     _sosSubscription?.cancel();
-    AuthManager.client.closeStreamingConnection();
+    // Do NOT close the streaming connection here — it is app-level and
+    // should persist across navigation. Closing it would break other screens.
     super.dispose();
   }
 

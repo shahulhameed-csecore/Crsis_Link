@@ -40,13 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (serverResponse.success && serverResponse.userInfo != null) {
-        // Register session manually
-        final sessionManager = await SessionManager.instance;
-        await sessionManager.registerSignedInUser(
+        // Use AuthManager.sessionManager directly — same instance as the client
+        await AuthManager.sessionManager.registerSignedInUser(
           serverResponse.userInfo!,
           serverResponse.keyId!,
           serverResponse.key!,
         );
+        // Open the streaming connection AFTER the auth key is persisted
+        AuthManager.client.openStreamingConnection();
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/main');
         }
@@ -78,23 +79,30 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await AuthManager.client.demoAuth.demoLogin();
 
       if (response.success && response.userInfo != null) {
-        final sessionManager = await SessionManager.instance;
-        await sessionManager.registerSignedInUser(
+        // Use AuthManager.sessionManager directly — same instance as the client.
+        // This guarantees the auth key is in the FlutterAuthenticationKeyManager
+        // (SharedPreferences) BEFORE the streaming WebSocket connection is opened.
+        await AuthManager.sessionManager.registerSignedInUser(
           response.userInfo!,
           response.keyId!,
           response.key!,
         );
+        // Open streaming AFTER auth key is persisted so WebSocket handshake
+        // includes the Authorization header and all subsequent calls have a
+        // valid session. The map screen's initState will NOT call
+        // openStreamingConnection() again.
+        AuthManager.client.openStreamingConnection();
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/main');
         }
       } else {
         setState(() {
-          _errorMessage = 'Demo Login failed.';
+          _errorMessage = 'Demo Login failed. Please try again.';
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Network error: $e';
+        _errorMessage = 'Network error: ${e.toString()}';
       });
     } finally {
       if (mounted) {
