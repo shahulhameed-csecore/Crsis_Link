@@ -57,7 +57,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl) async {
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     final existingAlerts = await SosAlert.db.find(
@@ -78,6 +78,7 @@ class SosEndpoint extends Endpoint {
       isActive: true,
       status: 'OPEN',
       senderName: senderName,
+      audioUrl: audioUrl,
     );
 
     final savedAlert = await SosAlert.db.insertRow(session, newAlert);

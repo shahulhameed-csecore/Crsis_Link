@@ -25,6 +25,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     required this.status,
     required this.senderName,
     this.volunteerDeviceId,
+    this.audioUrl,
   });
 
   factory SosAlert({
@@ -38,6 +39,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     required String status,
     required String senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -54,6 +56,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       status: jsonSerialization['status'] as String,
       senderName: jsonSerialization['senderName'] as String,
       volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
+      audioUrl: jsonSerialization['audioUrl'] as String?,
     );
   }
 
@@ -80,6 +83,8 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String? volunteerDeviceId;
 
+  String? audioUrl;
+
   /// Returns a shallow copy of this [SosAlert]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -94,6 +99,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? status,
     String? senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -109,6 +115,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       'status': status,
       'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
+      if (audioUrl != null) 'audioUrl': audioUrl,
     };
   }
 
@@ -132,6 +139,7 @@ class _SosAlertImpl extends SosAlert {
     required String status,
     required String senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -143,6 +151,7 @@ class _SosAlertImpl extends SosAlert {
          status: status,
          senderName: senderName,
          volunteerDeviceId: volunteerDeviceId,
+         audioUrl: audioUrl,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -160,6 +169,7 @@ class _SosAlertImpl extends SosAlert {
     String? status,
     String? senderName,
     Object? volunteerDeviceId = _Undefined,
+    Object? audioUrl = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -174,6 +184,7 @@ class _SosAlertImpl extends SosAlert {
       volunteerDeviceId: volunteerDeviceId is String?
           ? volunteerDeviceId
           : this.volunteerDeviceId,
+      audioUrl: audioUrl is String? ? audioUrl : this.audioUrl,
     );
   }
 }

@@ -139,6 +139,8 @@ class TestEndpoints {
 
   late final _JwtRefreshEndpoint jwtRefresh;
 
+  late final _AudioEndpoint audio;
+
   late final _DemoAuthEndpoint demoAuth;
 
   late final _SosEndpoint sos;
@@ -158,6 +160,10 @@ class _InternalTestEndpoints extends TestEndpoints
       serializationManager,
     );
     jwtRefresh = _JwtRefreshEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    audio = _AudioEndpoint(
       endpoints,
       serializationManager,
     );
@@ -494,6 +500,79 @@ class _JwtRefreshEndpoint {
   }
 }
 
+class _AudioEndpoint {
+  _AudioEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<String> getUploadDescription(
+    _i1.TestSessionBuilder sessionBuilder,
+    String fileName,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'audio',
+            method: 'getUploadDescription',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'audio',
+          methodName: 'getUploadDescription',
+          parameters: _i1.testObjectToJson({'fileName': fileName}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<String>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<String> verifyUpload(
+    _i1.TestSessionBuilder sessionBuilder,
+    String fileName,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'audio',
+            method: 'verifyUpload',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'audio',
+          methodName: 'verifyUpload',
+          parameters: _i1.testObjectToJson({'fileName': fileName}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<String>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
 class _DemoAuthEndpoint {
   _DemoAuthEndpoint(
     this._endpointDispatch,
@@ -589,6 +668,7 @@ class _SosEndpoint {
     double latitude,
     double longitude,
     String? message,
+    String? audioUrl,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -607,6 +687,7 @@ class _SosEndpoint {
             'latitude': latitude,
             'longitude': longitude,
             'message': message,
+            'audioUrl': audioUrl,
           }),
           serializationManager: _serializationManager,
         );

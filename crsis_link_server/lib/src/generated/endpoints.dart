@@ -14,14 +14,15 @@
 import 'package:serverpod/serverpod.dart' as _i1;
 import '../auth/email_idp_endpoint.dart' as _i2;
 import '../auth/jwt_refresh_endpoint.dart' as _i3;
-import '../endpoints/demo_auth_endpoint.dart' as _i4;
-import '../endpoints/sos_endpoint.dart' as _i5;
-import '../greetings/greeting_endpoint.dart' as _i6;
+import '../endpoints/audio_endpoint.dart' as _i4;
+import '../endpoints/demo_auth_endpoint.dart' as _i5;
+import '../endpoints/sos_endpoint.dart' as _i6;
+import '../greetings/greeting_endpoint.dart' as _i7;
 import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
-    as _i7;
-import 'package:serverpod_auth_server/serverpod_auth_server.dart' as _i8;
+    as _i8;
+import 'package:serverpod_auth_server/serverpod_auth_server.dart' as _i9;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
-    as _i9;
+    as _i10;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -39,19 +40,25 @@ class Endpoints extends _i1.EndpointDispatch {
           'jwtRefresh',
           null,
         ),
-      'demoAuth': _i4.DemoAuthEndpoint()
+      'audio': _i4.AudioEndpoint()
+        ..initialize(
+          server,
+          'audio',
+          null,
+        ),
+      'demoAuth': _i5.DemoAuthEndpoint()
         ..initialize(
           server,
           'demoAuth',
           null,
         ),
-      'sos': _i5.SosEndpoint()
+      'sos': _i6.SosEndpoint()
         ..initialize(
           server,
           'sos',
           null,
         ),
-      'greeting': _i6.GreetingEndpoint()
+      'greeting': _i7.GreetingEndpoint()
         ..initialize(
           server,
           'greeting',
@@ -262,6 +269,49 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
       },
     );
+    connectors['audio'] = _i1.EndpointConnector(
+      name: 'audio',
+      endpoint: endpoints['audio']!,
+      methodConnectors: {
+        'getUploadDescription': _i1.MethodConnector(
+          name: 'getUploadDescription',
+          params: {
+            'fileName': _i1.ParameterDescription(
+              name: 'fileName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['audio'] as _i4.AudioEndpoint)
+                  .getUploadDescription(
+                    session,
+                    params['fileName'],
+                  ),
+        ),
+        'verifyUpload': _i1.MethodConnector(
+          name: 'verifyUpload',
+          params: {
+            'fileName': _i1.ParameterDescription(
+              name: 'fileName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['audio'] as _i4.AudioEndpoint).verifyUpload(
+                session,
+                params['fileName'],
+              ),
+        ),
+      },
+    );
     connectors['demoAuth'] = _i1.EndpointConnector(
       name: 'demoAuth',
       endpoint: endpoints['demoAuth']!,
@@ -273,7 +323,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['demoAuth'] as _i4.DemoAuthEndpoint)
+              ) async => (endpoints['demoAuth'] as _i5.DemoAuthEndpoint)
                   .demoLogin(session),
         ),
       },
@@ -305,7 +355,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).updateLocation(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).updateLocation(
                 session,
                 params['deviceId'],
                 params['latitude'],
@@ -340,18 +390,24 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'audioUrl': _i1.ParameterDescription(
+              name: 'audioUrl',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
           },
           call:
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).broadcastSos(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).broadcastSos(
                 session,
                 params['deviceId'],
                 params['senderName'],
                 params['latitude'],
                 params['longitude'],
                 params['message'],
+                params['audioUrl'],
               ),
         ),
         'getActiveAlerts': _i1.MethodConnector(
@@ -361,7 +417,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).getActiveAlerts(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).getActiveAlerts(
                 session,
               ),
         ),
@@ -378,7 +434,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).cancelSos(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).cancelSos(
                 session,
                 params['deviceId'],
               ),
@@ -401,7 +457,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).resolveSOS(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).resolveSOS(
                 session,
                 params['sosId'],
                 params['deviceId'],
@@ -430,7 +486,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).claimRescue(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).claimRescue(
                 session,
                 params['volunteerDeviceId'],
                 params['volunteerName'],
@@ -455,7 +511,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sos'] as _i5.SosEndpoint).completeRescue(
+              ) async => (endpoints['sos'] as _i6.SosEndpoint).completeRescue(
                 session,
                 params['volunteerDeviceId'],
                 params['sosId'],
@@ -480,17 +536,17 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['greeting'] as _i6.GreetingEndpoint).hello(
+              ) async => (endpoints['greeting'] as _i7.GreetingEndpoint).hello(
                 session,
                 params['name'],
               ),
         ),
       },
     );
-    modules['serverpod_auth_idp'] = _i7.Endpoints()
+    modules['serverpod_auth_idp'] = _i8.Endpoints()
       ..initializeEndpoints(server);
-    modules['serverpod_auth'] = _i8.Endpoints()..initializeEndpoints(server);
-    modules['serverpod_auth_core'] = _i9.Endpoints()
+    modules['serverpod_auth'] = _i9.Endpoints()..initializeEndpoints(server);
+    modules['serverpod_auth_core'] = _i10.Endpoints()
       ..initializeEndpoints(server);
   }
 }

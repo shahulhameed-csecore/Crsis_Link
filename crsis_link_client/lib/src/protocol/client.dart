@@ -245,6 +245,32 @@ class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
   );
 }
 
+/// Endpoint for handling audio file operations for SOS voice notes.
+/// {@category Endpoint}
+class EndpointAudio extends _i2.EndpointRef {
+  EndpointAudio(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'audio';
+
+  /// Generates a pre-signed upload URL for an SOS audio file.
+  /// Returns a JSON-encoded upload description string.
+  _i3.Future<String> getUploadDescription(String fileName) =>
+      caller.callServerEndpoint<String>(
+        'audio',
+        'getUploadDescription',
+        {'fileName': fileName},
+      );
+
+  /// Verifies the upload completed and returns the public URL of the audio file.
+  _i3.Future<String> verifyUpload(String fileName) =>
+      caller.callServerEndpoint<String>(
+        'audio',
+        'verifyUpload',
+        {'fileName': fileName},
+      );
+}
+
 /// {@category Endpoint}
 class EndpointDemoAuth extends _i2.EndpointRef {
   EndpointDemoAuth(_i2.EndpointCaller caller) : super(caller);
@@ -290,6 +316,7 @@ class EndpointSos extends _i2.EndpointRef {
     double latitude,
     double longitude,
     String? message,
+    String? audioUrl,
   ) => caller.callServerEndpoint<_i6.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
@@ -299,6 +326,7 @@ class EndpointSos extends _i2.EndpointRef {
       'latitude': latitude,
       'longitude': longitude,
       'message': message,
+      'audioUrl': audioUrl,
     },
   );
 
@@ -423,6 +451,7 @@ class Client extends _i2.ServerpodClientShared {
        ) {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
+    audio = EndpointAudio(this);
     demoAuth = EndpointDemoAuth(this);
     sos = EndpointSos(this);
     greeting = EndpointGreeting(this);
@@ -432,6 +461,8 @@ class Client extends _i2.ServerpodClientShared {
   late final EndpointEmailIdp emailIdp;
 
   late final EndpointJwtRefresh jwtRefresh;
+
+  late final EndpointAudio audio;
 
   late final EndpointDemoAuth demoAuth;
 
@@ -445,6 +476,7 @@ class Client extends _i2.ServerpodClientShared {
   Map<String, _i2.EndpointRef> get endpointRefLookup => {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
+    'audio': audio,
     'demoAuth': demoAuth,
     'sos': sos,
     'greeting': greeting,

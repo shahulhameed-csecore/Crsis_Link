@@ -4,9 +4,11 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/alerts_manager.dart';
+import '../widgets/voice_note_recorder.dart';
 import 'auth/login_screen.dart';
 
 class HomeMapScreen extends StatefulWidget {
@@ -199,6 +201,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   void _showSosModal(LatLng position) {
     final TextEditingController messageController = TextEditingController();
     bool isSubmitting = false;
+    String? _pendingAudioUrl;
 
     showModalBottomSheet(
       context: context,
@@ -259,6 +262,13 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                     ),
                     maxLines: 3,
                   ),
+                  const SizedBox(height: 16),
+                  // Voice Note Recorder
+                  VoiceNoteRecorder(
+                    onRecorded: (url) {
+                      _pendingAudioUrl = url.isEmpty ? null : url;
+                    },
+                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     height: 56,
@@ -277,7 +287,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                                   AuthManager.displayName,
                                   position.latitude,
                                   position.longitude,
-                                  messageController.text.trim(),
+                                  messageController.text.trim().isEmpty ? null : messageController.text.trim(),
+                                  _pendingAudioUrl,
                                 );
                                 setState(() {
                                   // Remove any previous pin by this user to keep it simple, 
@@ -672,6 +683,10 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                     alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
+                  if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _AudioPlayerButton(audioUrl: alert.audioUrl!),
+                  ],
                   const SizedBox(height: 24),
                   if (isOwnPin)
                     SizedBox(
@@ -752,3 +767,130 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
     );
   }
 }
+
+class _AudioPlayerButton extends StatefulWidget {
+  final String audioUrl;
+  const _AudioPlayerButton({required this.audioUrl});
+
+  @override
+  State<_AudioPlayerButton> createState() => _AudioPlayerButtonState();
+}
+
+class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
+  late AudioPlayer _audioPlayer;
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+    
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+          if (state == PlayerState.completed) {
+            _position = Duration.zero;
+          }
+        });
+      }
+    });
+
+    _audioPlayer.onDurationChanged.listen((newDuration) {
+      if (mounted) setState(() => _duration = newDuration);
+    });
+
+    _audioPlayer.onPositionChanged.listen((newPosition) {
+      if (mounted) setState(() => _position = newPosition);
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlay() async {
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+    } else {
+      setState(() => _isLoading = true);
+      try {
+        await _audioPlayer.play(UrlSource(widget.audioUrl));
+      } catch (e) {
+        debugPrint('Audio playback error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to play audio: $e'),
+              backgroundColor: AppColors.emergencyRed,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.pitchBlack.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _togglePlay,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppColors.emergencyRed,
+                shape: BoxShape.circle,
+              ),
+              child: _isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Voice Note attached', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0.0,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.emergencyRed),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

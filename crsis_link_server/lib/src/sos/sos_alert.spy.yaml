@@ -10,3 +10,4 @@ fields:
   status: String
   senderName: String
   volunteerDeviceId: String?
+  audioUrl: String?

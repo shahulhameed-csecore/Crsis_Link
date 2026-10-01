@@ -9,6 +9,9 @@ emailIdp:
   - hasAccount:
 jwtRefresh:
   - refreshAccessToken:
+audio:
+  - getUploadDescription:
+  - verifyUpload:
 demoAuth:
   - demoLogin:
 sos:

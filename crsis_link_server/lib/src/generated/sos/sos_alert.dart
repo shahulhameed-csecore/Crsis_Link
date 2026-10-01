@@ -26,6 +26,7 @@ abstract class SosAlert
     required this.status,
     required this.senderName,
     this.volunteerDeviceId,
+    this.audioUrl,
   });
 
   factory SosAlert({
@@ -39,6 +40,7 @@ abstract class SosAlert
     required String status,
     required String senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -55,6 +57,7 @@ abstract class SosAlert
       status: jsonSerialization['status'] as String,
       senderName: jsonSerialization['senderName'] as String,
       volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
+      audioUrl: jsonSerialization['audioUrl'] as String?,
     );
   }
 
@@ -83,6 +86,8 @@ abstract class SosAlert
 
   String? volunteerDeviceId;
 
+  String? audioUrl;
+
   @override
   _i1.Table<int?> get table => t;
 
@@ -100,6 +105,7 @@ abstract class SosAlert
     String? status,
     String? senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -115,6 +121,7 @@ abstract class SosAlert
       'status': status,
       'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
+      if (audioUrl != null) 'audioUrl': audioUrl,
     };
   }
 
@@ -132,6 +139,7 @@ abstract class SosAlert
       'status': status,
       'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
+      if (audioUrl != null) 'audioUrl': audioUrl,
     };
   }
 
@@ -179,6 +187,7 @@ class _SosAlertImpl extends SosAlert {
     required String status,
     required String senderName,
     String? volunteerDeviceId,
+    String? audioUrl,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -190,6 +199,7 @@ class _SosAlertImpl extends SosAlert {
          status: status,
          senderName: senderName,
          volunteerDeviceId: volunteerDeviceId,
+         audioUrl: audioUrl,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -207,6 +217,7 @@ class _SosAlertImpl extends SosAlert {
     String? status,
     String? senderName,
     Object? volunteerDeviceId = _Undefined,
+    Object? audioUrl = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -221,6 +232,7 @@ class _SosAlertImpl extends SosAlert {
       volunteerDeviceId: volunteerDeviceId is String?
           ? volunteerDeviceId
           : this.volunteerDeviceId,
+      audioUrl: audioUrl is String? ? audioUrl : this.audioUrl,
     );
   }
 }
@@ -274,6 +286,11 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
         table.volunteerDeviceId,
         value,
       );
+
+  _i1.ColumnValue<String, String> audioUrl(String? value) => _i1.ColumnValue(
+    table.audioUrl,
+    value,
+  );
 }
 
 class SosAlertTable extends _i1.Table<int?> {
@@ -315,6 +332,10 @@ class SosAlertTable extends _i1.Table<int?> {
       'volunteerDeviceId',
       this,
     );
+    audioUrl = _i1.ColumnString(
+      'audioUrl',
+      this,
+    );
   }
 
   late final SosAlertUpdateTable updateTable;
@@ -337,6 +358,8 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString volunteerDeviceId;
 
+  late final _i1.ColumnString audioUrl;
+
   @override
   List<_i1.Column> get columns => [
     id,
@@ -349,6 +372,7 @@ class SosAlertTable extends _i1.Table<int?> {
     status,
     senderName,
     volunteerDeviceId,
+    audioUrl,
   ];
 }
 
