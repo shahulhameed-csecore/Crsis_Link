@@ -1,0 +1,4 @@
+class: SosResolvedEvent
+fields:
+  sosId: int
+  deviceId: String

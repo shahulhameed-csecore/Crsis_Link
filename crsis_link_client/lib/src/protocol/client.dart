@@ -286,6 +286,7 @@ class EndpointSos extends _i2.EndpointRef {
   /// Creates or updates an active SOS alert for the given device.
   _i3.Future<_i6.SosBroadcastResponse> broadcastSos(
     String deviceId,
+    String senderName,
     double latitude,
     double longitude,
     String? message,
@@ -294,6 +295,7 @@ class EndpointSos extends _i2.EndpointRef {
     'broadcastSos',
     {
       'deviceId': deviceId,
+      'senderName': senderName,
       'latitude': latitude,
       'longitude': longitude,
       'message': message,
@@ -315,6 +317,19 @@ class EndpointSos extends _i2.EndpointRef {
         'cancelSos',
         {'deviceId': deviceId},
       );
+
+  /// Resolves an active SOS alert
+  _i3.Future<bool> resolveSOS(
+    int sosId,
+    String deviceId,
+  ) => caller.callServerEndpoint<bool>(
+    'sos',
+    'resolveSOS',
+    {
+      'sosId': sosId,
+      'deviceId': deviceId,
+    },
+  );
 
   /// Claims an active SOS alert
   _i3.Future<_i7.SosAlert> claimRescue(

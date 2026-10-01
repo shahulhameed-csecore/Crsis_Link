@@ -320,6 +320,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
+            'senderName': _i1.ParameterDescription(
+              name: 'senderName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
             'latitude': _i1.ParameterDescription(
               name: 'latitude',
               type: _i1.getType<double>(),
@@ -343,6 +348,7 @@ class Endpoints extends _i1.EndpointDispatch {
               ) async => (endpoints['sos'] as _i5.SosEndpoint).broadcastSos(
                 session,
                 params['deviceId'],
+                params['senderName'],
                 params['latitude'],
                 params['longitude'],
                 params['message'],
@@ -374,6 +380,30 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).cancelSos(
                 session,
+                params['deviceId'],
+              ),
+        ),
+        'resolveSOS': _i1.MethodConnector(
+          name: 'resolveSOS',
+          params: {
+            'sosId': _i1.ParameterDescription(
+              name: 'sosId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['sos'] as _i5.SosEndpoint).resolveSOS(
+                session,
+                params['sosId'],
                 params['deviceId'],
               ),
         ),

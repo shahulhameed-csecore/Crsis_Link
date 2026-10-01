@@ -16,6 +16,7 @@ sos:
   - broadcastSos:
   - getActiveAlerts:
   - cancelSos:
+  - resolveSOS:
   - claimRescue:
   - completeRescue:
 greeting:

@@ -8,4 +8,5 @@ fields:
   message: String?
   isActive: bool
   status: String
+  senderName: String
   volunteerDeviceId: String?

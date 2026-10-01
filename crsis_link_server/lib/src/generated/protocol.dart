@@ -22,11 +22,13 @@ import 'greetings/greeting.dart' as _i6;
 import 'sos/rescue_accepted_event.dart' as _i7;
 import 'sos/sos_alert.dart' as _i8;
 import 'sos/sos_broadcast_response.dart' as _i9;
-import 'package:crsis_link_server/src/generated/sos/sos_alert.dart' as _i10;
+import 'sos/sos_resolved_event.dart' as _i10;
+import 'package:crsis_link_server/src/generated/sos/sos_alert.dart' as _i11;
 export 'greetings/greeting.dart';
 export 'sos/rescue_accepted_event.dart';
 export 'sos/sos_alert.dart';
 export 'sos/sos_broadcast_response.dart';
+export 'sos/sos_resolved_event.dart';
 
 class Protocol extends _i1.SerializationManagerServer {
   Protocol._();
@@ -87,6 +89,12 @@ class Protocol extends _i1.SerializationManagerServer {
         ),
         _i2.ColumnDefinition(
           name: 'status',
+          columnType: _i2.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _i2.ColumnDefinition(
+          name: 'senderName',
           columnType: _i2.ColumnType.text,
           isNullable: false,
           dartType: 'String',
@@ -161,6 +169,9 @@ class Protocol extends _i1.SerializationManagerServer {
     if (t == _i9.SosBroadcastResponse) {
       return _i9.SosBroadcastResponse.fromJson(data) as T;
     }
+    if (t == _i10.SosResolvedEvent) {
+      return _i10.SosResolvedEvent.fromJson(data) as T;
+    }
     if (t == _i1.getType<_i6.Greeting?>()) {
       return (data != null ? _i6.Greeting.fromJson(data) : null) as T;
     }
@@ -175,8 +186,11 @@ class Protocol extends _i1.SerializationManagerServer {
       return (data != null ? _i9.SosBroadcastResponse.fromJson(data) : null)
           as T;
     }
-    if (t == List<_i10.SosAlert>) {
-      return (data as List).map((e) => deserialize<_i10.SosAlert>(e)).toList()
+    if (t == _i1.getType<_i10.SosResolvedEvent?>()) {
+      return (data != null ? _i10.SosResolvedEvent.fromJson(data) : null) as T;
+    }
+    if (t == List<_i11.SosAlert>) {
+      return (data as List).map((e) => deserialize<_i11.SosAlert>(e)).toList()
           as T;
     }
     try {
@@ -200,6 +214,7 @@ class Protocol extends _i1.SerializationManagerServer {
       _i7.RescueAcceptedEvent => 'RescueAcceptedEvent',
       _i8.SosAlert => 'SosAlert',
       _i9.SosBroadcastResponse => 'SosBroadcastResponse',
+      _i10.SosResolvedEvent => 'SosResolvedEvent',
       _ => null,
     };
   }
@@ -222,6 +237,8 @@ class Protocol extends _i1.SerializationManagerServer {
         return 'SosAlert';
       case _i9.SosBroadcastResponse():
         return 'SosBroadcastResponse';
+      case _i10.SosResolvedEvent():
+        return 'SosResolvedEvent';
     }
     className = _i2.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -259,6 +276,9 @@ class Protocol extends _i1.SerializationManagerServer {
     }
     if (dataClassName == 'SosBroadcastResponse') {
       return deserialize<_i9.SosBroadcastResponse>(data['data']);
+    }
+    if (dataClassName == 'SosResolvedEvent') {
+      return deserialize<_i10.SosResolvedEvent>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);

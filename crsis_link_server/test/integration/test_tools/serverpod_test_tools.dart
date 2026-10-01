@@ -585,6 +585,7 @@ class _SosEndpoint {
   _i3.Future<_i6.SosBroadcastResponse> broadcastSos(
     _i1.TestSessionBuilder sessionBuilder,
     String deviceId,
+    String senderName,
     double latitude,
     double longitude,
     String? message,
@@ -602,6 +603,7 @@ class _SosEndpoint {
           methodName: 'broadcastSos',
           parameters: _i1.testObjectToJson({
             'deviceId': deviceId,
+            'senderName': senderName,
             'latitude': latitude,
             'longitude': longitude,
             'message': message,
@@ -667,6 +669,41 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'cancelSos',
           parameters: _i1.testObjectToJson({'deviceId': deviceId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<bool>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<bool> resolveSOS(
+    _i1.TestSessionBuilder sessionBuilder,
+    int sosId,
+    String deviceId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'resolveSOS',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'resolveSOS',
+          parameters: _i1.testObjectToJson({
+            'sosId': sosId,
+            'deviceId': deviceId,
+          }),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =

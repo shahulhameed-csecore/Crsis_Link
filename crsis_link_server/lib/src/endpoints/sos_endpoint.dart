@@ -57,7 +57,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, double latitude, double longitude, String? message) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message) async {
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     final existingAlerts = await SosAlert.db.find(
@@ -77,6 +77,7 @@ class SosEndpoint extends Endpoint {
       message: message,
       isActive: true,
       status: 'OPEN',
+      senderName: senderName,
     );
 
     final savedAlert = await SosAlert.db.insertRow(session, newAlert);
@@ -127,6 +128,7 @@ class SosEndpoint extends Endpoint {
     bool canceledAny = false;
     for (var alert in existingAlerts) {
       alert.isActive = false;
+      alert.status = 'CANCELLED';
       await SosAlert.db.updateRow(session, alert);
       
       // Notify nearby devices about cancellation if needed.
@@ -134,6 +136,23 @@ class SosEndpoint extends Endpoint {
       canceledAny = true;
     }
     return canceledAny;
+  }
+  
+  /// Resolves an active SOS alert
+  Future<bool> resolveSOS(Session session, int sosId, String deviceId) async {
+    final alert = await SosAlert.db.findById(session, sosId);
+    if (alert == null || alert.deviceId != deviceId) {
+      return false;
+    }
+    
+    alert.isActive = false;
+    alert.status = 'RESOLVED';
+    await SosAlert.db.updateRow(session, alert);
+    
+    // Broadcast the resolved event
+    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: deviceId));
+    
+    return true;
   }
 
   /// Claims an active SOS alert

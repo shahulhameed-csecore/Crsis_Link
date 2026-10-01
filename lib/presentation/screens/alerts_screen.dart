@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/theme/design_system.dart';
-import '../../core/auth/auth_manager.dart';
+import '../../core/state/alerts_manager.dart';
+import 'package:intl/intl.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -11,136 +11,94 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  List<SosAlert> _myRescues = [];
-  bool _isLoading = true;
+  void _update() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    _fetchMyRescues();
+    AlertsManager().addListener(_update);
   }
 
-  Future<void> _fetchMyRescues() async {
-    try {
-      final allAlerts = await AuthManager.client.sos.getActiveAlerts();
-      final userId = AuthManager.deviceId;
-      
-      setState(() {
-        _myRescues = allAlerts.where((a) => a.volunteerDeviceId == userId && (a.status == 'CLAIMED' || a.status == 'ESCALATED')).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Failed to fetch rescues: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _completeRescue(SosAlert alert) async {
-    try {
-      await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.id!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rescue marked as completed. Stay safe!')),
-        );
-      }
-      _fetchMyRescues();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to complete rescue: $e')),
-        );
-      }
-    }
+  @override
+  void dispose() {
+    AlertsManager().removeListener(_update);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final notifications = AlertsManager().notifications;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('MY RESCUES', style: AppTypography.primaryHeader.copyWith(fontSize: 24)),
+        title: Text('ALERTS FEED', style: AppTypography.primaryHeader.copyWith(fontSize: 24)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.pitchBlack))
-          : _myRescues.isEmpty
-              ? Center(child: Text('You have no active rescues.', style: AppTypography.body))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: _myRescues.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final alert = _myRescues[index];
-                    final isEscalated = alert.status == 'ESCALATED';
-
-                    return Card(
-                      color: isEscalated ? AppColors.emergencyRed.withValues(alpha: 0.1) : AppColors.radarGreen.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(
-                          color: isEscalated ? AppColors.emergencyRed : AppColors.radarGreen,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      body: notifications.isEmpty
+          ? Center(child: Text('No recent alerts.', style: AppTypography.body))
+          : ListView.separated(
+              padding: const EdgeInsets.all(24),
+              itemCount: notifications.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final alert = notifications[index];
+                
+                return Card(
+                  color: alert.isRescue ? AppColors.radarGreen.withValues(alpha: 0.1) : AppColors.emergencyRed.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(
+                      color: alert.isRescue ? AppColors.radarGreen : AppColors.emergencyRed,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isEscalated ? Icons.warning_amber_rounded : Icons.health_and_safety,
-                                  color: isEscalated ? AppColors.emergencyRed : AppColors.radarGreen,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    isEscalated ? 'ESCALATED SAFETY CHECK' : 'ACTIVE RESCUE',
-                                    style: AppTypography.subtitle.copyWith(
-                                      color: isEscalated ? AppColors.emergencyRed : AppColors.radarGreen,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            Icon(
+                              alert.isRescue ? Icons.health_and_safety : Icons.warning_amber_rounded,
+                              color: alert.isRescue ? AppColors.radarGreen : AppColors.emergencyRed,
+                              size: 28,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              isEscalated 
-                                ? 'You have not checked in! Are you safe? Please confirm your rescue status immediately.'
-                                : 'Rescue in progress for ${alert.deviceId}.',
-                              style: AppTypography.body,
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () => _completeRescue(alert),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isEscalated ? AppColors.emergencyRed : AppColors.pitchBlack,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                ),
-                                child: Text(
-                                  'CONFIRM SAFE / COMPLETE',
-                                  style: AppTypography.button,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                alert.title,
+                                style: AppTypography.subtitle.copyWith(
+                                  color: alert.isRescue ? AppColors.radarGreen : AppColors.emergencyRed,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                        const SizedBox(height: 12),
+                        Text(
+                          alert.description,
+                          style: AppTypography.body.copyWith(color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            DateFormat.jm().format(alert.timestamp),
+                            style: AppTypography.body.copyWith(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

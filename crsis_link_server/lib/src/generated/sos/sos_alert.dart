@@ -24,6 +24,7 @@ abstract class SosAlert
     this.message,
     required this.isActive,
     required this.status,
+    required this.senderName,
     this.volunteerDeviceId,
   });
 
@@ -36,6 +37,7 @@ abstract class SosAlert
     String? message,
     required bool isActive,
     required String status,
+    required String senderName,
     String? volunteerDeviceId,
   }) = _SosAlertImpl;
 
@@ -51,6 +53,7 @@ abstract class SosAlert
       message: jsonSerialization['message'] as String?,
       isActive: _i1.BoolJsonExtension.fromJson(jsonSerialization['isActive']),
       status: jsonSerialization['status'] as String,
+      senderName: jsonSerialization['senderName'] as String,
       volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
     );
   }
@@ -76,6 +79,8 @@ abstract class SosAlert
 
   String status;
 
+  String senderName;
+
   String? volunteerDeviceId;
 
   @override
@@ -93,6 +98,7 @@ abstract class SosAlert
     String? message,
     bool? isActive,
     String? status,
+    String? senderName,
     String? volunteerDeviceId,
   });
   @override
@@ -107,6 +113,7 @@ abstract class SosAlert
       if (message != null) 'message': message,
       'isActive': isActive,
       'status': status,
+      'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
     };
   }
@@ -123,6 +130,7 @@ abstract class SosAlert
       if (message != null) 'message': message,
       'isActive': isActive,
       'status': status,
+      'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
     };
   }
@@ -169,6 +177,7 @@ class _SosAlertImpl extends SosAlert {
     String? message,
     required bool isActive,
     required String status,
+    required String senderName,
     String? volunteerDeviceId,
   }) : super._(
          id: id,
@@ -179,6 +188,7 @@ class _SosAlertImpl extends SosAlert {
          message: message,
          isActive: isActive,
          status: status,
+         senderName: senderName,
          volunteerDeviceId: volunteerDeviceId,
        );
 
@@ -195,6 +205,7 @@ class _SosAlertImpl extends SosAlert {
     Object? message = _Undefined,
     bool? isActive,
     String? status,
+    String? senderName,
     Object? volunteerDeviceId = _Undefined,
   }) {
     return SosAlert(
@@ -206,6 +217,7 @@ class _SosAlertImpl extends SosAlert {
       message: message is String? ? message : this.message,
       isActive: isActive ?? this.isActive,
       status: status ?? this.status,
+      senderName: senderName ?? this.senderName,
       volunteerDeviceId: volunteerDeviceId is String?
           ? volunteerDeviceId
           : this.volunteerDeviceId,
@@ -252,6 +264,11 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
     value,
   );
 
+  _i1.ColumnValue<String, String> senderName(String value) => _i1.ColumnValue(
+    table.senderName,
+    value,
+  );
+
   _i1.ColumnValue<String, String> volunteerDeviceId(String? value) =>
       _i1.ColumnValue(
         table.volunteerDeviceId,
@@ -290,6 +307,10 @@ class SosAlertTable extends _i1.Table<int?> {
       'status',
       this,
     );
+    senderName = _i1.ColumnString(
+      'senderName',
+      this,
+    );
     volunteerDeviceId = _i1.ColumnString(
       'volunteerDeviceId',
       this,
@@ -312,6 +333,8 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString status;
 
+  late final _i1.ColumnString senderName;
+
   late final _i1.ColumnString volunteerDeviceId;
 
   @override
@@ -324,6 +347,7 @@ class SosAlertTable extends _i1.Table<int?> {
     message,
     isActive,
     status,
+    senderName,
     volunteerDeviceId,
   ];
 }

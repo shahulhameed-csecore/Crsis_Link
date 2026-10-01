@@ -13,20 +13,7 @@ class MyProfileScreen extends StatefulWidget {
 class _MyProfileScreenState extends State<MyProfileScreen> {
   final _nameController = TextEditingController(text: AuthManager.displayName);
 
-  Future<void> _handleLogout(BuildContext context) async {
-    try {
-      await AuthManager.client.authenticationKeyManager?.remove();
-    } catch (e) {
-      debugPrint('Server logout threw an error, but local session cleared: $e');
-    }
-
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
-      );
-    }
-  }
+  // Logout removed as per frictionless Anonymous Device Identity requirements
 
   void _editName() {
     showDialog(
@@ -127,40 +114,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 48),
-            
-            // Log Out Button (Prominent, High-Contrast)
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => _handleLogout(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.emergencyRed,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  elevation: 4,
-                  shadowColor: AppColors.emergencyRed.withValues(alpha: 0.5),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.power_settings_new, size: 24),
-                    SizedBox(width: 12),
-                    Text(
-                      'LOG OUT',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],

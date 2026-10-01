@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
+import '../../core/state/alerts_manager.dart';
 import 'auth/login_screen.dart';
 
 class HomeMapScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   String _errorMsg = '';
   List<SosAlert> _sosPins = [];
   StreamSubscription? _sosSubscription;
+  bool _isConnected = true;
 
   @override
   void initState() {
@@ -28,6 +30,15 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     _determinePosition();
     _fetchActiveSos();
     _initStreaming();
+    AuthManager.client.connectivityMonitor?.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged(bool connected) {
+    if (mounted) {
+      setState(() {
+        _isConnected = connected;
+      });
+    }
   }
 
   void _initStreaming() {
@@ -47,6 +58,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                   _sosPins[idx] = message;
                 } else {
                   _sosPins.add(message);
+                  AlertsManager().addSosAlert(message); // Add to persistent alerts feed
                 }
               } else {
                 _sosPins.removeWhere((a) => a.id == message.id);
@@ -55,6 +67,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           }
         } else if (message is RescueAcceptedEvent) {
           if (message.victimDeviceId == AuthManager.deviceId) {
+            AlertsManager().addRescueEvent(message); // Add to persistent alerts feed
             if (mounted) {
               showDialog(
                 context: context,
@@ -72,6 +85,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
               );
             }
           }
+        } else if (message is SosResolvedEvent) {
+          if (mounted) {
+            setState(() {
+              _sosPins.removeWhere((a) => a.id == message.sosId);
+            });
+          }
         }
       }, onError: (e) {
         debugPrint('WebSocket stream error: $e');
@@ -84,6 +103,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   @override
   void dispose() {
     _sosSubscription?.cancel();
+    AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
     // Do NOT close the streaming connection here — it is app-level and
     // should persist across navigation. Closing it would break other screens.
     super.dispose();
@@ -248,6 +268,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                               try {
                                 final response = await AuthManager.client.sos.broadcastSos(
                                   AuthManager.deviceId,
+                                  AuthManager.displayName,
                                   position.latitude,
                                   position.longitude,
                                   messageController.text.trim(),
@@ -479,6 +500,28 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
               ),
             ),
           ),
+          
+          if (!_isConnected)
+            Positioned(
+              top: 50,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade800,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text('Reconnecting to server...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -558,9 +601,9 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                            color: isClaimed ? Colors.green : AppColors.emergencyRed, size: 32),
                       const SizedBox(width: 12),
                       Text(
-                        isClaimed ? 'RESCUE CLAIMED' : 'SOS ALERT',
+                        isOwnPin ? 'YOUR SOS' : (isClaimed ? 'RESCUE CLAIMED' : 'SOS ALERT'),
                         style: AppTypography.primaryHeader.copyWith(
-                          color: isClaimed ? Colors.green : AppColors.emergencyRed,
+                          color: isOwnPin ? Colors.blue : (isClaimed ? Colors.green : AppColors.emergencyRed),
                           fontSize: 22,
                         ),
                       ),
@@ -568,7 +611,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Victim: ${alert.deviceId}',
+                    'Victim: ${alert.senderName}',
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
@@ -590,23 +633,23 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             : () async {
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await AuthManager.client.sos.cancelSos(AuthManager.deviceId);
+                                  await AuthManager.client.sos.resolveSOS(alert.id!, AuthManager.deviceId);
                                   if (ctx.mounted) {
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Request Cancelled.')),
+                                      const SnackBar(content: Text('SOS Resolved / Cleared.')),
                                     );
                                   }
                                 } catch (e) {
                                   if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
+                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
                                   }
                                   setModalState(() => isSubmitting = false);
                                 }
                               },
                         child: isSubmitting
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('CANCEL REQUEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                            : const Text('RESOLVE / CLEAR SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                       ),
                     )
                   else if (!isClaimed)
