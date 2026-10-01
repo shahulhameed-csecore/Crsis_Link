@@ -4,6 +4,7 @@ import '../../core/theme/design_system.dart';
 import 'home_map_screen.dart';
 import 'alerts_screen.dart';
 import 'my_profile_screen.dart';
+import 'sos_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -16,6 +17,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
+    SosScreen(),
     HomeMapScreen(),
     AlertsScreen(),
     MyProfileScreen(),
@@ -60,6 +62,11 @@ class _MainNavigationState extends State<MainNavigation> {
           elevation: 0,
           type: BottomNavigationBarType.fixed,
           items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.emergency),
+              activeIcon: Icon(Icons.emergency),
+              label: 'SOS',
+            ),
             BottomNavigationBarItem(
               icon: Icon(Icons.map_outlined),
               activeIcon: Icon(Icons.map_outlined),

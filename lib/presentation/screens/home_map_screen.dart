@@ -25,6 +25,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   final MapController _mapController = MapController();
   String _errorMsg = '';
   List<SosAlert> _sosPins = [];
+  final Set<int> _ignoredSosIds = {};
   StreamSubscription? _sosSubscription;
   bool _isConnected = true;
   // Default center (India) shown instantly while GPS resolves
@@ -60,13 +61,15 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           if (mounted) {
             setState(() {
               if (message.isActive) {
-                final idx = _sosPins.indexWhere((a) => a.id == message.id);
-                if (idx >= 0) {
-                  _sosPins[idx] = message;
-                } else {
-                  _sosPins.add(message);
-                  AlertsManager().addSosAlert(message); // Add to persistent alerts feed
-                }
+                  final idx = _sosPins.indexWhere((a) => a.id == message.id);
+                  if (idx >= 0) {
+                    _sosPins[idx] = message;
+                  } else {
+                    if (!_ignoredSosIds.contains(message.id)) {
+                      _sosPins.add(message);
+                    }
+                    AlertsManager().addSosAlert(message); // Add to persistent alerts feed
+                  }
               } else {
                 _sosPins.removeWhere((a) => a.id == message.id);
               }
@@ -140,7 +143,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       final alerts = await AuthManager.client.sos.getActiveAlerts();
       if (mounted) {
         setState(() {
-          _sosPins = alerts;
+          _sosPins = alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList();
         });
       }
     } catch (e) {
@@ -543,17 +546,17 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                     ],
                   ),
                   
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       _ManualRefreshButton(onRefresh: _manualRefresh),
-                      const SizedBox(height: 12),
                       FloatingActionButton(
                         heroTag: 'recenterBtn',
                         onPressed: _recenterMap,
-                        backgroundColor: AppColors.pitchBlack,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.pitchBlack,
+                        elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                           side: BorderSide(color: AppColors.surfaceBorder.withValues(alpha: 0.2)),
@@ -714,32 +717,49 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                       },
                     )
                   else if (!isClaimed)
-                    CapsuleButton(
-                      text: 'ACCEPT RESCUE',
-                      style: CapsuleStyle.emergency,
-                      isLoading: isSubmitting,
-                      onPressed: () async {
-                        setModalState(() => isSubmitting = true);
-                        try {
-                          await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
-                          if (ctx.mounted) {
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CapsuleButton(
+                          text: 'ACCEPT RESCUE',
+                          style: CapsuleStyle.primary,
+                          isLoading: isSubmitting,
+                          onPressed: () async {
+                            setModalState(() => isSubmitting = true);
+                            try {
+                              await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Rescue Claimed Successfully!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(content: Text('Failed to claim: $e')),
+                                );
+                              }
+                              setModalState(() => isSubmitting = false);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        CapsuleButton(
+                          text: 'IGNORE / REJECT',
+                          style: CapsuleStyle.secondary,
+                          onPressed: () {
+                            setState(() {
+                              _ignoredSosIds.add(alert.id!);
+                              _sosPins.removeWhere((a) => a.id == alert.id);
+                            });
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Rescue Claimed Successfully!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Failed to claim: $e')),
-                            );
-                          }
-                          setModalState(() => isSubmitting = false);
-                        }
-                      },
+                          },
+                        ),
+                      ],
                     ),
                   const SizedBox(height: 16),
                 ],
