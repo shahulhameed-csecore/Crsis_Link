@@ -232,7 +232,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
         
         // Push the location to the server for spatial broadcasting
         try {
-          AuthManager.client.sos.updateLocation(AuthManager.deviceId, position!.latitude, position.longitude);
+          await AuthManager.client.sos.updateLocation(AuthManager.deviceId, position!.latitude, position.longitude);
         } catch (e) {
           debugPrint('Failed to update location on server: $e');
         }
