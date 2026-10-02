@@ -840,7 +840,9 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                                   volunteerDeviceId: AuthManager.deviceId,
                                 ));
                                 Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                // LOGIC-P3-03 FIX: Use ctx (modal's context) not the outer
+                                // widget context, which may be stale after the async gap.
+                                ScaffoldMessenger.of(ctx).showSnackBar(
                                   const SnackBar(
                                     content: Text('Rescue Claimed Successfully!'),
                                     backgroundColor: Colors.green,
@@ -957,6 +959,10 @@ class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
     _playerStateSubscription?.cancel();
     _durationSubscription?.cancel();
     _positionSubscription?.cancel();
+    // LOGIC-P3-04 FIX: Explicitly stop the player before disposing to prevent
+    // native audio engine exceptions on some Android versions when the modal
+    // is closed while a voice note is actively playing.
+    _audioPlayer.stop();
     _audioPlayer.dispose();
     super.dispose();
   }
