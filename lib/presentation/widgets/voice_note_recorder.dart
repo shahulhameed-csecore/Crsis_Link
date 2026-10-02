@@ -49,7 +49,12 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
   @override
   void dispose() {
     _timer?.cancel();
+    // LEAK-P3-03 FIX: Stop the animation before disposing to prevent
+    // native assertion crashes when the modal is dismissed during active recording.
+    if (_pulseController.isAnimating) _pulseController.stop();
     _pulseController.dispose();
+    // Stop any active recording session before disposing the native audio engine.
+    if (_isRecording) _recorder.stop();
     _recorder.dispose();
     super.dispose();
   }

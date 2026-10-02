@@ -235,7 +235,8 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           },
         );
       },
-    );
+    // LEAK-P3-02 FIX: Dispose the controller when the modal is dismissed in any way.
+    ).whenComplete(() => messageController.dispose());
   }
 
   @override

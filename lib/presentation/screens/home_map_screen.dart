@@ -383,9 +383,11 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                           messageController.text.trim().isEmpty ? null : messageController.text.trim(),
                           _pendingAudioUrl,
                         );
-                        setState(() {
-                          MapPinsManager().addOrUpdatePin(response.alert);
-                        });
+                        if (mounted) {
+                          setState(() {
+                            MapPinsManager().addOrUpdatePin(response.alert);
+                          });
+                        }
                         _fetchActiveSos(); // Ensure sync
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
@@ -420,7 +422,8 @@ class HomeMapScreenState extends State<HomeMapScreen> {
           },
         );
       },
-    );
+    // LEAK-P3-01 FIX: Dispose the controller when the modal is dismissed in any way.
+    ).whenComplete(() => messageController.dispose());
   }
 
   @override
