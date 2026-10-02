@@ -102,6 +102,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
       ));
 
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
+        print('Received stream message: ${message.runtimeType}');
         if (message is SosAlert) {
           debugPrint('[WebSocket] Received SosAlert from: ${message.deviceId}, status: ${message.status}');
           // Client-Side Echo Protection

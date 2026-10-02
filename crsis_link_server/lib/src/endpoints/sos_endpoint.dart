@@ -142,6 +142,7 @@ class SosEndpoint extends Endpoint {
       print('Checking device $targetDeviceId - Distance: ${distance / 1000} km');
       
       if (distance <= 5000) { // 5km radius
+        session.messages.postMessage('sos_broadcasts', savedAlert);
         session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
         notifiedCount++;
       }
