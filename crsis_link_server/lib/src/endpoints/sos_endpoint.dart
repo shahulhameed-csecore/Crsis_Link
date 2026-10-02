@@ -18,14 +18,24 @@ class SosEndpoint extends Endpoint {
   Future<void> streamOpened(StreamingSession session) async {
     // We cannot get deviceId here without a message, but we can listen to general messages.
     // However, we will register listeners dynamically when they call updateLocation or via a setup message.
-    session.messages.addListener('sos_broadcasts', (message) {
+    final sessionId = session.sessionLogId.toString();
+    final MessageCentralListenerCallback broadcastListener = (message) {
       sendStreamMessage(session, message);
-    });
+    };
+    session.messages.addListener('sos_broadcasts', broadcastListener);
+    _sessionListeners["${sessionId}_broadcast"] = broadcastListener;
   }
 
   @override
   Future<void> streamClosed(StreamingSession session) async {
     final sessionId = session.sessionLogId.toString();
+    
+    final broadcastListener = _sessionListeners["${sessionId}_broadcast"];
+    if (broadcastListener != null) {
+      session.messages.removeListener('sos_broadcasts', broadcastListener);
+      _sessionListeners.remove("${sessionId}_broadcast");
+    }
+
     final deviceId = _sessionToDevice[sessionId];
     
     if (deviceId != null) {
