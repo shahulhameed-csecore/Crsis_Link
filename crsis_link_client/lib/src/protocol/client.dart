@@ -315,13 +315,18 @@ class EndpointSos extends _i2.EndpointRef {
     },
   );
 
-  /// Retrieves all currently active SOS alerts.
-  _i3.Future<List<_i6.SosAlert>> getActiveAlerts() =>
-      caller.callServerEndpoint<List<_i6.SosAlert>>(
-        'sos',
-        'getActiveAlerts',
-        {},
-      );
+  /// Retrieves all currently active SOS alerts within 5km.
+  _i3.Future<List<_i6.SosAlert>> getActiveAlerts(
+    double lat,
+    double lng,
+  ) => caller.callServerEndpoint<List<_i6.SosAlert>>(
+    'sos',
+    'getActiveAlerts',
+    {
+      'lat': lat,
+      'lng': lng,
+    },
+  );
 
   /// Resolves an active SOS alert
   _i3.Future<bool> resolveSOS(

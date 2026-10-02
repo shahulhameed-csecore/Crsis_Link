@@ -172,7 +172,20 @@ class HomeMapScreenState extends State<HomeMapScreen> {
 
   Future<void> _fetchActiveSos() async {
     try {
-      final alerts = await AuthManager.client.sos.getActiveAlerts();
+      double lat;
+      double lng;
+      
+      if (_currentLocation != null) {
+        lat = _currentLocation!.latitude;
+        lng = _currentLocation!.longitude;
+      } else {
+        final position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low));
+        lat = position.latitude;
+        lng = position.longitude;
+      }
+      
+      final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng);
       if (mounted) {
         MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList());
       }

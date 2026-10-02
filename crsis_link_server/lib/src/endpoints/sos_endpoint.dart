@@ -138,13 +138,17 @@ class SosEndpoint extends Endpoint {
     );
   }
 
-  /// Retrieves all currently active SOS alerts.
-  Future<List<SosAlert>> getActiveAlerts(Session session) async {
+  /// Retrieves all currently active SOS alerts within 5km.
+  Future<List<SosAlert>> getActiveAlerts(Session session, double lat, double lng) async {
     final alerts = await SosAlert.db.find(
       session,
       where: (t) => t.isActive.equals(true),
     );
-    return alerts;
+    
+    return alerts.where((alert) {
+      final distance = _calculateDistance(alert.latitude, alert.longitude, lat, lng);
+      return distance <= 5000;
+    }).toList();
   }
 
 

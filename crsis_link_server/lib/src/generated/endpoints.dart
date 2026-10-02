@@ -389,13 +389,26 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
         'getActiveAlerts': _i1.MethodConnector(
           name: 'getActiveAlerts',
-          params: {},
+          params: {
+            'lat': _i1.ParameterDescription(
+              name: 'lat',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'lng': _i1.ParameterDescription(
+              name: 'lng',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+          },
           call:
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).getActiveAlerts(
                 session,
+                params['lat'],
+                params['lng'],
               ),
         ),
         'resolveSOS': _i1.MethodConnector(
