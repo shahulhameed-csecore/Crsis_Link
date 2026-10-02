@@ -124,6 +124,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
 
   void _showSosModal(Position position) {
     final TextEditingController messageController = TextEditingController();
+    final TextEditingController phoneController = TextEditingController();
     bool isSubmitting = false;
     String? pendingAudioUrl;
     bool hasLivePhoto = false;
@@ -189,6 +190,26 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Victim Phone (Required)',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.grey.withValues(alpha: 0.1),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: AppColors.emergencyRed),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   VoiceNoteRecorder(
                     onRecorded: (url) {
                       pendingAudioUrl = url.isEmpty ? null : url;
@@ -232,6 +253,8 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           position.longitude,
                           messageController.text.trim().isEmpty ? null : messageController.text.trim(),
                           pendingAudioUrl,
+                          phoneController.text.trim(),
+                          null,
                         ).timeout(const Duration(seconds: 10));
                         
                         var finalAlert = response.alert;
@@ -306,7 +329,10 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         );
       },
     // LEAK-P3-02 FIX: Dispose the controller when the modal is dismissed in any way.
-    ).whenComplete(() => messageController.dispose());
+    ).whenComplete(() {
+      messageController.dispose();
+      phoneController.dispose();
+    });
   }
 
   @override
