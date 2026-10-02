@@ -890,13 +890,17 @@ class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
   bool _isLoading = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _durationSubscription;
+  StreamSubscription? _positionSubscription;
 
   @override
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
     
-    _audioPlayer.onPlayerStateChanged.listen((state) {
+    _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() {
           _isPlaying = state == PlayerState.playing;
@@ -907,17 +911,20 @@ class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
       }
     });
 
-    _audioPlayer.onDurationChanged.listen((newDuration) {
+    _durationSubscription = _audioPlayer.onDurationChanged.listen((newDuration) {
       if (mounted) setState(() => _duration = newDuration);
     });
 
-    _audioPlayer.onPositionChanged.listen((newPosition) {
+    _positionSubscription = _audioPlayer.onPositionChanged.listen((newPosition) {
       if (mounted) setState(() => _position = newPosition);
     });
   }
 
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _positionSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
