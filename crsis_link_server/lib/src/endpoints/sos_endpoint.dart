@@ -2,11 +2,18 @@ import 'dart:math';
 import 'package:serverpod/serverpod.dart';
 import '../generated/protocol.dart';
 
+class DeviceLocationData {
+  final double lat;
+  final double lng;
+  final DateTime lastUpdated;
+  DeviceLocationData(this.lat, this.lng, this.lastUpdated);
+}
+
 /// Endpoint for handling SOS Alerts.
 class SosEndpoint extends Endpoint {
 
   // In-memory location tracker for active devices
-  static final Map<String, Map<String, double>> _deviceLocations = {};
+  static final Map<String, DeviceLocationData> _deviceLocations = {};
   
   // Track which deviceId corresponds to which StreamingSession to clean up on disconnect.
   static final Map<String, String> _sessionToDevice = {};
@@ -69,7 +76,7 @@ class SosEndpoint extends Endpoint {
 
   /// Updates the device's last known location for targeted spatial broadcasting
   Future<void> updateLocation(Session session, String deviceId, double latitude, double longitude) async {
-    _deviceLocations[deviceId] = {'lat': latitude, 'lng': longitude};
+    _deviceLocations[deviceId] = DeviceLocationData(latitude, longitude, DateTime.now());
   }
 
   // Haversine distance formula (returns meters)
@@ -115,14 +122,20 @@ class SosEndpoint extends Endpoint {
     
     int notifiedCount = 0;
     // Spatial Filter: Broadcast ONLY to devices within 5000 meters
-    for (final entry in _deviceLocations.entries) {
+    for (final entry in _deviceLocations.entries.toList()) {
       final targetDeviceId = entry.key;
+      final locationData = entry.value;
+
+      if (DateTime.now().difference(locationData.lastUpdated).inMinutes > 5) {
+        _deviceLocations.remove(targetDeviceId);
+        continue;
+      }
       
       // CRITICAL: Explicitly exclude the senderDeviceId from the list of eligible receivers
       if (targetDeviceId == deviceId) continue;
       
-      final targetLat = entry.value['lat']!;
-      final targetLng = entry.value['lng']!;
+      final targetLat = locationData.lat;
+      final targetLng = locationData.lng;
       
       final distance = _calculateDistance(latitude, longitude, targetLat, targetLng);
       
