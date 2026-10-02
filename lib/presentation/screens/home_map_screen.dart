@@ -69,8 +69,8 @@ class HomeMapScreenState extends State<HomeMapScreen> {
     }
   }
 
-  void _onStreamingConnectionStatusChanged(StreamingConnectionStatus status) {
-    if (status == StreamingConnectionStatus.connected) {
+  void _onStreamingConnectionStatusChanged() {
+    if (AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
       _bindStream();
     }
   }
@@ -368,7 +368,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
                           _pendingAudioUrl,
                         );
                         setState(() {
-                          _sosPins.add(response.alert);
+                          MapPinsManager().addOrUpdatePin(response.alert);
                         });
                         _fetchActiveSos(); // Ensure sync
                         if (ctx.mounted) {
