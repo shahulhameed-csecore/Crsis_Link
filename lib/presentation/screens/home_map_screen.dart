@@ -21,6 +21,7 @@ class HomeMapScreen extends StatefulWidget {
 }
 
 class HomeMapScreenState extends State<HomeMapScreen> {
+  Timer? _heartbeatTimer;
   LatLng? _currentLocation;
   final MapController _mapController = MapController();
   String _errorMsg = '';
@@ -39,6 +40,19 @@ class HomeMapScreenState extends State<HomeMapScreen> {
     _fetchActiveSos();
     _initStreaming();
     AuthManager.client.connectivityMonitor?.addListener(_onConnectivityChanged);
+    
+    // Start periodic heartbeat to prevent server-side TTL eviction (5 min)
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      if (_currentLocation != null && AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
+        AuthManager.client.sos.updateLocation(
+          AuthManager.deviceId, 
+          _currentLocation!.latitude, 
+          _currentLocation!.longitude
+        ).catchError((e) {
+          debugPrint('Heartbeat failed: $e');
+        });
+      }
+    });
   }
 
   void _onConnectivityChanged(bool connected) {
@@ -142,6 +156,7 @@ class HomeMapScreenState extends State<HomeMapScreen> {
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
     MapPinsManager().removeListener(_onPinsChanged);
     _sosSubscription?.cancel();
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
