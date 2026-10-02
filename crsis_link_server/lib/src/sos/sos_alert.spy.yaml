@@ -11,3 +11,8 @@ fields:
   senderName: String
   volunteerDeviceId: String?
   audioUrl: String?
+  verificationPin: String?
+  isRescuerVerified: bool, default=false
+  isVisuallyVerified: bool, default=false
+  victimPhone: String
+  photoBase64: String?

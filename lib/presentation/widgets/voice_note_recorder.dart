@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:http/http.dart' as http;
 import 'package:serverpod_client/serverpod_client.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/theme/design_system.dart';
 
@@ -30,6 +31,8 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
   int _secondsElapsed = 0;
   Timer? _timer;
   String? _uploadedUrl;
+  bool _isPendingStart = false;
+  DateTime? _recordingStartTime;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -60,6 +63,26 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
   }
 
   Future<void> _startRecording() async {
+    _isPendingStart = true;
+    
+    if (!(await Permission.microphone.request().isGranted)) {
+      _isPendingStart = false;
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission denied.'),
+            backgroundColor: AppColors.emergencyRed,
+          ),
+        );
+      }
+      return;
+    }
+    
+    if (!_isPendingStart) return;
+
     final hasPermission = await _recorder.hasPermission();
     if (!hasPermission) {
       if (mounted) {
@@ -82,6 +105,13 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       path: _recordedFilePath!,
     );
 
+    if (!_isPendingStart) {
+      await _recorder.stop();
+      return;
+    }
+
+    _recordingStartTime = DateTime.now();
+
     setState(() {
       _isRecording = true;
       _isRecorded = false;
@@ -92,10 +122,15 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
     _pulseController.repeat(reverse: true);
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() => _secondsElapsed++);
       if (_secondsElapsed >= 10) {
-        _stopRecording();
+        timer.cancel();
+        _isPendingStart = false;
+        if (_isRecording) _stopRecording();
       }
     });
   }
@@ -104,6 +139,23 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
     _timer?.cancel();
     _pulseController.stop();
     await _recorder.stop();
+
+    if (_recordingStartTime != null) {
+      final duration = DateTime.now().difference(_recordingStartTime!).inMilliseconds;
+      _recordingStartTime = null;
+      if (duration < 1500) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Hold to record'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+        _discardRecording();
+        return;
+      }
+    }
 
     if (mounted) {
       setState(() {
@@ -175,7 +227,9 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
   }
 
   void _discardRecording() {
+    _pulseController.stop();
     setState(() {
+      _isRecording = false;
       _isRecorded = false;
       _uploadedUrl = null;
       _recordedFilePath = null;
@@ -263,9 +317,15 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
             SizedBox(
               width: double.infinity,
               child: GestureDetector(
-                onTapDown: (_) => _startRecording(),
-                onTapUp: (_) { if (_isRecording) _stopRecording(); },
-                onTapCancel: () { if (_isRecording) _stopRecording(); },
+                onLongPressDown: (_) => _startRecording(),
+                onLongPressEnd: (_) { 
+                  _isPendingStart = false;
+                  if (_isRecording) _stopRecording(); 
+                },
+                onLongPressCancel: () { 
+                  _isPendingStart = false;
+                  if (_isRecording) _stopRecording(); 
+                },
                 child: AnimatedBuilder(
                   animation: _pulseAnimation,
                   builder: (context, child) {

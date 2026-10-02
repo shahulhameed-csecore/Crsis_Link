@@ -48,6 +48,11 @@ dependencies:
   audioplayers: ^6.7.1
   http: ^1.6.0
   path_provider: ^2.1.6
+  wakelock_plus: ^1.7.0
+  permission_handler: 11.3.1
+  image_picker: ^1.2.3
+  flutter_image_compress: ^2.5.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

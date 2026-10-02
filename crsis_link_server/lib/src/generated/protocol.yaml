@@ -19,5 +19,7 @@ sos:
   - resolveSOS:
   - claimRescue:
   - completeRescue:
+  - verifyHelperPin:
+  - verifySOS:
 greeting:
   - hello:

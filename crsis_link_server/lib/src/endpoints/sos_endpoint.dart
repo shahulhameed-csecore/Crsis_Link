@@ -94,7 +94,27 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64) async {
+    if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      throw ArgumentError('Invalid coordinates');
+    }
+    if (audioUrl != null && audioUrl.isNotEmpty && audioUrl.length > 500) {
+      throw ArgumentError('Audio URL exceeds maximum length');
+    }
+
+    final lastAlerts = await SosAlert.db.find(
+      session,
+      where: (t) => t.deviceId.equals(deviceId),
+      orderBy: (t) => t.timestamp,
+      orderDescending: true,
+      limit: 1,
+    );
+    if (lastAlerts.isNotEmpty) {
+      if (DateTime.now().toUtc().difference(lastAlerts.first.timestamp).inSeconds < 30) {
+        throw Exception('Rate limit exceeded. Please wait 30 seconds before broadcasting again.');
+      }
+    }
+
     print('SOS Triggered by $deviceId at $latitude, $longitude');
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
@@ -121,6 +141,8 @@ class SosEndpoint extends Endpoint {
         status: 'OPEN',
         senderName: senderName,
         audioUrl: audioUrl,
+        victimPhone: victimPhone,
+        photoBase64: photoBase64,
       );
 
       return await SosAlert.db.insertRow(session, newAlert, transaction: transaction);
@@ -167,6 +189,9 @@ class SosEndpoint extends Endpoint {
 
   /// Retrieves all currently active SOS alerts within 5km.
   Future<List<SosAlert>> getActiveAlerts(Session session, double lat, double lng) async {
+    if (lat.isNaN || lng.isNaN || lat.isInfinite || lng.isInfinite || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw ArgumentError('Invalid coordinates');
+    }
     // BUG-P3-02 FIX: Apply a bounding-box pre-filter at the database level to prevent
     // a full table scan. ±0.045° ≈ 5km, which dramatically reduces the result set
     // before the precise Haversine pass runs in application code.
@@ -217,12 +242,16 @@ class SosEndpoint extends Endpoint {
       if (targetAlert == null) {
         throw Exception('SOS alert not found.');
       }
+      if (targetAlert.deviceId == volunteerDeviceId) {
+        throw Exception('Cannot claim your own rescue.');
+      }
       if (targetAlert.status != 'OPEN') {
         throw Exception('SOS alert is already claimed or resolved.');
       }
 
       targetAlert.status = 'CLAIMED';
       targetAlert.volunteerDeviceId = volunteerDeviceId;
+      targetAlert.verificationPin = (1000 + Random().nextInt(9000)).toString();
       return await SosAlert.db.updateRow(session, targetAlert, transaction: transaction);
     });
 
@@ -239,20 +268,53 @@ class SosEndpoint extends Endpoint {
 
   /// Completes an active SOS alert (called when rescuer is safe)
   Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, int sosId) async {
-    final targetAlert = await SosAlert.db.findById(session, sosId);
-    if (targetAlert == null) {
-      throw Exception('SOS alert not found.');
-    }
-    if (targetAlert.volunteerDeviceId != volunteerDeviceId) {
-      throw Exception('Only the assigned volunteer can complete this rescue.');
-    }
+    final targetAlert = await session.db.transaction((transaction) async {
+      final alert = await SosAlert.db.findById(session, sosId, transaction: transaction);
+      if (alert == null) {
+        throw Exception('SOS alert not found.');
+      }
+      if (alert.volunteerDeviceId != volunteerDeviceId) {
+        throw Exception('Only the assigned volunteer can complete this rescue.');
+      }
 
-    targetAlert.status = 'COMPLETED';
-    targetAlert.isActive = false;
-    await SosAlert.db.updateRow(session, targetAlert);
+      alert.status = 'COMPLETED';
+      alert.isActive = false;
+      return await SosAlert.db.updateRow(session, alert, transaction: transaction);
+    });
 
     session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: targetAlert.deviceId));
     return targetAlert;
+  }
+
+  /// Verifies the helper's PIN for an active SOS
+  Future<SosAlert> verifyHelperPin(Session session, int sosId, String pin) async {
+    final alert = await SosAlert.db.findById(session, sosId);
+    if (alert == null || alert.status != 'CLAIMED') {
+      throw Exception('Invalid SOS Request');
+    }
+    if (alert.verificationPin == pin) {
+      alert.isRescuerVerified = true;
+      await SosAlert.db.updateRow(session, alert);
+      session.messages.postMessage('sos_broadcasts', alert);
+      return alert;
+    }
+    throw Exception('Incorrect PIN. Please verify the 4-digit number with the victim.');
+  }
+
+  /// Visually verifies an SOS alert (Hackathon Mocked Upload)
+  Future<bool> verifySOS(Session session, int sosId) async {
+    final alert = await SosAlert.db.findById(session, sosId);
+    if (alert == null) {
+      return false;
+    }
+    
+    alert.isVisuallyVerified = true;
+    await SosAlert.db.updateRow(session, alert);
+    
+    // Broadcast update so map pins reflect the verified badge
+    session.messages.postMessage('sos_broadcasts', alert);
+    
+    return true;
   }
 }
 

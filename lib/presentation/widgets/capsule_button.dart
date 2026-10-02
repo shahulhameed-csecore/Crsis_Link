@@ -57,6 +57,7 @@ class CapsuleButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
         ),
         onPressed: () {
+          if (isLoading) return;
           HapticFeedback.lightImpact();
           onPressed();
         },

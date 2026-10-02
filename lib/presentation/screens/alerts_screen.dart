@@ -4,6 +4,8 @@ import '../../core/state/alerts_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'main_navigation.dart';
+import '../../core/auth/auth_manager.dart';
+import '../../core/state/map_pins_manager.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -13,6 +15,24 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    MapPinsManager().addListener(_onPinsChanged);
+  }
+
+  @override
+  void dispose() {
+    MapPinsManager().removeListener(_onPinsChanged);
+    super.dispose();
+  }
+
+  void _onPinsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   String _timeAgo(DateTime d) {
     Duration diff = DateTime.now().difference(d);
     if (diff.inDays > 1) return '${diff.inDays} days ago';
@@ -57,11 +77,39 @@ class _AlertsScreenState extends State<AlertsScreen> {
       body: ValueListenableBuilder<List<AlertNotification>>(
         valueListenable: AlertsManager(),
         builder: (context, notifications, child) {
-          return notifications.isEmpty
-              ? Center(
+          final myClaimedAlerts = MapPinsManager().pins.where((a) => a.deviceId == AuthManager.deviceId && a.status == 'CLAIMED' && !a.isRescuerVerified).toList();
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (myClaimedAlerts.isNotEmpty)
+                ...myClaimedAlerts.map((alert) => Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                  ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Icon(Icons.verified_user, color: Colors.green, size: 40),
+                      const SizedBox(height: 8),
+                      const Text('Rescuer Assigned!', style: TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      Text('Your Safety PIN is: ${alert.verificationPin ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                      const SizedBox(height: 8),
+                      const Text('Give this PIN to your rescuer when they call or arrive.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                )),
+              
+              Expanded(
+                child: notifications.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                       Icon(Icons.security, size: 80, color: AppColors.pitchBlack.withValues(alpha: 0.1)),
                       const SizedBox(height: 16),
                       Text('No active alerts nearby', style: AppTypography.subtitle.copyWith(color: Colors.grey)),
@@ -133,7 +181,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       ),
                     );
                   },
-                );
+                ),
+              ),
+            ],
+          );
         },
       ),
     );

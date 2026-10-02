@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/map_pins_manager.dart';
@@ -97,11 +100,22 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         setState(() {
           _isLocating = false;
         });
+        
+        final errorMsg = e.toString();
+        final isPermanent = errorMsg.contains('permanently denied') || errorMsg.contains('disabled');
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to get location: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(isPermanent ? 'Location access is permanently denied. We cannot broadcast your SOS.' : 'Failed to get location: ${errorMsg.replaceAll('Exception: ', '')}'),
             backgroundColor: AppColors.emergencyRed,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
+            action: isPermanent ? SnackBarAction(
+              label: 'OPEN SETTINGS',
+              textColor: Colors.white,
+              onPressed: () {
+                errorMsg.contains('disabled') ? Geolocator.openLocationSettings() : Geolocator.openAppSettings();
+              },
+            ) : null,
           ),
         );
       }
@@ -112,6 +126,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
     final TextEditingController messageController = TextEditingController();
     bool isSubmitting = false;
     String? pendingAudioUrl;
+    bool hasLivePhoto = false;
 
     showModalBottomSheet(
       context: context,
@@ -130,10 +145,11 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                 right: 24,
                 top: 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Row(
                     children: [
                       const Icon(Icons.warning_amber_rounded, color: AppColors.emergencyRed, size: 32),
@@ -178,6 +194,29 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                       pendingAudioUrl = url.isEmpty ? null : url;
                     },
                   ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+                      if (image != null) {
+                        setModalState(() => hasLivePhoto = true);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Live Photo attached and verified locally!'), backgroundColor: Colors.green),
+                          );
+                        }
+                      }
+                    },
+                    icon: Icon(hasLivePhoto ? Icons.check_circle : Icons.camera_alt, color: Colors.white),
+                    label: Text(hasLivePhoto ? 'Photo Verified' : 'Take Live Photo to Verify (Recommended)'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasLivePhoto ? Colors.green : Colors.blueGrey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   CapsuleButton(
                     text: 'BROADCAST SOS',
@@ -193,10 +232,18 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           position.longitude,
                           messageController.text.trim().isEmpty ? null : messageController.text.trim(),
                           pendingAudioUrl,
-                        );
+                        ).timeout(const Duration(seconds: 10));
                         
-                        MapPinsManager().addOrUpdatePin(response.alert);
-                        AlertsManager().addSosAlert(response.alert);
+                        var finalAlert = response.alert;
+                        if (hasLivePhoto) {
+                          final verified = await AuthManager.client.sos.verifySOS(finalAlert.id!).timeout(const Duration(seconds: 5));
+                          if (verified) {
+                            finalAlert.isVisuallyVerified = true;
+                          }
+                        }
+                        
+                        MapPinsManager().addOrUpdatePin(finalAlert);
+                        AlertsManager().addSosAlert(finalAlert);
                         
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
@@ -214,6 +261,28 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           MainNavigation.jumpToMap();
                           globalHomeMapKey.currentState?.jumpToCurrentLocation();
                         }
+                      } on TimeoutException catch (e) {
+                        debugPrint('SOS Broadcast timed out: $e');
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Connection timed out. Please check your internet and try again.'),
+                              backgroundColor: AppColors.emergencyRed,
+                            ),
+                          );
+                        }
+                        setModalState(() => isSubmitting = false);
+                      } on SocketException catch (e) {
+                        debugPrint('SOS Broadcast offline: $e');
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('No internet connection. Please connect and try again.'),
+                              backgroundColor: AppColors.emergencyRed,
+                            ),
+                          );
+                        }
+                        setModalState(() => isSubmitting = false);
                       } catch (e) {
                         debugPrint('SOS Broadcast failed: $e');
                         if (ctx.mounted) {
@@ -231,7 +300,8 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                   const SizedBox(height: 24),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },

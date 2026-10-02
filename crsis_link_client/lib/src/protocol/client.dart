@@ -302,6 +302,8 @@ class EndpointSos extends _i2.EndpointRef {
     double longitude,
     String? message,
     String? audioUrl,
+    String victimPhone,
+    String? photoBase64,
   ) => caller.callServerEndpoint<_i5.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
@@ -312,6 +314,8 @@ class EndpointSos extends _i2.EndpointRef {
       'longitude': longitude,
       'message': message,
       'audioUrl': audioUrl,
+      'victimPhone': victimPhone,
+      'photoBase64': photoBase64,
     },
   );
 
@@ -367,6 +371,26 @@ class EndpointSos extends _i2.EndpointRef {
       'volunteerDeviceId': volunteerDeviceId,
       'sosId': sosId,
     },
+  );
+
+  /// Verifies the helper's PIN for an active SOS
+  _i3.Future<_i6.SosAlert> verifyHelperPin(
+    int sosId,
+    String pin,
+  ) => caller.callServerEndpoint<_i6.SosAlert>(
+    'sos',
+    'verifyHelperPin',
+    {
+      'sosId': sosId,
+      'pin': pin,
+    },
+  );
+
+  /// Visually verifies an SOS alert (Hackathon Mocked Upload)
+  _i3.Future<bool> verifySOS(int sosId) => caller.callServerEndpoint<bool>(
+    'sos',
+    'verifySOS',
+    {'sosId': sosId},
   );
 }
 

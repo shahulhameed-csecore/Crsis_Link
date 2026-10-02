@@ -26,7 +26,13 @@ abstract class SosAlert implements _i1.SerializableModel {
     required this.senderName,
     this.volunteerDeviceId,
     this.audioUrl,
-  });
+    this.verificationPin,
+    bool? isRescuerVerified,
+    bool? isVisuallyVerified,
+    required this.victimPhone,
+    this.photoBase64,
+  }) : isRescuerVerified = isRescuerVerified ?? false,
+       isVisuallyVerified = isVisuallyVerified ?? false;
 
   factory SosAlert({
     int? id,
@@ -40,6 +46,11 @@ abstract class SosAlert implements _i1.SerializableModel {
     required String senderName,
     String? volunteerDeviceId,
     String? audioUrl,
+    String? verificationPin,
+    bool? isRescuerVerified,
+    bool? isVisuallyVerified,
+    required String victimPhone,
+    String? photoBase64,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -57,6 +68,19 @@ abstract class SosAlert implements _i1.SerializableModel {
       senderName: jsonSerialization['senderName'] as String,
       volunteerDeviceId: jsonSerialization['volunteerDeviceId'] as String?,
       audioUrl: jsonSerialization['audioUrl'] as String?,
+      verificationPin: jsonSerialization['verificationPin'] as String?,
+      isRescuerVerified: jsonSerialization['isRescuerVerified'] == null
+          ? null
+          : _i1.BoolJsonExtension.fromJson(
+              jsonSerialization['isRescuerVerified'],
+            ),
+      isVisuallyVerified: jsonSerialization['isVisuallyVerified'] == null
+          ? null
+          : _i1.BoolJsonExtension.fromJson(
+              jsonSerialization['isVisuallyVerified'],
+            ),
+      victimPhone: jsonSerialization['victimPhone'] as String,
+      photoBase64: jsonSerialization['photoBase64'] as String?,
     );
   }
 
@@ -85,6 +109,16 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String? audioUrl;
 
+  String? verificationPin;
+
+  bool isRescuerVerified;
+
+  bool isVisuallyVerified;
+
+  String victimPhone;
+
+  String? photoBase64;
+
   /// Returns a shallow copy of this [SosAlert]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -100,6 +134,11 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? senderName,
     String? volunteerDeviceId,
     String? audioUrl,
+    String? verificationPin,
+    bool? isRescuerVerified,
+    bool? isVisuallyVerified,
+    String? victimPhone,
+    String? photoBase64,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -116,6 +155,11 @@ abstract class SosAlert implements _i1.SerializableModel {
       'senderName': senderName,
       if (volunteerDeviceId != null) 'volunteerDeviceId': volunteerDeviceId,
       if (audioUrl != null) 'audioUrl': audioUrl,
+      if (verificationPin != null) 'verificationPin': verificationPin,
+      'isRescuerVerified': isRescuerVerified,
+      'isVisuallyVerified': isVisuallyVerified,
+      'victimPhone': victimPhone,
+      if (photoBase64 != null) 'photoBase64': photoBase64,
     };
   }
 
@@ -140,6 +184,11 @@ class _SosAlertImpl extends SosAlert {
     required String senderName,
     String? volunteerDeviceId,
     String? audioUrl,
+    String? verificationPin,
+    bool? isRescuerVerified,
+    bool? isVisuallyVerified,
+    required String victimPhone,
+    String? photoBase64,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -152,6 +201,11 @@ class _SosAlertImpl extends SosAlert {
          senderName: senderName,
          volunteerDeviceId: volunteerDeviceId,
          audioUrl: audioUrl,
+         verificationPin: verificationPin,
+         isRescuerVerified: isRescuerVerified,
+         isVisuallyVerified: isVisuallyVerified,
+         victimPhone: victimPhone,
+         photoBase64: photoBase64,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -170,6 +224,11 @@ class _SosAlertImpl extends SosAlert {
     String? senderName,
     Object? volunteerDeviceId = _Undefined,
     Object? audioUrl = _Undefined,
+    Object? verificationPin = _Undefined,
+    bool? isRescuerVerified,
+    bool? isVisuallyVerified,
+    String? victimPhone,
+    Object? photoBase64 = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -185,6 +244,13 @@ class _SosAlertImpl extends SosAlert {
           ? volunteerDeviceId
           : this.volunteerDeviceId,
       audioUrl: audioUrl is String? ? audioUrl : this.audioUrl,
+      verificationPin: verificationPin is String?
+          ? verificationPin
+          : this.verificationPin,
+      isRescuerVerified: isRescuerVerified ?? this.isRescuerVerified,
+      isVisuallyVerified: isVisuallyVerified ?? this.isVisuallyVerified,
+      victimPhone: victimPhone ?? this.victimPhone,
+      photoBase64: photoBase64 is String? ? photoBase64 : this.photoBase64,
     );
   }
 }

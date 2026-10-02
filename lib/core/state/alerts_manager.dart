@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 enum AlertType { sos, accepted, resolved }
 
@@ -58,6 +59,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     } else {
       _applyCapAndNotify([notification, ...value]);
     }
+    WakelockPlus.enable();
   }
 
   void addRescueEvent(RescueAcceptedEvent event) {
@@ -97,6 +99,10 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     ));
     
     _applyCapAndNotify(newList);
+
+    if (!newList.any((n) => n.type == AlertType.sos)) {
+      WakelockPlus.disable();
+    }
   }
 
   void addResolvedEvent(SosResolvedEvent event) {
