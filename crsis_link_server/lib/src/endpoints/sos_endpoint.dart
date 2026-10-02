@@ -98,28 +98,33 @@ class SosEndpoint extends Endpoint {
     print('SOS Triggered by $deviceId at $latitude, $longitude');
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
-    final existingAlerts = await SosAlert.db.find(
-      session,
-      where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
-    );
-    for (var alert in existingAlerts) {
-      alert.isActive = false;
-      await SosAlert.db.updateRow(session, alert);
-    }
+    // BUG-P3-03 FIX: Wrap deactivation and insertion in a single atomic transaction
+    // to prevent phantom pins if the server crashes mid-operation.
+    final savedAlert = await session.db.transaction((transaction) async {
+      final existingAlerts = await SosAlert.db.find(
+        session,
+        where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
+        transaction: transaction,
+      );
+      for (var alert in existingAlerts) {
+        alert.isActive = false;
+        await SosAlert.db.updateRow(session, alert, transaction: transaction);
+      }
 
-    final newAlert = SosAlert(
-      deviceId: deviceId,
-      latitude: latitude,
-      longitude: longitude,
-      timestamp: DateTime.now().toUtc(),
-      message: message,
-      isActive: true,
-      status: 'OPEN',
-      senderName: senderName,
-      audioUrl: audioUrl,
-    );
+      final newAlert = SosAlert(
+        deviceId: deviceId,
+        latitude: latitude,
+        longitude: longitude,
+        timestamp: DateTime.now().toUtc(),
+        message: message,
+        isActive: true,
+        status: 'OPEN',
+        senderName: senderName,
+        audioUrl: audioUrl,
+      );
 
-    final savedAlert = await SosAlert.db.insertRow(session, newAlert);
+      return await SosAlert.db.insertRow(session, newAlert, transaction: transaction);
+    });
     
     int notifiedCount = 0;
     print('Total devices in spatial cache: ${_deviceLocations.length}');
@@ -128,12 +133,14 @@ class SosEndpoint extends Endpoint {
       final targetDeviceId = entry.key;
       final locationData = entry.value;
 
-      if (targetDeviceId == deviceId) continue;
-
+      // BUG-P3-01 FIX: Check TTL eviction BEFORE the self-skip guard (fixes LOGIC-P3-01 too)
       if (DateTime.now().difference(locationData.lastUpdated).inMinutes > 5) {
         _deviceLocations.remove(targetDeviceId);
         continue;
       }
+
+      // Explicitly exclude the sender from receiving their own broadcast
+      if (targetDeviceId == deviceId) continue;
       
       final targetLat = locationData.lat;
       final targetLng = locationData.lng;
@@ -142,7 +149,9 @@ class SosEndpoint extends Endpoint {
       print('Checking device $targetDeviceId - Distance: ${distance / 1000} km');
       
       if (distance <= 5000) { // 5km radius
-        session.messages.postMessage('sos_broadcasts', savedAlert);
+        // BUG-P3-01 FIX: Post ONLY to the targeted device channel.
+        // The global 'sos_broadcasts' channel is for cross-cutting events (claimRescue, resolve)
+        // not spatially-filtered SOS pins — all sessions already listen to it via streamOpened.
         session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
         notifiedCount++;
       }
@@ -158,11 +167,23 @@ class SosEndpoint extends Endpoint {
 
   /// Retrieves all currently active SOS alerts within 5km.
   Future<List<SosAlert>> getActiveAlerts(Session session, double lat, double lng) async {
+    // BUG-P3-02 FIX: Apply a bounding-box pre-filter at the database level to prevent
+    // a full table scan. ±0.045° ≈ 5km, which dramatically reduces the result set
+    // before the precise Haversine pass runs in application code.
+    final minLat = lat - 0.045;
+    final maxLat = lat + 0.045;
+    final minLng = lng - 0.045;
+    final maxLng = lng + 0.045;
+
     final alerts = await SosAlert.db.find(
       session,
-      where: (t) => t.isActive.equals(true),
+      where: (t) =>
+          t.isActive.equals(true) &
+          t.latitude.between(minLat, maxLat) &
+          t.longitude.between(minLng, maxLng),
     );
     
+    // Secondary precise Haversine pass on the already-reduced bounding-box result set.
     return alerts.where((alert) {
       final distance = _calculateDistance(alert.latitude, alert.longitude, lat, lng);
       return distance <= 5000;
