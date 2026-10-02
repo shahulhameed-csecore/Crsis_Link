@@ -128,13 +128,12 @@ class SosEndpoint extends Endpoint {
       final targetDeviceId = entry.key;
       final locationData = entry.value;
 
+      if (targetDeviceId == deviceId) continue;
+
       if (DateTime.now().difference(locationData.lastUpdated).inMinutes > 5) {
         _deviceLocations.remove(targetDeviceId);
         continue;
       }
-      
-      // CRITICAL: Explicitly exclude the senderDeviceId from the list of eligible receivers
-      if (targetDeviceId == deviceId) continue;
       
       final targetLat = locationData.lat;
       final targetLng = locationData.lng;

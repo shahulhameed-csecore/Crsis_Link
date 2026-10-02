@@ -31,6 +31,7 @@ class AuthManager {
       await prefs.setString('device_id', storedId);
     }
     deviceId = storedId;
+    print('MY DEVICE ID: $deviceId');
     
     String? storedName = prefs.getString('display_name');
     if (storedName == null) {
