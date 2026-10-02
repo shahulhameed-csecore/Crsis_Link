@@ -24,11 +24,20 @@ class AlertNotification {
 }
 
 class AlertsManager extends ValueNotifier<List<AlertNotification>> {
+  static const int _maxAlertHistory = 100;
+
   static final AlertsManager _instance = AlertsManager._internal();
   factory AlertsManager() => _instance;
   AlertsManager._internal() : super([]);
 
   List<AlertNotification> get notifications => value;
+
+  void _applyCapAndNotify(List<AlertNotification> newList) {
+    if (newList.length > _maxAlertHistory) {
+      newList.removeRange(_maxAlertHistory, newList.length);
+    }
+    value = newList;
+  }
 
   void addSosAlert(SosAlert alert) {
     final idx = value.indexWhere((n) => n.sosId != null && n.sosId == alert.id);
@@ -45,14 +54,14 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     if (idx >= 0) {
       final newList = List<AlertNotification>.from(value);
       newList[idx] = notification;
-      value = newList;
+      _applyCapAndNotify(newList);
     } else {
-      value = [notification, ...value];
+      _applyCapAndNotify([notification, ...value]);
     }
   }
 
   void addRescueEvent(RescueAcceptedEvent event) {
-    value = [
+    _applyCapAndNotify([
       AlertNotification(
         timestamp: DateTime.now(),
         title: 'Rescue on the way!',
@@ -60,11 +69,11 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
         type: AlertType.accepted,
       ),
       ...value,
-    ];
+    ]);
   }
 
   void addSelfRescueEvent(RescueAcceptedEvent event) {
-    value = [
+    _applyCapAndNotify([
       AlertNotification(
         timestamp: DateTime.now(),
         title: 'Rescue Accepted',
@@ -72,7 +81,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
         type: AlertType.accepted,
       ),
       ...value,
-    ];
+    ]);
   }
 
   void resolveSosAlert(int sosId) {
@@ -87,7 +96,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
       type: AlertType.resolved,
     ));
     
-    value = newList;
+    _applyCapAndNotify(newList);
   }
 
   void addResolvedEvent(SosResolvedEvent event) {
