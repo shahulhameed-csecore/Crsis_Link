@@ -796,6 +796,12 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             try {
                               await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.id!);
                               if (ctx.mounted) {
+                                final updatedAlert = alert.copyWith(
+                                  status: 'CLAIMED',
+                                  volunteerDeviceId: AuthManager.deviceId,
+                                );
+                                MapPinsManager().addOrUpdatePin(updatedAlert);
+                                
                                 AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
                                   victimDeviceId: alert.deviceId,
                                   volunteerName: AuthManager.displayName,
