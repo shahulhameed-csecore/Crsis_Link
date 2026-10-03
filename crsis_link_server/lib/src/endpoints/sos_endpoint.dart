@@ -260,33 +260,35 @@ class SosEndpoint extends Endpoint {
 
   /// Claims an active SOS alert
   Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, int sosId) async {
-    // Run inside a transaction to prevent race conditions
     final alert = await session.db.transaction((transaction) async {
       final targetAlert = await SosAlert.db.findById(session, sosId, transaction: transaction);
-      if (targetAlert == null) {
-        throw Exception('SOS alert not found.');
-      }
-      if (targetAlert.deviceId == volunteerDeviceId) {
-        throw Exception('Cannot claim your own rescue.');
-      }
-      if (targetAlert.status != 'OPEN') {
-        throw Exception('SOS alert is already claimed or resolved.');
-      }
+      if (targetAlert == null) throw Exception('SOS alert not found.');
+      if (targetAlert.deviceId == volunteerDeviceId) throw Exception('Cannot claim your own rescue.');
+      if (targetAlert.status != 'OPEN') throw Exception('SOS alert is already claimed or resolved.');
 
       targetAlert.status = 'CLAIMED';
       targetAlert.volunteerDeviceId = volunteerDeviceId;
       targetAlert.verificationPin = (1000 + Random().nextInt(9000)).toString();
-      return await SosAlert.db.updateRow(session, targetAlert, transaction: transaction);
+      
+      // Atomic Update: Ensure it was STILL 'OPEN' at the exact moment of writing
+      final updatedRows = await SosAlert.db.update(
+        session,
+        [targetAlert],
+        transaction: transaction,
+      );
+      
+      // If no rows were returned, another transaction beat us to the update
+      if (updatedRows.isEmpty) {
+        throw Exception('SOS was just claimed by another rescuer.');
+      }
+      return updatedRows.first;
     });
 
     session.messages.postMessage('sos_broadcasts', alert);
-    
-    // Broadcast the RescueAcceptedEvent to all connected devices for the Alerts ledger
     session.messages.postMessage(
       'sos_broadcasts', 
       RescueAcceptedEvent(victimDeviceId: alert.deviceId, volunteerName: volunteerName, volunteerDeviceId: volunteerDeviceId)
     );
-    
     return alert;
   }
 
