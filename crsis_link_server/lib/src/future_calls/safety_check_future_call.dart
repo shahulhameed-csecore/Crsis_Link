@@ -12,16 +12,19 @@ class SafetyCheckFutureCall extends FutureCall<SosAlert> {
     final alert = await session.db.transaction((transaction) async {
       final targetAlert = await SosAlert.db.findById(session, sosId, transaction: transaction);
       
-      // If it hasn't been completed, escalate it
+      // If the claim was abandoned, release it back to OPEN for a new rescuer
       if (targetAlert != null && targetAlert.status == 'CLAIMED') {
-        targetAlert.status = 'ESCALATED';
+        targetAlert.status = 'OPEN';
+        targetAlert.volunteerDeviceId = null;
+        targetAlert.verificationPin = null;
+        targetAlert.isRescuerVerified = false;
         return await SosAlert.db.updateRow(session, targetAlert, transaction: transaction);
       }
       return null;
     });
 
     if (alert != null) {
-      session.log('SOS $sosId has been ESCALATED due to no safety check-in.', level: LogLevel.warning);
+      session.log('SOS $sosId claim timed out and was re-opened for new rescuers.', level: LogLevel.warning);
       session.messages.postMessage('sos_broadcasts', alert);
     }
   }

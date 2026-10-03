@@ -90,18 +90,13 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         throw Exception('Could not determine location after multiple attempts. Please ensure your GPS is active.');
       }
       
+      // DOUBLE-TAP FIX: Do NOT reset _isLocating here.
+      // Await the modal so _isLocating stays true (button locked) until modal is fully dismissed.
       if (mounted) {
-        setState(() {
-          _isLocating = false;
-        });
-        _showSosModal(position);
+        await _showSosModal(position);
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLocating = false;
-        });
-        
         final errorMsg = e.toString();
         final isPermanent = errorMsg.contains('permanently denied') || errorMsg.contains('disabled');
         
@@ -120,17 +115,20 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           ),
         );
       }
+    } finally {
+      // Button unlocks ONLY after modal is fully gone (or on error)
+      if (mounted) setState(() => _isLocating = false);
     }
   }
 
-  void _showSosModal(Position position) {
+  Future<void> _showSosModal(Position position) async {
     final TextEditingController messageController = TextEditingController();
     final TextEditingController phoneController = TextEditingController();
     bool isSubmitting = false;
     String? pendingAudioUrl;
     bool hasLivePhoto = false;
 
-    showModalBottomSheet(
+    return showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.pitchBlack,
       shape: const RoundedRectangleBorder(
