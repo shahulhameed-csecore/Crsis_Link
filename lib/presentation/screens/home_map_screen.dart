@@ -1135,12 +1135,22 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     final alert = activeClaimed.first;
                     final lat = alert.latitude;
                     final lng = alert.longitude;
-                    final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    } else {
-                      final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-                      await launchUrl(fallback);
+                    try {
+                      final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                        if (await canLaunchUrl(fallback)) {
+                          await launchUrl(fallback, mode: LaunchMode.externalApplication);
+                        } else {
+                          throw Exception('No map application found.');
+                        }
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to open Maps: $e'), backgroundColor: Colors.red),
+                      );
                     }
                   },
                   backgroundColor: Colors.blue,
@@ -1476,9 +1486,17 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             text: 'Contact Victim',
                             style: CapsuleStyle.secondary,
                             onPressed: () async {
-                              final url = Uri.parse('tel:${alert.victimPhone}');
-                              if (await canLaunchUrl(url)) {
-                                await launchUrl(url);
+                              try {
+                                final url = Uri.parse('tel:${alert.victimPhone}');
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                                } else {
+                                  throw Exception('Dialer not supported on this device.');
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Could not open phone: $e'), backgroundColor: Colors.red),
+                                );
                               }
                             },
                           ),
