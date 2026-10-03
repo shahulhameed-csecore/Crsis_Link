@@ -9,10 +9,10 @@ class AuthManager {
   static late String displayName;
 
   static Future<void> initialize() async {
-    // Toggle this to true when building for production (Render)
-    const bool isProduction = true;
+    // Use Flutter's built-in compile-time constants for environment detection
+    // Run `flutter run --release` to automatically use Render, otherwise localhost.
+    final bool isProduction = kReleaseMode;
 
-    // Default to localhost for local testing (use 10.0.2.2 for Android emulator)
     String serverUrl = 'http://localhost:8080/';
     
     if (isProduction) {
