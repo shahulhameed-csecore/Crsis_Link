@@ -268,7 +268,8 @@ class SosEndpoint extends Endpoint {
   /// Resolves an active SOS alert
   Future<bool> resolveSOS(Session session, int sosId, String deviceId) async {
     final alert = await SosAlert.db.findById(session, sosId);
-    if (alert == null || alert.deviceId != deviceId) {
+    // Guard: wrong owner, or already resolved by another process (prevents duplicate broadcasts)
+    if (alert == null || alert.deviceId != deviceId || !alert.isActive) {
       return false;
     }
     
@@ -352,9 +353,10 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Visually verifies an SOS alert (Hackathon Mocked Upload)
-  Future<bool> verifySOS(Session session, int sosId) async {
+  /// Requires the calling deviceId to match the alert owner — prevents unauthorized verification.
+  Future<bool> verifySOS(Session session, int sosId, String deviceId) async {
     final alert = await SosAlert.db.findById(session, sosId);
-    if (alert == null) {
+    if (alert == null || alert.deviceId != deviceId) {
       return false;
     }
     

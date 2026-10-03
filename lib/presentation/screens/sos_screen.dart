@@ -273,7 +273,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                         
                         var finalAlert = response.alert;
                         if (hasLivePhoto) {
-                          final verified = await AuthManager.client.sos.verifySOS(finalAlert.id!).timeout(const Duration(seconds: 5));
+                          final verified = await AuthManager.client.sos.verifySOS(finalAlert.id!, AuthManager.deviceId).timeout(const Duration(seconds: 5));
                           if (verified) {
                             finalAlert.isVisuallyVerified = true;
                           }
