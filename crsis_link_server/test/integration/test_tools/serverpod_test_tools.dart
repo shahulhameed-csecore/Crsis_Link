@@ -623,6 +623,7 @@ class _SosEndpoint {
     String? audioUrl,
     String victimPhone,
     String? photoBase64,
+    String? approximateLocationText,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -644,6 +645,7 @@ class _SosEndpoint {
             'audioUrl': audioUrl,
             'victimPhone': victimPhone,
             'photoBase64': photoBase64,
+            'approximateLocationText': approximateLocationText,
           }),
           serializationManager: _serializationManager,
         );
@@ -688,6 +690,67 @@ class _SosEndpoint {
                   _localCallContext.arguments,
                 )
                 as _i3.Future<List<_i6.SosAlert>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<_i6.SosAlert?> getMyActiveSos(
+    _i1.TestSessionBuilder sessionBuilder,
+    String deviceId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'getMyActiveSos',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'getMyActiveSos',
+          parameters: _i1.testObjectToJson({'deviceId': deviceId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i6.SosAlert?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<bool> nukeAllTestData(
+    _i1.TestSessionBuilder sessionBuilder,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'nukeAllTestData',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'nukeAllTestData',
+          parameters: _i1.testObjectToJson({}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<bool>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

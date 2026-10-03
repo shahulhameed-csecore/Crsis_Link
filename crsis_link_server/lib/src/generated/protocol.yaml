@@ -16,6 +16,8 @@ sos:
   - updateLocation:
   - broadcastSos:
   - getActiveAlerts:
+  - getMyActiveSos:
+  - nukeAllTestData:
   - resolveSOS:
   - claimRescue:
   - completeRescue:

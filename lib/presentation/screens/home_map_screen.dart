@@ -17,6 +17,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/state/map_pins_manager.dart';
+import 'package:geocoding/geocoding.dart';
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
 
@@ -324,6 +325,166 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     _mapController.move(position, 16.0);
   }
 
+  void _showFuzzySosDetails(SosAlert alert) {
+    bool isSubmitting = false;
+    
+    // Triage Inference Logic
+    String category = 'General Emergency';
+    final msg = alert.message?.toLowerCase() ?? '';
+    if (msg.contains('medical') || msg.contains('doctor') || msg.contains('bleeding')) {
+      category = 'Medical';
+    } else if (msg.contains('flood') || msg.contains('water') || msg.contains('drowning')) {
+      category = 'Flood Extraction';
+    } else if (msg.contains('food') || msg.contains('supply') || msg.contains('supplies')) {
+      category = 'Supplies Needed';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.pitchBlack,
+      isScrollControlled: true, // Crucial for preventing overflow
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Triage Header (Emergency Type)
+                      Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: AppColors.emergencyRed, size: 36),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              category,
+                              style: AppTypography.primaryHeader.copyWith(
+                                color: AppColors.emergencyRed,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // General Area
+                      const Text('LOCATION AREA', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        alert.approximateLocationText ?? 'Emergency nearby (Exact route unlocked on accept)',
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Description
+                      const Text('SITUATION NOTES', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
+                          style: const TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: TextButton(
+                              onPressed: () {
+                                final alertId = alert.id;
+                                if (alertId == null) return;
+                                setState(() {
+                                  _ignoredSosIds.add(alertId);
+                                  MapPinsManager().removePin(alertId);
+                                });
+                                Navigator.pop(ctx);
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.grey,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: isSubmitting ? null : () async {
+                                final alertId = alert.id;
+                                if (alertId == null) return;
+                                setModalState(() => isSubmitting = true);
+                                try {
+                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                  if (ctx.mounted) {
+                                    final updatedAlert = alert.copyWith(
+                                      status: 'CLAIMED',
+                                      volunteerDeviceId: AuthManager.deviceId,
+                                    );
+                                    MapPinsManager().addOrUpdatePin(updatedAlert);
+                                    
+                                    AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                                      victimDeviceId: alert.deviceId,
+                                      volunteerName: AuthManager.displayName,
+                                      volunteerDeviceId: AuthManager.deviceId,
+                                    ));
+                                    Navigator.pop(ctx);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Rescue Claimed Successfully!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text('Failed to claim: $e')),
+                                    );
+                                  }
+                                  setModalState(() => isSubmitting = false);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              child: isSubmitting 
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                : const Text('Accept & Reveal Route', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showSosModal(LatLng position) {
     final TextEditingController messageController = TextEditingController();
     final TextEditingController phoneController = TextEditingController();
@@ -454,6 +615,20 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     onPressed: () async {
                       setModalState(() => isSubmitting = true);
                       try {
+                        String? approxLocation;
+                        try {
+                          List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+                          if (placemarks.isNotEmpty) {
+                            final place = placemarks.first;
+                            approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
+                            if (approxLocation != null && approxLocation.isNotEmpty) {
+                              approxLocation = 'Emergency in $approxLocation';
+                            }
+                          }
+                        } catch (e) {
+                          debugPrint('Geocoding failed: $e');
+                        }
+
                         final response = await AuthManager.client.sos.broadcastSos(
                           AuthManager.deviceId,
                           AuthManager.displayName,
@@ -463,6 +638,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           _pendingAudioUrl,
                           phoneController.text.trim(),
                           _pendingPhotoBase64,
+                          approxLocation,
                         ).timeout(const Duration(seconds: 10));
                         if (mounted) {
                           setState(() {
@@ -542,6 +718,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
        0,  0,  0, 1,   0,
     ]);
 
+    final activeClaimed = MapPinsManager().pins.where((a) => a.status == 'CLAIMED' && a.volunteerDeviceId == AuthManager.deviceId).toList();
+
     return Scaffold(
       backgroundColor: AppColors.pitchBlack,
       body: Stack(
@@ -562,6 +740,16 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     flags: InteractiveFlag.all,
                   ),
                   onLongPress: (tapPosition, point) => _showSosModal(point),
+                  onTap: (tapPosition, point) {
+                    final openAlerts = MapPinsManager().pins.where((a) => a.status == 'OPEN' && a.deviceId != AuthManager.deviceId);
+                    for (var alert in openAlerts) {
+                      final distance = const Distance().as(LengthUnit.Meter, point, LatLng(alert.latitude, alert.longitude));
+                      if (distance <= 2000) {
+                        _showFuzzySosDetails(alert);
+                        break;
+                      }
+                    }
+                  },
                 ),
                 children: [
                   ColorFiltered(
@@ -578,22 +766,35 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     ),
                   ),
                   CircleLayer(
-                    circles: MapPinsManager().pins
-                      .where((a) => a.status == 'CLAIMED' && a.volunteerDeviceId == AuthManager.deviceId && !a.isRescuerVerified)
-                      .map((a) => CircleMarker(
-                            point: LatLng(a.latitude, a.longitude),
-                            color: Colors.blue.withValues(alpha: 0.2),
-                            borderColor: Colors.blue,
-                            borderStrokeWidth: 2,
-                            useRadiusInMeter: true,
-                            radius: 200,
-                          ))
-                      .toList(),
+                    circles: [
+                      ...MapPinsManager().pins
+                        .where((a) => a.status == 'CLAIMED' && a.volunteerDeviceId == AuthManager.deviceId && !a.isRescuerVerified)
+                        .map((a) => CircleMarker(
+                              point: LatLng(a.latitude, a.longitude),
+                              color: Colors.blue.withValues(alpha: 0.2),
+                              borderColor: Colors.blue,
+                              borderStrokeWidth: 2,
+                              useRadiusInMeter: true,
+                              radius: 200,
+                            )),
+                      ...MapPinsManager().pins
+                        .where((a) => a.status == 'OPEN' && a.deviceId != AuthManager.deviceId)
+                        .map((a) => CircleMarker(
+                              point: LatLng(a.latitude, a.longitude),
+                              color: Colors.red.withValues(alpha: 0.3),
+                              borderColor: Colors.red,
+                              borderStrokeWidth: 1,
+                              useRadiusInMeter: true,
+                              radius: 2000,
+                            )),
+                    ],
                   ),
                   MarkerLayer(
                     markers: [
                       // Render dropped SOS pins
-                      ...MapPinsManager().pins.map((alert) {
+                      ...MapPinsManager().pins
+                        .where((alert) => alert.deviceId == AuthManager.deviceId || alert.status != 'OPEN')
+                        .map((alert) {
                         return Marker(
                           point: LatLng(alert.latitude, alert.longitude),
                           width: 40,
@@ -661,6 +862,16 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                   onLongPress: _currentLocation != null
                       ? (tapPosition, point) => _showSosModal(point)
                       : null,
+                  onTap: (tapPosition, point) {
+                    final openAlerts = MapPinsManager().pins.where((a) => a.status == 'OPEN' && a.deviceId != AuthManager.deviceId);
+                    for (var alert in openAlerts) {
+                      final distance = const Distance().as(LengthUnit.Meter, point, LatLng(alert.latitude, alert.longitude));
+                      if (distance <= 2000) {
+                        _showFuzzySosDetails(alert);
+                        break;
+                      }
+                    }
+                  },
                 ),
                 children: [
                   ColorFiltered(
@@ -679,21 +890,34 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     ),
                   ),
                   CircleLayer(
-                    circles: MapPinsManager().pins
-                      .where((a) => a.status == 'CLAIMED' && a.volunteerDeviceId == AuthManager.deviceId && !a.isRescuerVerified)
-                      .map((a) => CircleMarker(
-                            point: LatLng(a.latitude, a.longitude),
-                            color: Colors.blue.withValues(alpha: 0.2),
-                            borderColor: Colors.blue,
-                            borderStrokeWidth: 2,
-                            useRadiusInMeter: true,
-                            radius: 200,
-                          ))
-                      .toList(),
+                    circles: [
+                      ...MapPinsManager().pins
+                        .where((a) => a.status == 'CLAIMED' && a.volunteerDeviceId == AuthManager.deviceId && !a.isRescuerVerified)
+                        .map((a) => CircleMarker(
+                              point: LatLng(a.latitude, a.longitude),
+                              color: Colors.blue.withValues(alpha: 0.2),
+                              borderColor: Colors.blue,
+                              borderStrokeWidth: 2,
+                              useRadiusInMeter: true,
+                              radius: 200,
+                            )),
+                      ...MapPinsManager().pins
+                        .where((a) => a.status == 'OPEN' && a.deviceId != AuthManager.deviceId)
+                        .map((a) => CircleMarker(
+                              point: LatLng(a.latitude, a.longitude),
+                              color: Colors.red.withValues(alpha: 0.3),
+                              borderColor: Colors.red,
+                              borderStrokeWidth: 1,
+                              useRadiusInMeter: true,
+                              radius: 2000,
+                            )),
+                    ],
                   ),
                   MarkerLayer(
                     markers: [
-                      ...MapPinsManager().pins.map((alert) {
+                      ...MapPinsManager().pins
+                        .where((alert) => alert.deviceId == AuthManager.deviceId || alert.status != 'OPEN')
+                        .map((alert) {
                         return Marker(
                           point: LatLng(alert.latitude, alert.longitude),
                           width: 40,
@@ -783,17 +1007,72 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         ),
                       ),
                       Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Long-press map to drop SOS',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'Long-press map to drop SOS',
+                                  style: TextStyle(color: Colors.white, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.delete_sweep, color: Colors.white54),
+                              tooltip: 'Clear Test Data',
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: AppColors.pitchBlack,
+                                    title: const Text('Clear all test pins?', style: TextStyle(color: Colors.white)),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Navigator.pop(ctx);
+                                          try {
+                                            final success = await AuthManager.client.sos.nukeAllTestData();
+                                            if (mounted) {
+                                              if (success) {
+                                                _fetchActiveSos();
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Map Cleared'), backgroundColor: Colors.green),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Wipe Failed - Check Server Logs'), backgroundColor: Colors.red),
+                                                );
+                                              }
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('Failed to nuke: $e'), backgroundColor: Colors.red),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -841,6 +1120,32 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     SizedBox(width: 8),
                     Text('Reconnecting to server...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ],
+                ),
+              ),
+            ),
+          
+          if (activeClaimed.isNotEmpty)
+            Positioned(
+              bottom: 120,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FloatingActionButton.extended(
+                  onPressed: () async {
+                    final alert = activeClaimed.first;
+                    final lat = alert.latitude;
+                    final lng = alert.longitude;
+                    final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else {
+                      final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                      await launchUrl(fallback);
+                    }
+                  },
+                  backgroundColor: Colors.blue,
+                  icon: const Icon(Icons.navigation, color: Colors.white),
+                  label: const Text('Start Navigation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
@@ -936,6 +1241,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
       context: context,
       backgroundColor: AppColors.pitchBlack,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      isScrollControlled: true,
       builder: (ctx) {
         return PopScope(
           canPop: false,
@@ -943,11 +1249,17 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
             builder: (ctx, setModalState) {
               final bool isClaimed = alert.status == 'CLAIMED';
             return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Row(
                     children: [
                       Icon(isClaimed ? Icons.check_circle : Icons.emergency, 
@@ -976,7 +1288,14 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(base64Decode(alert.photoBase64!), height: 200, fit: BoxFit.cover),
+                      child: SizedBox(
+                        height: 220,
+                        width: double.infinity,
+                        child: Image.memory(
+                          base64Decode(alert.photoBase64!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                   ],
                   if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
@@ -1010,96 +1329,143 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                   ],
                   const SizedBox(height: 24),
                   if (isOwnPin)
-                    CapsuleButton(
-                      text: 'RESOLVE / CLEAR SOS',
-                      style: CapsuleStyle.secondary,
-                      isLoading: isSubmitting,
-                      onPressed: () async {
-                        final alertId = alert.id;
-                        if (alertId == null) return;
-                        setModalState(() => isSubmitting = true);
-                        try {
-                          final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
-                          if (!success) {
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
-                            }
-                            setModalState(() => isSubmitting = false);
-                            return;
-                          }
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                            widget.onResolve(alertId);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('SOS Resolved / Cleared.')),
-                            );
-                          }
-                        } catch (e) {
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
-                          }
-                          setModalState(() => isSubmitting = false);
-                        }
-                      },
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: const Text('CANCEL'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting ? null : () async {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
+                                    if (!success) {
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
+                                      }
+                                      setModalState(() => isSubmitting = false);
+                                      return;
+                                    }
+                                    if (ctx.mounted) {
+                                      Navigator.pop(ctx);
+                                      widget.onResolve(alertId);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('SOS Resolved / Cleared.')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.emergencyRed,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: isSubmitting 
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                  : const Text('RESOLVE SOS'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     )
                   else if (!isClaimed)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        CapsuleButton(
-                          text: 'ACCEPT RESCUE',
-                          style: CapsuleStyle.primary,
-                          isLoading: isSubmitting,
-                          onPressed: () async {
-                            final alertId = alert.id;
-                            if (alertId == null) return;
-                            setModalState(() => isSubmitting = true);
-                            try {
-                              await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
-                              if (ctx.mounted) {
-                                final updatedAlert = alert.copyWith(
-                                  status: 'CLAIMED',
-                                  volunteerDeviceId: AuthManager.deviceId,
-                                );
-                                MapPinsManager().addOrUpdatePin(updatedAlert);
-                                
-                                AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
-                                  victimDeviceId: alert.deviceId,
-                                  volunteerName: AuthManager.displayName,
-                                  volunteerDeviceId: AuthManager.deviceId,
-                                ));
-                                Navigator.pop(ctx);
-                                // LOGIC-P3-03 FIX: Use ctx (modal's context) not the outer
-                                // widget context, which may be stale after the async gap.
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Rescue Claimed Successfully!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text('Failed to claim: $e')),
-                                );
-                              }
-                              setModalState(() => isSubmitting = false);
-                            }
-                          },
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  widget.onIgnore(alertId);
+                                  Navigator.pop(ctx);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: const Text('DENY / IGNORE'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting ? null : () async {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                    if (ctx.mounted) {
+                                      final updatedAlert = alert.copyWith(
+                                        status: 'CLAIMED',
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      );
+                                      MapPinsManager().addOrUpdatePin(updatedAlert);
+                                      
+                                      AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                                        victimDeviceId: alert.deviceId,
+                                        volunteerName: AuthManager.displayName,
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      ));
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Rescue Claimed Successfully!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        SnackBar(content: Text('Failed to claim: $e')),
+                                      );
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: isSubmitting 
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                  : const Text('ACCEPT RESCUE'),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        CapsuleButton(
-                          text: 'IGNORE / REJECT',
-                          style: CapsuleStyle.secondary,
-                          onPressed: () {
-                            final alertId = alert.id;
-                            if (alertId == null) return;
-                            widget.onIgnore(alertId);
-                            Navigator.pop(ctx);
-                          },
-                        ),
-                      ],
+                      ),
                     )
                   else if (isClaimed && alert.volunteerDeviceId == AuthManager.deviceId)
                     Column(
@@ -1222,11 +1588,12 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                   const SizedBox(height: 16),
                 ],
               ),
+            ),
             );
             },
           ),
         );
-      }
+      },
     );
   }
 }

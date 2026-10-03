@@ -2,7 +2,7 @@ import 'package:crsis_link_client/crsis_link_client.dart';
 void main() async {
   final client = Client('https://crsis-link-api.onrender.com/');
   print('Fetching active SOS alerts...');
-  final alerts = await client.sos.getActiveAlerts();
+  final alerts = await client.sos.getActiveAlerts(0.0, 0.0);
   print('Found \${alerts.length} active alerts.');
   for (var alert in alerts) {
     print('Cancelling alert \${alert.id}...');

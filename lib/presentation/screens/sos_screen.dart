@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/map_pins_manager.dart';
@@ -246,6 +247,20 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                     onPressed: () async {
                       setModalState(() => isSubmitting = true);
                       try {
+                        String? approxLocation;
+                        try {
+                          List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+                          if (placemarks.isNotEmpty) {
+                            final place = placemarks.first;
+                            approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
+                            if (approxLocation != null && approxLocation.isNotEmpty) {
+                              approxLocation = 'Emergency in $approxLocation';
+                            }
+                          }
+                        } catch (e) {
+                          debugPrint('Geocoding failed: $e');
+                        }
+
                         final response = await AuthManager.client.sos.broadcastSos(
                           AuthManager.deviceId,
                           AuthManager.displayName,
@@ -255,6 +270,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           pendingAudioUrl,
                           phoneController.text.trim(),
                           null,
+                          approxLocation,
                         ).timeout(const Duration(seconds: 10));
                         
                         var finalAlert = response.alert;

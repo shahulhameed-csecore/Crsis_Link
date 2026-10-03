@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/state/alerts_manager.dart';
 import 'package:intl/intl.dart';
@@ -15,16 +17,37 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
+  Timer? _pollingTimer;
+  SosAlert? _myLatestSos;
+
   @override
   void initState() {
     super.initState();
     MapPinsManager().addListener(_onPinsChanged);
+    _fetchLatestSOS();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _fetchLatestSOS();
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     MapPinsManager().removeListener(_onPinsChanged);
     super.dispose();
+  }
+
+  Future<void> _fetchLatestSOS() async {
+    try {
+      final sos = await AuthManager.client.sos.getMyActiveSos(AuthManager.deviceId);
+      if (mounted) {
+        setState(() {
+          _myLatestSos = sos;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching SOS: $e');
+    }
   }
 
   void _onPinsChanged() {
@@ -74,56 +97,78 @@ class _AlertsScreenState extends State<AlertsScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: ValueListenableBuilder<List<AlertNotification>>(
-        valueListenable: AlertsManager(),
-        builder: (context, notifications, child) {
-          final myClaimedAlerts = MapPinsManager().pins.where((a) => a.deviceId == AuthManager.deviceId && a.status == 'CLAIMED' && !a.isRescuerVerified).toList();
-          
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (myClaimedAlerts.isNotEmpty)
-                ...myClaimedAlerts.map((alert) => Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.verified_user, color: Colors.green, size: 40),
-                      const SizedBox(height: 8),
-                      const Text('Rescuer Assigned!', style: TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      Text('Your Safety PIN is: ${alert.verificationPin ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                      const SizedBox(height: 8),
-                      const Text('Give this PIN to your rescuer when they call or arrive.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-                    ],
-                  ),
-                )),
-              
-              Expanded(
-                child: notifications.isEmpty
-                  ? Center(
+      body: RefreshIndicator(
+        onRefresh: _fetchLatestSOS,
+        child: ValueListenableBuilder<List<AlertNotification>>(
+          valueListenable: AlertsManager(),
+          builder: (context, notifications, child) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                if (_myLatestSos != null)
+                  _myLatestSos!.volunteerDeviceId == null
+                      ? Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const CircularProgressIndicator(color: Colors.orange),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Text(
+                                  'Searching for nearby rescuers...',
+                                  style: TextStyle(color: Colors.orange, fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.verified_user, color: Colors.green, size: 40),
+                              const SizedBox(height: 8),
+                              const Text('Rescuer Assigned!', style: TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 12),
+                              Text('Your Safety PIN is: ${_myLatestSos!.verificationPin ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                              const SizedBox(height: 8),
+                              const Text('Give this PIN to your rescuer when they call or arrive.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                            ],
+                          ),
+                        ),
+                
+                if (notifications.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                      Icon(Icons.security, size: 80, color: AppColors.pitchBlack.withValues(alpha: 0.1)),
-                      const SizedBox(height: 16),
-                      Text('No active alerts nearby', style: AppTypography.subtitle.copyWith(color: Colors.grey)),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: notifications.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final alert = notifications[index];
-                    
-                    return GestureDetector(
+                          Icon(Icons.security, size: 80, color: AppColors.pitchBlack.withValues(alpha: 0.1)),
+                          const SizedBox(height: 16),
+                          Text('No active alerts nearby', style: AppTypography.subtitle.copyWith(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ...notifications.map((alert) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: GestureDetector(
                       onTap: () => _handleAlertTap(alert),
                       child: Container(
                         decoration: BoxDecoration(
@@ -179,13 +224,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           ],
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+                    ),
+                  )),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

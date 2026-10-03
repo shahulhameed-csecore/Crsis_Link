@@ -94,7 +94,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64, String? approximateLocationText) async {
     if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw ArgumentError('Invalid coordinates');
     }
@@ -143,6 +143,7 @@ class SosEndpoint extends Endpoint {
         audioUrl: audioUrl,
         victimPhone: victimPhone,
         photoBase64: photoBase64,
+        approximateLocationText: approximateLocationText,
       );
 
       return await SosAlert.db.insertRow(session, newAlert, transaction: transaction);
@@ -215,6 +216,29 @@ class SosEndpoint extends Endpoint {
     }).toList();
   }
 
+  /// Retrieves the device's currently active SOS alert (if any)
+  Future<SosAlert?> getMyActiveSos(Session session, String deviceId) async {
+    final alerts = await SosAlert.db.find(
+      session,
+      where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
+      orderBy: (t) => t.timestamp,
+      orderDescending: true,
+      limit: 1,
+    );
+    return alerts.isEmpty ? null : alerts.first;
+  }
+
+  /// Nuke all test data (Hackathon Secret Reset)
+  Future<bool> nukeAllTestData(Session session) async {
+    try {
+      await session.db.unsafeQuery('TRUNCATE TABLE "sos_alert" CASCADE;');
+      _deviceLocations.clear();
+      return true;
+    } catch (e) {
+      session.log('Failed to nuke test data: $e', level: LogLevel.error);
+      return false;
+    }
+  }
 
   
   /// Resolves an active SOS alert

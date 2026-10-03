@@ -304,6 +304,7 @@ class EndpointSos extends _i2.EndpointRef {
     String? audioUrl,
     String victimPhone,
     String? photoBase64,
+    String? approximateLocationText,
   ) => caller.callServerEndpoint<_i5.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
@@ -316,6 +317,7 @@ class EndpointSos extends _i2.EndpointRef {
       'audioUrl': audioUrl,
       'victimPhone': victimPhone,
       'photoBase64': photoBase64,
+      'approximateLocationText': approximateLocationText,
     },
   );
 
@@ -330,6 +332,21 @@ class EndpointSos extends _i2.EndpointRef {
       'lat': lat,
       'lng': lng,
     },
+  );
+
+  /// Retrieves the device's currently active SOS alert (if any)
+  _i3.Future<_i6.SosAlert?> getMyActiveSos(String deviceId) =>
+      caller.callServerEndpoint<_i6.SosAlert?>(
+        'sos',
+        'getMyActiveSos',
+        {'deviceId': deviceId},
+      );
+
+  /// Nuke all test data (Hackathon Secret Reset)
+  _i3.Future<bool> nukeAllTestData() => caller.callServerEndpoint<bool>(
+    'sos',
+    'nukeAllTestData',
+    {},
   );
 
   /// Resolves an active SOS alert

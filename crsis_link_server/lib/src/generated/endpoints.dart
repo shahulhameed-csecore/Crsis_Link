@@ -382,6 +382,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'approximateLocationText': _i1.ParameterDescription(
+              name: 'approximateLocationText',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -397,6 +402,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['audioUrl'],
                 params['victimPhone'],
                 params['photoBase64'],
+                params['approximateLocationText'],
               ),
         ),
         'getActiveAlerts': _i1.MethodConnector(
@@ -421,6 +427,35 @@ class Endpoints extends _i1.EndpointDispatch {
                 session,
                 params['lat'],
                 params['lng'],
+              ),
+        ),
+        'getMyActiveSos': _i1.MethodConnector(
+          name: 'getMyActiveSos',
+          params: {
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['sos'] as _i5.SosEndpoint).getMyActiveSos(
+                session,
+                params['deviceId'],
+              ),
+        ),
+        'nukeAllTestData': _i1.MethodConnector(
+          name: 'nukeAllTestData',
+          params: {},
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['sos'] as _i5.SosEndpoint).nukeAllTestData(
+                session,
               ),
         ),
         'resolveSOS': _i1.MethodConnector(

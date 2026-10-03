@@ -32,6 +32,7 @@ abstract class SosAlert
     bool? isVisuallyVerified,
     required this.victimPhone,
     this.photoBase64,
+    this.approximateLocationText,
   }) : isRescuerVerified = isRescuerVerified ?? false,
        isVisuallyVerified = isVisuallyVerified ?? false;
 
@@ -52,6 +53,7 @@ abstract class SosAlert
     bool? isVisuallyVerified,
     required String victimPhone,
     String? photoBase64,
+    String? approximateLocationText,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -82,6 +84,8 @@ abstract class SosAlert
             ),
       victimPhone: jsonSerialization['victimPhone'] as String,
       photoBase64: jsonSerialization['photoBase64'] as String?,
+      approximateLocationText:
+          jsonSerialization['approximateLocationText'] as String?,
     );
   }
 
@@ -122,6 +126,8 @@ abstract class SosAlert
 
   String? photoBase64;
 
+  String? approximateLocationText;
+
   @override
   _i1.Table<int?> get table => t;
 
@@ -145,6 +151,7 @@ abstract class SosAlert
     bool? isVisuallyVerified,
     String? victimPhone,
     String? photoBase64,
+    String? approximateLocationText,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -166,6 +173,8 @@ abstract class SosAlert
       'isVisuallyVerified': isVisuallyVerified,
       'victimPhone': victimPhone,
       if (photoBase64 != null) 'photoBase64': photoBase64,
+      if (approximateLocationText != null)
+        'approximateLocationText': approximateLocationText,
     };
   }
 
@@ -189,6 +198,8 @@ abstract class SosAlert
       'isVisuallyVerified': isVisuallyVerified,
       'victimPhone': victimPhone,
       if (photoBase64 != null) 'photoBase64': photoBase64,
+      if (approximateLocationText != null)
+        'approximateLocationText': approximateLocationText,
     };
   }
 
@@ -242,6 +253,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isVisuallyVerified,
     required String victimPhone,
     String? photoBase64,
+    String? approximateLocationText,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -259,6 +271,7 @@ class _SosAlertImpl extends SosAlert {
          isVisuallyVerified: isVisuallyVerified,
          victimPhone: victimPhone,
          photoBase64: photoBase64,
+         approximateLocationText: approximateLocationText,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -282,6 +295,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isVisuallyVerified,
     String? victimPhone,
     Object? photoBase64 = _Undefined,
+    Object? approximateLocationText = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -304,6 +318,9 @@ class _SosAlertImpl extends SosAlert {
       isVisuallyVerified: isVisuallyVerified ?? this.isVisuallyVerified,
       victimPhone: victimPhone ?? this.victimPhone,
       photoBase64: photoBase64 is String? ? photoBase64 : this.photoBase64,
+      approximateLocationText: approximateLocationText is String?
+          ? approximateLocationText
+          : this.approximateLocationText,
     );
   }
 }
@@ -388,6 +405,12 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
     table.photoBase64,
     value,
   );
+
+  _i1.ColumnValue<String, String> approximateLocationText(String? value) =>
+      _i1.ColumnValue(
+        table.approximateLocationText,
+        value,
+      );
 }
 
 class SosAlertTable extends _i1.Table<int?> {
@@ -455,6 +478,10 @@ class SosAlertTable extends _i1.Table<int?> {
       'photoBase64',
       this,
     );
+    approximateLocationText = _i1.ColumnString(
+      'approximateLocationText',
+      this,
+    );
   }
 
   late final SosAlertUpdateTable updateTable;
@@ -489,6 +516,8 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString photoBase64;
 
+  late final _i1.ColumnString approximateLocationText;
+
   @override
   List<_i1.Column> get columns => [
     id,
@@ -507,6 +536,7 @@ class SosAlertTable extends _i1.Table<int?> {
     isVisuallyVerified,
     victimPhone,
     photoBase64,
+    approximateLocationText,
   ];
 }
 

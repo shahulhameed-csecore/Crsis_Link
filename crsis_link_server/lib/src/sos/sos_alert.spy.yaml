@@ -16,3 +16,4 @@ fields:
   isVisuallyVerified: bool, default=false
   victimPhone: String
   photoBase64: String?
+  approximateLocationText: String?
