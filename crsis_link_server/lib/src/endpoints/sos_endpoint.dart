@@ -210,10 +210,34 @@ class SosEndpoint extends Endpoint {
     );
     
     // Secondary precise Haversine pass on the already-reduced bounding-box result set.
-    return alerts.where((alert) {
-      final distance = _calculateDistance(alert.latitude, alert.longitude, lat, lng);
-      return distance <= 5000;
-    }).toList();
+    // Sanitize: strip heavy/private fields before broadcasting to all nearby devices.
+    // Full data (victimPhone, PIN, audio, photo) is only returned in claimRescue/broadcastSos.
+    return alerts
+        .where((alert) {
+          final distance = _calculateDistance(alert.latitude, alert.longitude, lat, lng);
+          return distance <= 5000;
+        })
+        .map((alert) => SosAlert(
+              id: alert.id,
+              deviceId: alert.deviceId,
+              latitude: alert.latitude,
+              longitude: alert.longitude,
+              approximateLocationText: alert.approximateLocationText,
+              timestamp: alert.timestamp,
+              isActive: alert.isActive,
+              status: alert.status,
+              senderName: alert.senderName,
+              isVisuallyVerified: alert.isVisuallyVerified,
+              message: alert.message,
+              // Intentionally stripped — private fields not needed for radar display
+              victimPhone: null,
+              verificationPin: null,
+              audioUrl: null,
+              photoBase64: null,
+              volunteerDeviceId: alert.volunteerDeviceId,
+              isRescuerVerified: alert.isRescuerVerified,
+            ))
+        .toList();
   }
 
   /// Retrieves the device's currently active SOS alert (if any)
