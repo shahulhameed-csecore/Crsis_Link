@@ -115,7 +115,7 @@ class SosEndpoint extends Endpoint {
       }
     }
 
-    print('SOS Triggered by $deviceId at $latitude, $longitude');
+    session.log('SOS Triggered by $deviceId at $latitude, $longitude', level: LogLevel.info);
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     // BUG-P3-03 FIX: Wrap deactivation and insertion in a single atomic transaction
@@ -150,7 +150,7 @@ class SosEndpoint extends Endpoint {
     });
     
     int notifiedCount = 0;
-    print('Total devices in spatial cache: ${_deviceLocations.length}');
+    session.log('Total devices in spatial cache: ${_deviceLocations.length}', level: LogLevel.info);
     // Spatial Filter: Broadcast ONLY to devices within 5000 meters
     for (final entry in _deviceLocations.entries.toList()) {
       final targetDeviceId = entry.key;
@@ -169,7 +169,7 @@ class SosEndpoint extends Endpoint {
       final targetLng = locationData.lng;
       
       final distance = _calculateDistance(latitude, longitude, targetLat, targetLng);
-      print('Checking device $targetDeviceId - Distance: ${distance / 1000} km');
+      session.log('Checking device $targetDeviceId - Distance: ${distance / 1000} km', level: LogLevel.info);
       
       if (distance <= 5000) { // 5km radius
         // BUG-P3-01 FIX: Post ONLY to the targeted device channel.
@@ -180,7 +180,7 @@ class SosEndpoint extends Endpoint {
       }
     }
     
-    print('SOS broadcast successfully routed to $notifiedCount nearby devices.');
+    session.log('SOS broadcast successfully routed to $notifiedCount nearby devices.', level: LogLevel.info);
     
     return SosBroadcastResponse(
       alert: savedAlert,
@@ -259,8 +259,8 @@ class SosEndpoint extends Endpoint {
       _deviceLocations.clear();
       return true;
     } catch (e) {
-      session.log('Failed to nuke test data: $e', level: LogLevel.error);
-      return false;
+      session.log('Operation failed: $e', level: LogLevel.error);
+      throw Exception('Operation failed: $e');
     }
   }
 

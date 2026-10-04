@@ -75,6 +75,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
         ).timeout(const Duration(seconds: 5));
       } catch (e) {
+        debugPrint('Error: $e');
         // If it times out or fails, fallback to last known position immediately
         position = await Geolocator.getLastKnownPosition();
         
@@ -86,9 +87,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         }
       }
       
-      if (position == null) {
-        throw Exception('Could not determine location after multiple attempts. Please ensure your GPS is active.');
-      }
+
       
       // DOUBLE-TAP FIX: Do NOT reset _isLocating here.
       // Await the modal so _isLocating stays true (button locked) until modal is fully dismissed.
@@ -96,6 +95,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         await _showSosModal(position);
       }
     } catch (e) {
+      debugPrint('Error: $e');
       if (mounted) {
         final errorMsg = e.toString();
         final isPermanent = errorMsg.contains('permanently denied') || errorMsg.contains('disabled');
@@ -284,6 +284,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                         
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
+                          if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(response.notifiedCount == 0 
@@ -303,7 +304,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
-                              content: Text('Connection timed out. Please check your internet and try again.'),
+                              content: Text('Server timeout. Please check your connection and try again.'),
                               backgroundColor: AppColors.emergencyRed,
                             ),
                           );

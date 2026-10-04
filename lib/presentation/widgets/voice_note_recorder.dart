@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:http/http.dart' as http;
 import 'package:serverpod_client/serverpod_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/auth/auth_manager.dart';

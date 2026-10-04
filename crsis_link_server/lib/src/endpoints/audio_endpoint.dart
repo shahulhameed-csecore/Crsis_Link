@@ -15,8 +15,8 @@ class AudioEndpoint extends Endpoint {
       );
       return uploadDescription ?? '';
     } catch (e) {
-      session.log('Failed to create upload description: $e', level: LogLevel.error);
-      throw Exception('Failed to generate upload URL: $e');
+      session.log('Operation failed: $e', level: LogLevel.error);
+      throw Exception('Operation failed: $e');
     }
   }
 
@@ -45,8 +45,8 @@ class AudioEndpoint extends Endpoint {
 
       return publicUrl.toString();
     } catch (e) {
-      session.log('Upload verification error: $e', level: LogLevel.error);
-      throw Exception('Verification failed: $e');
+      session.log('Operation failed: $e', level: LogLevel.error);
+      throw Exception('Operation failed: $e');
     }
   }
 }

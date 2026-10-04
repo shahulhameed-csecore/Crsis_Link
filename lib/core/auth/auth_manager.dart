@@ -2,6 +2,7 @@ import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthManager {
   static late Client client;
@@ -9,17 +10,13 @@ class AuthManager {
   static late String displayName;
 
   static Future<void> initialize() async {
-    // Use Flutter's built-in compile-time constants for environment detection
-    // Run `flutter run --release` to automatically use Render, otherwise localhost.
-    final bool isProduction = kReleaseMode;
-
-    String serverUrl = 'http://localhost:8080/';
-    
-    if (isProduction) {
-      serverUrl = 'https://crsis-link-api.onrender.com/';
-    } else if (kIsWeb) {
-      serverUrl = 'http://localhost:8080/';
+    // Load env securely
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint('No .env file found, using defaults.');
     }
+    String serverUrl = dotenv.env['API_URL'] ?? 'http://localhost:8080/';
 
     client = Client(serverUrl);
 
@@ -31,7 +28,7 @@ class AuthManager {
       await prefs.setString('device_id', storedId);
     }
     deviceId = storedId;
-    print('MY DEVICE ID: $deviceId');
+    debugPrint('MY DEVICE ID: $deviceId');
     
     String? storedName = prefs.getString('display_name');
     if (storedName == null) {
