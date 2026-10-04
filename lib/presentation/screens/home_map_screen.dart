@@ -1028,44 +1028,35 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                             const SizedBox(width: 4),
                             IconButton(
                               icon: const Icon(Icons.delete_sweep, color: Colors.white54),
-                              tooltip: 'Clear Test Data',
+                              tooltip: 'Hide All Pins',
                               onPressed: () {
                                 showDialog(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
                                     backgroundColor: AppColors.pitchBlack,
-                                    title: const Text('Clear all test pins?', style: TextStyle(color: Colors.white)),
+                                    title: const Text('Hide all current pins?', style: TextStyle(color: Colors.white)),
+                                    content: const Text('This will remove all pins from your map. Other users will still see them.', style: TextStyle(color: Colors.white70)),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.pop(ctx),
                                         child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
                                       ),
                                       TextButton(
-                                        onPressed: () async {
+                                        onPressed: () {
                                           Navigator.pop(ctx);
-                                          try {
-                                            final success = await AuthManager.client.sos.nukeAllTestData();
-                                            if (mounted) {
-                                              if (success) {
-                                                _fetchActiveSos();
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Map Cleared'), backgroundColor: Colors.green),
-                                                );
-                                              } else {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Wipe Failed - Check Server Logs'), backgroundColor: Colors.red),
-                                                );
+                                          setState(() {
+                                            for (final pin in MapPinsManager().pins) {
+                                              if (pin.id != null) {
+                                                _ignoredSosIds.add(pin.id!);
                                               }
                                             }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Failed to nuke: $e'), backgroundColor: Colors.red),
-                                              );
-                                            }
-                                          }
+                                            MapPinsManager().setPins([]);
+                                          });
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('All pins hidden locally'), backgroundColor: Colors.green),
+                                          );
                                         },
-                                        child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                                        child: const Text('Hide', style: TextStyle(color: Colors.red)),
                                       ),
                                     ],
                                   ),
