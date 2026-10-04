@@ -75,6 +75,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
         return const Icon(Icons.check_circle, color: AppColors.radarGreen, size: 28);
       case AlertType.resolved:
         return const Icon(Icons.check_circle_outline, color: Colors.grey, size: 28);
+      case AlertType.ignored:
+        return const Icon(Icons.visibility_off, color: Colors.grey, size: 28);
     }
   }
 
