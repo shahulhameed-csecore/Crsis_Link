@@ -319,22 +319,20 @@ class SosEndpoint extends Endpoint {
 
   /// Completes an active SOS alert (called when rescuer is safe)
   Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, int sosId) async {
-    final targetAlert = await session.db.transaction((transaction) async {
-      final alert = await SosAlert.db.findById(session, sosId, transaction: transaction);
-      if (alert == null) {
-        throw Exception('SOS alert not found.');
-      }
-      if (alert.volunteerDeviceId != volunteerDeviceId) {
-        throw Exception('Only the assigned volunteer can complete this rescue.');
-      }
+    final alert = await SosAlert.db.findById(session, sosId);
+    if (alert == null) {
+      throw Exception('SOS alert not found.');
+    }
+    if (alert.volunteerDeviceId != volunteerDeviceId) {
+      throw Exception('Only the assigned volunteer can complete this rescue.');
+    }
 
-      alert.status = 'COMPLETED';
-      alert.isActive = false;
-      return await SosAlert.db.updateRow(session, alert, transaction: transaction);
-    });
+    alert.status = 'COMPLETED';
+    alert.isActive = false;
+    final updatedAlert = await SosAlert.db.updateRow(session, alert);
 
-    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: targetAlert.deviceId));
-    return targetAlert;
+    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert.deviceId));
+    return updatedAlert;
   }
 
   /// Verifies the helper's PIN for an active SOS
