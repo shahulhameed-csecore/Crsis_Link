@@ -232,8 +232,8 @@ class SosEndpoint extends Endpoint {
               // Intentionally stripped — private fields not needed for radar display
               victimPhone: '',
               verificationPin: null,
-              audioUrl: null,
-              photoBase64: null,
+              audioUrl: alert.audioUrl,
+              photoBase64: alert.photoBase64,
               volunteerDeviceId: alert.volunteerDeviceId,
               isRescuerVerified: alert.isRescuerVerified,
             ))

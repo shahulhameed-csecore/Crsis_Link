@@ -397,6 +397,27 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           style: const TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                       ),
+                      if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        const Text('ATTACHED PHOTO', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            base64Decode(alert.photoBase64!),
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                          ),
+                        ),
+                      ],
+                      if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        const Text('VOICE NOTE', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        _AudioPlayerButton(audioUrl: alert.audioUrl!),
+                      ],
                       const SizedBox(height: 32),
                       
                       // Action Buttons
