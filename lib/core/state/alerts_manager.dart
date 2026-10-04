@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-enum AlertType { sos, accepted, resolved }
+enum AlertType { sos, accepted, resolved, ignored }
 
 class AlertNotification {
   final int? sosId;
@@ -22,22 +24,72 @@ class AlertNotification {
     this.latitude,
     this.longitude,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sosId': sosId,
+      'timestamp': timestamp.toIso8601String(),
+      'title': title,
+      'description': description,
+      'type': type.name,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+
+  factory AlertNotification.fromJson(Map<String, dynamic> json) {
+    return AlertNotification(
+      sosId: json['sosId'] as int?,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      title: json['title'] as String,
+      description: json['description'] as String,
+      type: AlertType.values.firstWhere((e) => e.name == json['type'], orElse: () => AlertType.sos),
+      latitude: json['latitude'] as double?,
+      longitude: json['longitude'] as double?,
+    );
+  }
 }
 
 class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   static const int _maxAlertHistory = 100;
+  static const String _prefsKey = 'alertsHistory';
 
   static final AlertsManager _instance = AlertsManager._internal();
   factory AlertsManager() => _instance;
-  AlertsManager._internal() : super([]);
+  AlertsManager._internal() : super([]) {
+    _loadFromPrefs();
+  }
 
   List<AlertNotification> get notifications => value;
+
+  Future<void> _loadFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String>? jsonList = prefs.getStringList(_prefsKey);
+      if (jsonList != null) {
+        value = jsonList.map((str) => AlertNotification.fromJson(jsonDecode(str))).toList();
+      }
+    } catch (e) {
+      debugPrint('Failed to load alerts history: $e');
+    }
+  }
+
+  Future<void> _saveToPrefs(List<AlertNotification> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = list.map((n) => jsonEncode(n.toJson())).toList();
+      await prefs.setStringList(_prefsKey, jsonList);
+    } catch (e) {
+      debugPrint('Failed to save alerts history: $e');
+    }
+  }
 
   void _applyCapAndNotify(List<AlertNotification> newList) {
     if (newList.length > _maxAlertHistory) {
       newList.removeRange(_maxAlertHistory, newList.length);
     }
     value = newList;
+    _saveToPrefs(newList);
   }
 
   void addSosAlert(SosAlert alert) {
@@ -107,5 +159,21 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
 
   void addResolvedEvent(SosResolvedEvent event) {
     resolveSosAlert(event.sosId);
+  }
+
+  void addIgnoredAlert(int sosId, String? senderName) {
+    final newList = List<AlertNotification>.from(value);
+    // Remove if it's already there as an SOS
+    newList.removeWhere((n) => n.sosId == sosId);
+    
+    newList.insert(0, AlertNotification(
+      sosId: sosId,
+      timestamp: DateTime.now(),
+      title: 'Ignored: ${senderName ?? 'SOS'}',
+      description: 'You hid this pin from your map locally.',
+      type: AlertType.ignored,
+    ));
+    
+    _applyCapAndNotify(newList);
   }
 }

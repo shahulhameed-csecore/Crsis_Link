@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/map_pins_manager.dart';
 import 'package:geocoding/geocoding.dart';
 class HomeMapScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   @override
   void initState() {
     super.initState();
+    _loadIgnoredIds();
     WidgetsBinding.instance.addObserver(this);
     MapPinsManager().addListener(_onPinsChanged);
     _determinePosition().whenComplete(() => _fetchActiveSos());
@@ -66,6 +68,21 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         _isConnected = connected;
       });
     }
+  }
+
+  Future<void> _loadIgnoredIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('ignoredSosIds');
+    if (list != null) {
+      setState(() {
+        _ignoredSosIds.addAll(list.map((e) => int.parse(e)));
+      });
+    }
+  }
+
+  Future<void> _saveIgnoredIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('ignoredSosIds', _ignoredSosIds.map((e) => e.toString()).toList());
   }
 
   void _onPinsChanged() {
@@ -433,6 +450,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                   _ignoredSosIds.add(alertId);
                                   MapPinsManager().removePin(alertId);
                                 });
+                                _saveIgnoredIds();
+                                AlertsManager().addIgnoredAlert(alertId, alert.senderName);
                                 Navigator.pop(ctx);
                               },
                               style: TextButton.styleFrom(
@@ -1069,8 +1088,10 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                             for (final pin in MapPinsManager().pins) {
                                               if (pin.id != null) {
                                                 _ignoredSosIds.add(pin.id!);
+                                                AlertsManager().addIgnoredAlert(pin.id!, pin.senderName);
                                               }
                                             }
+                                            _saveIgnoredIds();
                                             MapPinsManager().setPins([]);
                                           });
                                           ScaffoldMessenger.of(context).showSnackBar(
