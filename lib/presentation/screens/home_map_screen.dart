@@ -1137,13 +1137,11 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     final lng = alert.longitude;
                     try {
                       final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      } else {
+                      bool launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      if (!launched) {
                         final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-                        if (await canLaunchUrl(fallback)) {
-                          await launchUrl(fallback, mode: LaunchMode.externalApplication);
-                        } else {
+                        launched = await launchUrl(fallback, mode: LaunchMode.externalApplication);
+                        if (!launched) {
                           throw Exception('No map application found.');
                         }
                       }
@@ -1488,9 +1486,8 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             onPressed: () async {
                               try {
                                 final url = Uri.parse('tel:${alert.victimPhone}');
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                                } else {
+                                bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                if (!launched) {
                                   throw Exception('Dialer not supported on this device.');
                                 }
                               } catch (e) {
