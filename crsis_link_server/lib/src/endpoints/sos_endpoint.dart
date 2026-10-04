@@ -230,7 +230,7 @@ class SosEndpoint extends Endpoint {
               isVisuallyVerified: alert.isVisuallyVerified,
               message: alert.message,
               // Intentionally stripped — private fields not needed for radar display
-              victimPhone: null,
+              victimPhone: '',
               verificationPin: null,
               audioUrl: null,
               photoBase64: null,

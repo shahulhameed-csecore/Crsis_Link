@@ -568,6 +568,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<int>(),
               nullable: false,
             ),
+            'deviceId': _i1.ParameterDescription(
+              name: 'deviceId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
           },
           call:
               (
@@ -576,6 +581,7 @@ class Endpoints extends _i1.EndpointDispatch {
               ) async => (endpoints['sos'] as _i5.SosEndpoint).verifySOS(
                 session,
                 params['sosId'],
+                params['deviceId'],
               ),
         ),
       },
