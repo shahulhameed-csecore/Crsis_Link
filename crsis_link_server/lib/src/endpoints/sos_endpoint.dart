@@ -283,17 +283,20 @@ class SosEndpoint extends Endpoint {
   
   /// Resolves an active SOS alert
   Future<bool> resolveSOS(Session session, int sosId, String deviceId) async {
-    final alert = await SosAlert.db.findById(session, sosId);
-    // Guard: wrong owner, or already resolved by another process (prevents duplicate broadcasts)
-    if (alert == null || alert.deviceId != deviceId || !alert.isActive) {
-      return false;
+    // Atomic State Transition: Guarantees only one request can mark it resolved
+    final query = '''
+      UPDATE "sos_alert" 
+      SET "status" = 'RESOLVED', "isActive" = false 
+      WHERE "id" = $sosId AND "deviceId" = '$deviceId' AND "isActive" = true 
+      RETURNING *;
+    ''';
+    
+    final result = await session.db.unsafeQuery(query);
+    if (result.isEmpty) {
+      return false; // Already resolved or wrong owner
     }
     
-    alert.isActive = false;
-    alert.status = 'RESOLVED';
-    await SosAlert.db.updateRow(session, alert);
-    
-    // Broadcast the resolved event
+    // Broadcast the resolved event exactly once
     unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: deviceId)));
     
     return true;
