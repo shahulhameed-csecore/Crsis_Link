@@ -13,9 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/offline_mesh_service.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
-import 'package:uuid/uuid.dart';
-import 'package:serverpod_client/serverpod_client.dart';
+import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
 
@@ -23,7 +23,8 @@ class SosScreen extends StatefulWidget {
   State<SosScreen> createState() => _SosScreenState();
 }
 
-class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMixin {
+class _SosScreenState extends State<SosScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   bool _isLocating = false;
@@ -35,7 +36,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
@@ -75,30 +76,40 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
       try {
         // Try getting the high-accuracy position first
         position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            distanceFilter: 5,
+          ),
         ).timeout(const Duration(seconds: 5));
       } catch (e) {
         debugPrint('Error: $e');
         // If it times out or fails, fallback to last known position immediately
         position = await Geolocator.getLastKnownPosition();
-        
+
         // If there's no last known position, try one more time with low accuracy (network/cell tower)
         position ??= await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.low,
+          ),
         ).timeout(const Duration(seconds: 5));
       }
-      
 
-      
       // INSTANT BROADCAST LOGIC
       if (mounted) {
         String? approxLocation;
         try {
           try {
-            List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+            List<Placemark> placemarks = await placemarkFromCoordinates(
+              position.latitude,
+              position.longitude,
+            );
             if (placemarks.isNotEmpty) {
               final place = placemarks.first;
-              approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
+              approxLocation = place.subLocality?.isNotEmpty == true
+                  ? place.subLocality
+                  : (place.locality?.isNotEmpty == true
+                        ? place.locality
+                        : place.name);
               if (approxLocation != null && approxLocation.isNotEmpty) {
                 approxLocation = 'Emergency in $approxLocation';
               }
@@ -109,25 +120,37 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
 
           final prefs = await SharedPreferences.getInstance();
           const secureStorage = FlutterSecureStorage();
-          String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+          String? securePhone = await secureStorage.read(
+            key: 'secure_victim_phone',
+          );
           if (securePhone == null) {
-            String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+            String legacyPhone =
+                prefs.getString('phone') ??
+                prefs.getString('user_phone') ??
+                prefs.getString('phoneNumber') ??
+                '';
             if (legacyPhone.isNotEmpty) {
-              await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+              await secureStorage.write(
+                key: 'secure_victim_phone',
+                value: legacyPhone,
+              );
               await prefs.remove('phone');
               await prefs.remove('user_phone');
               await prefs.remove('phoneNumber');
             }
             securePhone = legacyPhone;
           }
-          final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
+          final victimPhone = securePhone.isNotEmpty
+              ? securePhone
+              : 'URGENT-NO-NUMBER';
 
           if (OfflineMeshService().isOfflineModeEnabled) {
             final alert = LocalSosAlert(
               id: const Uuid().v4(),
               lat: position.latitude,
               lng: position.longitude,
-              message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+              message:
+                  'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
               victimPhone: victimPhone,
               approximateLocationText: approxLocation,
               originalDeviceId: AuthManager.deviceId,
@@ -135,11 +158,13 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
               timestamp: DateTime.now().millisecondsSinceEpoch,
             );
             await OfflineCacheManager.saveAlert(alert);
-            
+
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                  content: Text(
+                    'Offline: SOS saved and broadcasting to nearby devices.',
+                  ),
                   backgroundColor: Colors.orange,
                   duration: Duration(seconds: 5),
                 ),
@@ -150,18 +175,20 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
             return;
           }
 
-          final response = await AuthManager.client.sos.broadcastSos(
-            AuthManager.deviceId,
-            AuthManager.displayName,
-            position.latitude,
-            position.longitude,
-            'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
-            null,
-            victimPhone,
-            null,
-            approxLocation,
-          ).timeout(const Duration(seconds: 10));
-          
+          final response = await AuthManager.client.sos
+              .broadcastSos(
+                AuthManager.deviceId,
+                AuthManager.displayName,
+                position.latitude,
+                position.longitude,
+                'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+                null,
+                victimPhone,
+                null,
+                approxLocation,
+              )
+              .timeout(const Duration(seconds: 10));
+
           final finalAlert = response.alert;
           MapPinsManager().addOrUpdatePin(finalAlert);
           AlertsManager().addSosAlert(finalAlert);
@@ -169,14 +196,16 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(response.notifiedCount == 0 
-                  ? 'No one is available near you at the moment. Your request is still active.'
-                  : 'SOS Broadcasted successfully!'),
+                content: Text(
+                  response.notifiedCount == 0
+                      ? 'No one is available near you at the moment. Your request is still active.'
+                      : 'SOS Broadcasted successfully!',
+                ),
                 backgroundColor: AppColors.emergencyRed,
                 duration: const Duration(seconds: 5),
               ),
             );
-            
+
             // Bridge to Map Screen automatically
             MainNavigation.jumpToMap();
             globalHomeMapKey.currentState?.jumpToCurrentLocation();
@@ -186,7 +215,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Server timeout. Please check your connection and try again.'),
+                content: Text(
+                  'Server timeout. Please check your connection and try again.',
+                ),
                 backgroundColor: AppColors.emergencyRed,
               ),
             );
@@ -197,24 +228,36 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
             try {
               final prefs = await SharedPreferences.getInstance();
               const secureStorage = FlutterSecureStorage();
-              String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+              String? securePhone = await secureStorage.read(
+                key: 'secure_victim_phone',
+              );
               if (securePhone == null) {
-                String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+                String legacyPhone =
+                    prefs.getString('phone') ??
+                    prefs.getString('user_phone') ??
+                    prefs.getString('phoneNumber') ??
+                    '';
                 if (legacyPhone.isNotEmpty) {
-                  await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                  await secureStorage.write(
+                    key: 'secure_victim_phone',
+                    value: legacyPhone,
+                  );
                   await prefs.remove('phone');
                   await prefs.remove('user_phone');
                   await prefs.remove('phoneNumber');
                 }
                 securePhone = legacyPhone;
               }
-              final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
-              
+              final victimPhone = securePhone.isNotEmpty
+                  ? securePhone
+                  : 'URGENT-NO-NUMBER';
+
               final alert = LocalSosAlert(
                 id: const Uuid().v4(),
                 lat: position.latitude,
                 lng: position.longitude,
-                message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+                message:
+                    'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
                 victimPhone: victimPhone,
                 approximateLocationText: approxLocation,
                 originalDeviceId: AuthManager.deviceId,
@@ -225,7 +268,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                  content: Text(
+                    'Offline: SOS saved and broadcasting to nearby devices.',
+                  ),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -249,24 +294,36 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
             try {
               final prefs = await SharedPreferences.getInstance();
               const secureStorage = FlutterSecureStorage();
-              String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+              String? securePhone = await secureStorage.read(
+                key: 'secure_victim_phone',
+              );
               if (securePhone == null) {
-                String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+                String legacyPhone =
+                    prefs.getString('phone') ??
+                    prefs.getString('user_phone') ??
+                    prefs.getString('phoneNumber') ??
+                    '';
                 if (legacyPhone.isNotEmpty) {
-                  await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                  await secureStorage.write(
+                    key: 'secure_victim_phone',
+                    value: legacyPhone,
+                  );
                   await prefs.remove('phone');
                   await prefs.remove('user_phone');
                   await prefs.remove('phoneNumber');
                 }
                 securePhone = legacyPhone;
               }
-              final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
-              
+              final victimPhone = securePhone.isNotEmpty
+                  ? securePhone
+                  : 'URGENT-NO-NUMBER';
+
               final alert = LocalSosAlert(
                 id: const Uuid().v4(),
                 lat: position.latitude,
                 lng: position.longitude,
-                message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+                message:
+                    'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
                 victimPhone: victimPhone,
                 approximateLocationText: approxLocation,
                 originalDeviceId: AuthManager.deviceId,
@@ -277,7 +334,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                  content: Text(
+                    'Offline: SOS saved and broadcasting to nearby devices.',
+                  ),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -311,20 +370,30 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
       debugPrint('Error: $e');
       if (mounted) {
         final errorMsg = e.toString();
-        final isPermanent = errorMsg.contains('permanently denied') || errorMsg.contains('disabled');
-        
+        final isPermanent =
+            errorMsg.contains('permanently denied') ||
+            errorMsg.contains('disabled');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isPermanent ? 'Location access is permanently denied. We cannot broadcast your SOS.' : 'Failed to get location: ${errorMsg.replaceAll('Exception: ', '')}'),
+            content: Text(
+              isPermanent
+                  ? 'Location access is permanently denied. We cannot broadcast your SOS.'
+                  : 'Failed to get location: ${errorMsg.replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: AppColors.emergencyRed,
             duration: const Duration(seconds: 5),
-            action: isPermanent ? SnackBarAction(
-              label: 'OPEN SETTINGS',
-              textColor: Colors.white,
-              onPressed: () {
-                errorMsg.contains('disabled') ? Geolocator.openLocationSettings() : Geolocator.openAppSettings();
-              },
-            ) : null,
+            action: isPermanent
+                ? SnackBarAction(
+                    label: 'OPEN SETTINGS',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      errorMsg.contains('disabled')
+                          ? Geolocator.openLocationSettings()
+                          : Geolocator.openAppSettings();
+                    },
+                  )
+                : null,
           ),
         );
       }
@@ -333,8 +402,6 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
       if (mounted) setState(() => _isLocating = false);
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +452,10 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           ? Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const CircularProgressIndicator(color: Colors.white, strokeWidth: 4),
+                                const CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 4,
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Broadcasting...',
@@ -399,7 +469,11 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.touch_app, size: 64, color: Colors.white),
+                                const Icon(
+                                  Icons.touch_app,
+                                  size: 64,
+                                  color: Colors.white,
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'TAP FOR\nEMERGENCY',

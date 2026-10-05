@@ -20,8 +20,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/map_pins_manager.dart';
 import '../widgets/audio_player_button.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:uuid/uuid.dart';
-import 'package:serverpod_client/serverpod_client.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
 import '../widgets/disaster_radar_view.dart';
