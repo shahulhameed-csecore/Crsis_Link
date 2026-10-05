@@ -20,6 +20,14 @@ class OfflineCacheManager {
   static Box<LocalSosAlert> get _box => Hive.box<LocalSosAlert>(_boxName);
 
   static Future<void> saveAlert(LocalSosAlert alert) async {
+    if (_box.length >= 1000) {
+      final syncedKeys = _box.keys.where((k) => _box.get(k)!.isSynced).toList();
+      if (syncedKeys.isNotEmpty) {
+        await _box.delete(syncedKeys.first);
+      } else {
+        await _box.delete(_box.keys.first);
+      }
+    }
     await _box.put(alert.id, alert);
   }
 
