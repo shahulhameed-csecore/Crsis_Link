@@ -24,6 +24,7 @@ import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
 import '../widgets/disaster_radar_view.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../core/services/offline_mesh_service.dart';
 
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
@@ -56,18 +57,22 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     // Instant offline detection via connectivity_plus
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (mounted) {
+        final connected = !results.contains(ConnectivityResult.none);
         setState(() {
-          _isConnected = !results.contains(ConnectivityResult.none);
+          _isConnected = connected;
         });
+        OfflineMeshService().toggleOfflineMode(!connected);
       }
     });
 
     // Check initial state immediately
     Connectivity().checkConnectivity().then((List<ConnectivityResult> results) {
       if (mounted) {
+        final connected = !results.contains(ConnectivityResult.none);
         setState(() {
-          _isConnected = !results.contains(ConnectivityResult.none);
+          _isConnected = connected;
         });
+        OfflineMeshService().toggleOfflineMode(!connected);
       }
     });
     
