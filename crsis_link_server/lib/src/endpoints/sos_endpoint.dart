@@ -103,7 +103,9 @@ class SosEndpoint extends Endpoint {
     }
     
     // STRICT SERVER-SIDE SANITIZATION (Threat Vector 3: DoS & Schema Overflows)
-    if (audioUrl != null && audioUrl.length > 500) audioUrl = audioUrl.substring(0, 500);
+    if (audioUrl != null && audioUrl.length > 500) {
+      throw ArgumentError('Audio URL exceeds maximum length');
+    }
     if (message != null && message.length > 1000) message = message.substring(0, 1000);
     if (victimPhone.length > 20) victimPhone = victimPhone.substring(0, 20);
     if (photoBase64 != null && photoBase64.length > 5000000) { // Limit to ~5MB max base64

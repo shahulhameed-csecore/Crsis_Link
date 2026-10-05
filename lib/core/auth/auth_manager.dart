@@ -27,13 +27,13 @@ class AuthManager {
     // Secure Storage for deviceId (Threat Vector 4)
     String? storedId = await secureStorage.read(key: 'secure_device_id');
     if (storedId == null) {
-      storedId = 'dev_${const Uuid().v4()}';
-      await secureStorage.write(key: 'secure_device_id', value: storedId);
-      
-      // Clear legacy insecure ID if exists
       if (prefs.containsKey('device_id')) {
-        await prefs.remove('device_id');
+        storedId = prefs.getString('device_id');
+        await prefs.remove('device_id'); // Clear legacy insecure ID
+      } else {
+        storedId = 'dev_${const Uuid().v4()}';
       }
+      await secureStorage.write(key: 'secure_device_id', value: storedId!);
     }
     deviceId = storedId;
     debugPrint('MY DEVICE ID: $deviceId');

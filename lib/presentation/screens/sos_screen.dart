@@ -114,6 +114,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
             String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
             if (legacyPhone.isNotEmpty) {
               await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+              await prefs.remove('phone');
+              await prefs.remove('user_phone');
+              await prefs.remove('phoneNumber');
             }
             securePhone = legacyPhone;
           }
@@ -199,6 +202,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                 String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
                 if (legacyPhone.isNotEmpty) {
                   await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                  await prefs.remove('phone');
+                  await prefs.remove('user_phone');
+                  await prefs.remove('phoneNumber');
                 }
                 securePhone = legacyPhone;
               }
@@ -248,6 +254,9 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                 String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
                 if (legacyPhone.isNotEmpty) {
                   await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                  await prefs.remove('phone');
+                  await prefs.remove('user_phone');
+                  await prefs.remove('phoneNumber');
                 }
                 securePhone = legacyPhone;
               }
