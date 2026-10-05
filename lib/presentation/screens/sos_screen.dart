@@ -92,8 +92,8 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
       
       // INSTANT BROADCAST LOGIC
       if (mounted) {
+        String? approxLocation;
         try {
-          String? approxLocation;
           try {
             List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
             if (placemarks.isNotEmpty) {

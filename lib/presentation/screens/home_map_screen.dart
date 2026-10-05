@@ -673,8 +673,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     isLoading: isSubmitting,
                     onPressed: () async {
                       setModalState(() => isSubmitting = true);
+                      String? approxLocation;
                       try {
-                        String? approxLocation;
                         try {
                           List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
                           if (placemarks.isNotEmpty) {
