@@ -332,19 +332,23 @@ class SosEndpoint extends Endpoint {
 
   /// Completes an active SOS alert (called when rescuer is safe)
   Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, int sosId) async {
-    final alert = await SosAlert.db.findById(session, sosId);
-    if (alert == null) {
-      throw Exception('SOS alert not found.');
+    // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
+    final query = '''
+      UPDATE "sos_alert" 
+      SET "status" = 'COMPLETED', "isActive" = false 
+      WHERE "id" = $sosId AND "volunteerDeviceId" = '$volunteerDeviceId' AND "status" = 'CLAIMED' 
+      RETURNING *;
+    ''';
+    
+    final result = await session.db.unsafeQuery(query);
+    if (result.isEmpty) {
+      throw Exception('SOS alert not found, or you are not the assigned volunteer.');
     }
-    if (alert.volunteerDeviceId != volunteerDeviceId) {
-      throw Exception('Only the assigned volunteer can complete this rescue.');
-    }
-
-    alert.status = 'COMPLETED';
-    alert.isActive = false;
-    final updatedAlert = await SosAlert.db.updateRow(session, alert);
-
-    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert.deviceId)));
+    
+    // Retrieve the fully deserialized object
+    final updatedAlert = await SosAlert.db.findById(session, sosId);
+    
+    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert!.deviceId)));
     return updatedAlert;
   }
 
