@@ -130,8 +130,12 @@ class OfflineMeshService {
           for (final peerId in _connectedEndpoints) {
             // Skip the peer that just sent us this data to prevent echo loops
             if (peerId != endpointId) {
-              // Re-syncs only the alerts marked as `isSynced = false` in our Hive DB
-              await _syncLocalDatabaseWithPeer(peerId);
+              try {
+                // Re-syncs only the alerts marked as `isSynced = false` in our Hive DB
+                await _syncLocalDatabaseWithPeer(peerId);
+              } catch (e) {
+                debugPrint('Failed to relay to peer $peerId: $e');
+              }
             }
           }
         }
