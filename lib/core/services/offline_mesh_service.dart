@@ -4,6 +4,7 @@ import 'package:nearby_connections/nearby_connections.dart';
 import '../models/local_sos_alert.dart';
 import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class OfflineMeshService {
   static final OfflineMeshService _instance = OfflineMeshService._internal();
@@ -40,6 +41,15 @@ class OfflineMeshService {
 
   Future<void> startMesh() async {
     try {
+      // Ensure all necessary offline networking permissions are granted
+      await [
+        Permission.bluetoothScan,
+        Permission.bluetoothAdvertise,
+        Permission.bluetoothConnect,
+        Permission.location,
+        Permission.nearbyWifiDevices,
+      ].request();
+
       await Nearby().startAdvertising(
         AuthManager.displayName,
         _strategy,
