@@ -17,15 +17,24 @@ class OfflineMeshService {
   
   bool get isOfflineModeEnabled => _isOfflineModeEnabled;
 
-  void toggleOfflineMode(bool enable) {
-    _isOfflineModeEnabled = enable;
-    if (enable) {
-      startMesh();
-    } else {
-      Nearby().stopAdvertising();
-      Nearby().stopDiscovery();
-      Nearby().stopAllEndpoints();
-      _connectedEndpoints.clear();
+  bool _isToggling = false;
+
+  Future<void> toggleOfflineMode(bool enable) async {
+    if (_isToggling) return; // Drop panicked inputs
+    _isToggling = true;
+    
+    try {
+      _isOfflineModeEnabled = enable;
+      if (enable) {
+        await startMesh();
+      } else {
+        await Nearby().stopAdvertising();
+        await Nearby().stopDiscovery();
+        Nearby().stopAllEndpoints();
+        _connectedEndpoints.clear();
+      }
+    } finally {
+      _isToggling = false; // Release the lock
     }
   }
 
