@@ -7,6 +7,7 @@ import '../../core/services/offline_cache_manager.dart';
 import '../../core/state/map_pins_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/offline_mesh_service.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -68,6 +69,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('ignoredSosIds');
     await prefs.remove('alertsHistory'); // Just to be safe
+    
+    // Broadcast nuke command to any connected mesh peers
+    await OfflineMeshService().broadcastNukeCommand();
     
     MapPinsManager().setPins([]);
     if (mounted) {

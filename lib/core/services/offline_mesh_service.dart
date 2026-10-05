@@ -159,12 +159,36 @@ class OfflineMeshService {
     }
   }
 
+  Future<void> broadcastNukeCommand() async {
+    final payloadStr = jsonEncode({"command": "NUKE_MESH"});
+    final bytes = Uint8List.fromList(utf8.encode(payloadStr));
+    
+    for (final peerId in _connectedEndpoints) {
+      try {
+        await Nearby().sendBytesPayload(peerId, bytes);
+      } catch (e) {
+        debugPrint('Failed to broadcast nuke command to peer $peerId: $e');
+      }
+    }
+  }
+
   // 5. Receiving and Processing
   Future<void> _handleIncomingPayload(String endpointId, Payload payload) async {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
       try {
         final str = utf8.decode(payload.bytes!);
-        final List<dynamic> dataList = jsonDecode(str);
+        final dynamic decodedData = jsonDecode(str);
+
+        if (decodedData is Map && decodedData['command'] == 'NUKE_MESH') {
+          debugPrint('Nuke Command Received! Wiping local mesh database.');
+          await OfflineCacheManager.clearEntireCache();
+          MapPinsManager().setPins([]);
+          return;
+        }
+
+        if (decodedData is! List) return;
+        
+        final List<dynamic> dataList = decodedData;
         bool hasNewData = false;
 
         for (var item in dataList) {
