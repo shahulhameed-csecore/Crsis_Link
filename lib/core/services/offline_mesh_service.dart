@@ -66,10 +66,8 @@ class OfflineMeshService {
     try {
       // 1. Aggressive Permission Requesting (Android 12+)
       bool hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        debugPrint("Mesh start aborted: Essential permissions not granted.");
-        return;
-      }
+    // We don't abort on hasPermissions because Android versions will reject either legacy or modern permissions
+    // We just request them and let the OS handle it, then try starting the mesh.
 
       // 2. The P2P_CLUSTER Strategy
       await Nearby().startAdvertising(
