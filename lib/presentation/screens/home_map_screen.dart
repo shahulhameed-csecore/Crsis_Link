@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -552,8 +553,13 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           minHeight: 400,
           quality: 50,
         );
+        
+        // Offload heavy encoding to background isolate
+        final encoded = await compute(base64Encode, compressed);
+        
+        if (!mounted) return;
         setModalState(() {
-          pendingPhotoBase64 = base64Encode(compressed);
+          pendingPhotoBase64 = encoded;
         });
       }
     }
