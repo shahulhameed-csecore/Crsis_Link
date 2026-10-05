@@ -45,7 +45,7 @@ class LocalSosAlert extends HiveObject {
       id: json['id'],
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
-      message: json['message'],
+      message: json['message'] ?? 'Emergency',
       victimPhone: json['victimPhone'] ?? 'URGENT-NO-NUMBER',
       approximateLocationText: json['approximateLocationText'],
       originalDeviceId: json['originalDeviceId'] ?? 'unknown_device',
