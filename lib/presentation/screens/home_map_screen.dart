@@ -19,6 +19,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/map_pins_manager.dart';
 import '../widgets/audio_player_button.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:uuid/uuid.dart';
+import 'package:serverpod_client/serverpod_client.dart';
+import '../../core/services/offline_cache_manager.dart';
+import '../../core/models/local_sos_alert.dart';
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
 
@@ -715,46 +719,115 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           );
                         }
                         setModalState(() => isSubmitting = false);
-                      } catch (e) {
-                        final errorStr = e.toString();
-                        if (e is SocketException || errorStr.contains('SocketException') || errorStr.contains('ServerpodClientException')) {
-                          debugPrint('SOS Broadcast offline: $e');
-                          if (ctx.mounted) {
-                            try {
-                              final alert = LocalSosAlert(
-                                id: const Uuid().v4(),
-                                lat: position.latitude,
-                                lng: position.longitude,
-                                message: messageController.text.trim().isEmpty ? 'CRITICAL EMERGENCY: Immediate assistance required. (Custom SOS)' : messageController.text.trim(),
-                                victimPhone: phoneController.text.trim().isEmpty ? 'URGENT-NO-NUMBER' : phoneController.text.trim(),
-                                originalDeviceId: AuthManager.deviceId,
-                                originalSenderName: AuthManager.displayName,
-                                timestamp: DateTime.now().millisecondsSinceEpoch,
+                      } on ServerpodClientException catch (e) {
+                        debugPrint('SOS Broadcast offline: $e');
+                        if (ctx.mounted) {
+                          try {
+                            final alert = LocalSosAlert(
+                              id: const Uuid().v4(),
+                              lat: position.latitude,
+                              lng: position.longitude,
+                              message: messageController.text.trim().isEmpty ? 'CRITICAL EMERGENCY: Immediate assistance required. (Custom SOS)' : messageController.text.trim(),
+                              victimPhone: phoneController.text.trim().isEmpty ? 'URGENT-NO-NUMBER' : phoneController.text.trim(),
+                              approximateLocationText: approxLocation,
+                              originalDeviceId: AuthManager.deviceId,
+                              originalSenderName: AuthManager.displayName,
+                              timestamp: DateTime.now().millisecondsSinceEpoch,
+                            );
+                            OfflineCacheManager.saveAlert(alert).then((_) {
+                              if (!ctx.mounted) return;
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                                  backgroundColor: Colors.orange,
+                                ),
                               );
-                              OfflineCacheManager.saveAlert(alert).then((_) {
-                                if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
+                            }).catchError((saveError) {
+                              debugPrint('Failed to save offline SOS: $saveError');
+                              if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
-                                    backgroundColor: Colors.orange,
+                                  SnackBar(
+                                    content: Text('Failed to save offline SOS: $saveError'),
+                                    backgroundColor: AppColors.emergencyRed,
                                   ),
                                 );
-                                Navigator.pop(ctx);
-                              });
-                            } catch (_) {}
+                                setModalState(() => isSubmitting = false);
+                              }
+                            });
+                          } catch (saveError) {
+                            debugPrint('Failed to save offline SOS: $saveError');
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to save offline SOS: $saveError'),
+                                  backgroundColor: AppColors.emergencyRed,
+                                ),
+                              );
+                              setModalState(() => isSubmitting = false);
+                            }
                           }
-                        } else {
-                          debugPrint('SOS Broadcast failed: $e');
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to drop pin: $e'),
-                                backgroundColor: AppColors.emergencyRed,
-                              ),
-                            );
-                          }
-                          setModalState(() => isSubmitting = false);
                         }
+                      } on SocketException catch (e) {
+                        debugPrint('SOS Broadcast offline (SocketException): $e');
+                        if (ctx.mounted) {
+                          try {
+                            final alert = LocalSosAlert(
+                              id: const Uuid().v4(),
+                              lat: position.latitude,
+                              lng: position.longitude,
+                              message: messageController.text.trim().isEmpty ? 'CRITICAL EMERGENCY: Immediate assistance required. (Custom SOS)' : messageController.text.trim(),
+                              victimPhone: phoneController.text.trim().isEmpty ? 'URGENT-NO-NUMBER' : phoneController.text.trim(),
+                              approximateLocationText: approxLocation,
+                              originalDeviceId: AuthManager.deviceId,
+                              originalSenderName: AuthManager.displayName,
+                              timestamp: DateTime.now().millisecondsSinceEpoch,
+                            );
+                            OfflineCacheManager.saveAlert(alert).then((_) {
+                              if (!ctx.mounted) return;
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              Navigator.pop(ctx);
+                            }).catchError((saveError) {
+                              debugPrint('Failed to save offline SOS: $saveError');
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to save offline SOS: $saveError'),
+                                    backgroundColor: AppColors.emergencyRed,
+                                  ),
+                                );
+                                setModalState(() => isSubmitting = false);
+                              }
+                            });
+                          } catch (saveError) {
+                            debugPrint('Failed to save offline SOS: $saveError');
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to save offline SOS: $saveError'),
+                                  backgroundColor: AppColors.emergencyRed,
+                                ),
+                              );
+                              setModalState(() => isSubmitting = false);
+                            }
+                          }
+                        }
+                      } catch (e) {
+                        debugPrint('SOS Broadcast failed: $e');
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to drop pin: $e'),
+                              backgroundColor: AppColors.emergencyRed,
+                            ),
+                          );
+                        }
+                        setModalState(() => isSubmitting = false);
                       }
                     },
                   ),
