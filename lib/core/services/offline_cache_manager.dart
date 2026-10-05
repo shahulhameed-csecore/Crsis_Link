@@ -46,6 +46,10 @@ class OfflineCacheManager {
   static bool alertExists(String id) {
     return _box.containsKey(id);
   }
+
+  static Future<void> clearEntireCache() async {
+    await _box.clear();
+  }
 }
 
 // Manual Adapter fallback if build_runner is not used for Hackathon

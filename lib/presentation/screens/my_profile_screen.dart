@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../widgets/capsule_button.dart';
+import '../../core/services/offline_cache_manager.dart';
+import '../../core/state/map_pins_manager.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -55,6 +57,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  void _hardResetData() async {
+    HapticFeedback.heavyImpact();
+    await OfflineCacheManager.clearEntireCache();
+    MapPinsManager().setPins([]);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Local Database Wiped. Please restart the app.'),
+          backgroundColor: AppColors.emergencyRed,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,6 +99,24 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
             // Device Identification Card
             _buildDeviceCard(),
+            const SizedBox(height: 32),
+
+            // Debug Nuke Button
+            ElevatedButton.icon(
+              onPressed: _hardResetData,
+              icon: const Icon(Icons.warning, color: Colors.white),
+              label: const Text(
+                'DEBUG: Hard Reset Data',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.emergencyRed,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
