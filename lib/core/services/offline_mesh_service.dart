@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
@@ -189,6 +188,7 @@ class OfflineMeshService {
               victimPhone: alert.victimPhone,
               deviceId: alert.originalDeviceId,
               senderName: alert.originalSenderName,
+              isActive: true,
             );
             
             MapPinsManager().addOrUpdatePin(sosAlert);
