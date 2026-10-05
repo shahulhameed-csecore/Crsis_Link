@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
 import '../../core/state/map_pins_manager.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/auth/auth_manager.dart';
 
 class DisasterRadarView extends StatefulWidget {
   final LatLng currentLocation;
@@ -45,32 +47,35 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final distanceCalc = const Distance();
-    
-    // Strictly read REAL LocalSosAlert items and filter out user's own broadcast (< 10m)
-    final peerAlerts = _offlineAlerts.where((a) {
-      final dist = distanceCalc.as(LengthUnit.Meter, widget.currentLocation, LatLng(a.lat, a.lng));
-      return dist > 10;
-    }).toList();
+    return ValueListenableBuilder(
+      valueListenable: OfflineCacheManager.getBox().listenable(),
+      builder: (context, box, _) {
+        final distanceCalc = const Distance();
+        final rawAlerts = OfflineCacheManager.getUnsyncedAlerts();
+        
+        // Strictly read REAL LocalSosAlert items and filter out user's own broadcast using originalDeviceId
+        final peerAlerts = rawAlerts.where((a) {
+          return a.originalDeviceId != AuthManager.deviceId;
+        }).toList();
 
-    // Find nearest alert for the Tactical HUD
-    LocalSosAlert? nearestAlert;
-    double nearestDist = double.infinity;
-    double nearestBearing = 0.0;
-    
-    for (var a in peerAlerts) {
-      final target = LatLng(a.lat, a.lng);
-      final dist = distanceCalc.as(LengthUnit.Meter, widget.currentLocation, target).toDouble();
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestAlert = a;
-        nearestBearing = distanceCalc.bearing(widget.currentLocation, target);
-      }
-    }
+        // Find nearest alert for the Tactical HUD
+        LocalSosAlert? nearestAlert;
+        double nearestDist = double.infinity;
+        double nearestBearing = 0.0;
+        
+        for (var a in peerAlerts) {
+          final target = LatLng(a.lat, a.lng);
+          final dist = distanceCalc.as(LengthUnit.Meter, widget.currentLocation, target).toDouble();
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestAlert = a;
+            nearestBearing = distanceCalc.bearing(widget.currentLocation, target);
+          }
+        }
 
-    return Container(
-      color: const Color(0xFF0D1117), // Tactical Dark Background
-      child: Stack(
+        return Container(
+          color: const Color(0xFF0D1117), // Tactical Dark Background
+          child: Stack(
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
@@ -197,6 +202,8 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
             ),
         ],
       ),
+    );
+      },
     );
   }
 }

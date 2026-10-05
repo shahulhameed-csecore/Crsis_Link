@@ -18,6 +18,8 @@ class OfflineCacheManager {
   }
 
   static Box<LocalSosAlert> get _box => Hive.box<LocalSosAlert>(_boxName);
+  
+  static Box<LocalSosAlert> getBox() => _box;
 
   static Future<void> saveAlert(LocalSosAlert alert) async {
     if (_box.length >= 1000) {

@@ -69,9 +69,12 @@ class OfflineMeshService {
     // We don't abort on hasPermissions because Android versions will reject either legacy or modern permissions
     // We just request them and let the OS handle it, then try starting the mesh.
 
+      String shortId = AuthManager.deviceId;
+      if (shortId.length > 31) shortId = shortId.substring(0, 31);
+      
       // 2. The P2P_CLUSTER Strategy
       await Nearby().startAdvertising(
-        AuthManager.deviceId,
+        shortId,
         _strategy,
         onConnectionInitiated: (id, info) async {
           // 3. The Two-Way Handshake (Auto-Accept)
@@ -95,11 +98,11 @@ class OfflineMeshService {
       );
 
       await Nearby().startDiscovery(
-        AuthManager.deviceId,
+        shortId,
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
           await Nearby().requestConnection(
-            AuthManager.deviceId,
+            shortId,
             id,
             onConnectionInitiated: (id, info) async {
               // 3. The Two-Way Handshake Auto-Accept for Discoverer
