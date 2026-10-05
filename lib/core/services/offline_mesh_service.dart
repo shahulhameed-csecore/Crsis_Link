@@ -65,7 +65,7 @@ class OfflineMeshService {
   Future<void> startMesh() async {
     try {
       // 1. Aggressive Permission Requesting (Android 12+)
-      bool hasPermissions = await requestPermissions();
+      await requestPermissions();
     // We don't abort on hasPermissions because Android versions will reject either legacy or modern permissions
     // We just request them and let the OS handle it, then try starting the mesh.
 
