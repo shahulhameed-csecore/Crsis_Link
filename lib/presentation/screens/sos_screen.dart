@@ -15,6 +15,7 @@ import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
 import 'package:uuid/uuid.dart';
 import 'package:serverpod_client/serverpod_client.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
 
@@ -107,8 +108,16 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           }
 
           final prefs = await SharedPreferences.getInstance();
-          String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
-          final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+          const secureStorage = FlutterSecureStorage();
+          String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+          if (securePhone == null) {
+            String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+            if (legacyPhone.isNotEmpty) {
+              await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+            }
+            securePhone = legacyPhone;
+          }
+          final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
 
           if (OfflineMeshService().isOfflineModeEnabled) {
             final alert = LocalSosAlert(
@@ -184,8 +193,16 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           if (mounted) {
             try {
               final prefs = await SharedPreferences.getInstance();
-              String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
-              final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+              const secureStorage = FlutterSecureStorage();
+              String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+              if (securePhone == null) {
+                String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+                if (legacyPhone.isNotEmpty) {
+                  await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                }
+                securePhone = legacyPhone;
+              }
+              final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
               
               final alert = LocalSosAlert(
                 id: const Uuid().v4(),
@@ -225,8 +242,16 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
           if (mounted) {
             try {
               final prefs = await SharedPreferences.getInstance();
-              String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
-              final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+              const secureStorage = FlutterSecureStorage();
+              String? securePhone = await secureStorage.read(key: 'secure_victim_phone');
+              if (securePhone == null) {
+                String legacyPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+                if (legacyPhone.isNotEmpty) {
+                  await secureStorage.write(key: 'secure_victim_phone', value: legacyPhone);
+                }
+                securePhone = legacyPhone;
+              }
+              final victimPhone = securePhone.isNotEmpty ? securePhone : 'URGENT-NO-NUMBER';
               
               final alert = LocalSosAlert(
                 id: const Uuid().v4(),

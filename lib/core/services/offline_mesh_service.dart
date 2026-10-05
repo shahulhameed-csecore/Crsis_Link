@@ -106,6 +106,17 @@ class OfflineMeshService {
         for (var item in dataList) {
           final alert = LocalSosAlert.fromJson(item as Map<String, dynamic>);
           
+          // STRICT MESH VALIDATION (Threat Vector 2)
+          if (alert.lat < -90 || alert.lat > 90 || alert.lng < -180 || alert.lng > 180) {
+            continue; // Invalid coordinates, drop payload
+          }
+          if (alert.message.length > 500) {
+            alert.message = alert.message.substring(0, 500); // Truncate DoS payloads
+          }
+          if (alert.victimPhone.length > 20) {
+            alert.victimPhone = alert.victimPhone.substring(0, 20);
+          }
+
           if (!OfflineCacheManager.alertExists(alert.id)) {
             // New alert hopping through
             alert.isSynced = false;

@@ -2,6 +2,7 @@ import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthManager {
   static late Client client;
@@ -19,16 +20,25 @@ class AuthManager {
 
     client = Client(serverUrl);
 
-    // Initialize Device Identity and Profile
+    // Initialize Secure Device Identity and Profile
+    const secureStorage = FlutterSecureStorage();
     final prefs = await SharedPreferences.getInstance();
-    String? storedId = prefs.getString('device_id');
+    
+    // Secure Storage for deviceId (Threat Vector 4)
+    String? storedId = await secureStorage.read(key: 'secure_device_id');
     if (storedId == null) {
       storedId = 'dev_${const Uuid().v4()}';
-      await prefs.setString('device_id', storedId);
+      await secureStorage.write(key: 'secure_device_id', value: storedId);
+      
+      // Clear legacy insecure ID if exists
+      if (prefs.containsKey('device_id')) {
+        await prefs.remove('device_id');
+      }
     }
     deviceId = storedId;
     debugPrint('MY DEVICE ID: $deviceId');
     
+    // Non-sensitive data can stay in SharedPreferences
     String? storedName = prefs.getString('display_name');
     if (storedName == null) {
       storedName = 'Citizen';

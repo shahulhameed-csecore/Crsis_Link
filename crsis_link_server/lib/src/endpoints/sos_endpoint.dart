@@ -101,8 +101,16 @@ class SosEndpoint extends Endpoint {
     if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw ArgumentError('Invalid coordinates');
     }
-    if (audioUrl != null && audioUrl.isNotEmpty && audioUrl.length > 500) {
-      throw ArgumentError('Audio URL exceeds maximum length');
+    
+    // STRICT SERVER-SIDE SANITIZATION (Threat Vector 3: DoS & Schema Overflows)
+    if (audioUrl != null && audioUrl.length > 500) audioUrl = audioUrl.substring(0, 500);
+    if (message != null && message.length > 1000) message = message.substring(0, 1000);
+    if (victimPhone.length > 20) victimPhone = victimPhone.substring(0, 20);
+    if (photoBase64 != null && photoBase64.length > 5000000) { // Limit to ~5MB max base64
+      throw ArgumentError('Photo payload exceeds maximum size limit (5MB)');
+    }
+    if (approximateLocationText != null && approximateLocationText.length > 200) {
+      approximateLocationText = approximateLocationText.substring(0, 200);
     }
 
     session.log('SOS Triggered by $deviceId at $latitude, $longitude', level: LogLevel.info);
