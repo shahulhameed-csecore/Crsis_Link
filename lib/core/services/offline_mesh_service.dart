@@ -104,7 +104,13 @@ class OfflineMeshService {
         bool hasNewData = false;
 
         for (var item in dataList) {
-          final alert = LocalSosAlert.fromJson(item as Map<String, dynamic>);
+          final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item as Map);
+          
+          // Force safe conversion of numbers to double to prevent TypeError crashes
+          if (jsonMap['lat'] is num) jsonMap['lat'] = (jsonMap['lat'] as num).toDouble();
+          if (jsonMap['lng'] is num) jsonMap['lng'] = (jsonMap['lng'] as num).toDouble();
+          
+          final alert = LocalSosAlert.fromJson(jsonMap);
           
           // STRICT MESH VALIDATION (Threat Vector 2)
           if (alert.lat < -90 || alert.lat > 90 || alert.lng < -180 || alert.lng > 180) {
