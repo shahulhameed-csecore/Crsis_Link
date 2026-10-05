@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:nearby_connections/nearby_connections.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:crsis_link_client/crsis_link_client.dart';
 import '../models/local_sos_alert.dart';
 import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../state/map_pins_manager.dart';
 
 class OfflineMeshService {
   static final OfflineMeshService _instance = OfflineMeshService._internal();
@@ -21,7 +24,7 @@ class OfflineMeshService {
   bool _isToggling = false;
 
   Future<void> toggleOfflineMode(bool enable) async {
-    if (_isToggling) return; // Drop panicked inputs
+    if (_isToggling) return;
     _isToggling = true;
     
     try {
@@ -35,30 +38,52 @@ class OfflineMeshService {
         _connectedEndpoints.clear();
       }
     } finally {
-      _isToggling = false; // Release the lock
+      _isToggling = false;
     }
+  }
+
+  Future<bool> requestPermissions() async {
+    final Map<Permission, PermissionStatus> statuses = await [
+      Permission.location,
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothAdvertise,
+      Permission.bluetoothConnect,
+      Permission.nearbyWifiDevices,
+    ].request();
+
+    bool allGranted = true;
+    statuses.forEach((permission, status) {
+      if (!status.isGranted) {
+        debugPrint('Mesh Permission missing: $permission');
+        allGranted = false;
+      }
+    });
+
+    return allGranted;
   }
 
   Future<void> startMesh() async {
     try {
-      // Ensure all necessary offline networking permissions are granted
-      await [
-        Permission.bluetoothScan,
-        Permission.bluetoothAdvertise,
-        Permission.bluetoothConnect,
-        Permission.location,
-        Permission.nearbyWifiDevices,
-      ].request();
+      // 1. Aggressive Permission Requesting (Android 12+)
+      bool hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        debugPrint("Mesh start aborted: Essential permissions not granted.");
+        return;
+      }
 
+      // 2. The P2P_CLUSTER Strategy
       await Nearby().startAdvertising(
         AuthManager.displayName,
         _strategy,
         onConnectionInitiated: (id, info) async {
+          // 3. The Two-Way Handshake (Auto-Accept)
           await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-            _handleIncomingPayload(payload, endpointId);
+            _handleIncomingPayload(endpointId, payload);
           });
         },
         onConnectionResult: (id, status) {
+          // 4. Triggering the Payload Transfer
           if (status == Status.CONNECTED) {
             if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
             _syncLocalDatabaseWithPeer(id);
@@ -80,8 +105,9 @@ class OfflineMeshService {
             AuthManager.displayName,
             id,
             onConnectionInitiated: (id, info) async {
+              // 3. The Two-Way Handshake Auto-Accept for Discoverer
               await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-                _handleIncomingPayload(payload, endpointId);
+                _handleIncomingPayload(endpointId, payload);
               });
             },
             onConnectionResult: (id, status) {
@@ -113,32 +139,31 @@ class OfflineMeshService {
     final payloadStr = jsonEncode(jsonList);
     
     try {
-      await Nearby().sendBytesPayload(endpointId, Uint8List.fromList(utf8.encode(payloadStr)));
+      final bytes = Uint8List.fromList(utf8.encode(payloadStr));
+      await Nearby().sendBytesPayload(endpointId, bytes);
     } catch (e) {
       debugPrint('Failed to sync mesh database with peer $endpointId: $e');
     }
   }
 
-  Future<void> _handleIncomingPayload(Payload payload, String endpointId) async {
+  // 5. Receiving and Processing
+  Future<void> _handleIncomingPayload(String endpointId, Payload payload) async {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
-      final str = utf8.decode(payload.bytes!);
       try {
+        final str = utf8.decode(payload.bytes!);
         final List<dynamic> dataList = jsonDecode(str);
         bool hasNewData = false;
 
         for (var item in dataList) {
           final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item as Map);
           
-          // Force safe conversion of numbers to double to prevent TypeError crashes
           if (jsonMap['lat'] is num) jsonMap['lat'] = (jsonMap['lat'] as num).toDouble();
           if (jsonMap['lng'] is num) jsonMap['lng'] = (jsonMap['lng'] as num).toDouble();
           
-          // STRICT MESH VALIDATION BEFORE IMMUTABLE INSTANTIATION
           if (jsonMap['lat'] < -90 || jsonMap['lat'] > 90 || jsonMap['lng'] < -180 || jsonMap['lng'] > 180) {
-            continue; // Drop impossible GPS coordinates entirely
+            continue; // Drop impossible coordinates
           }
           
-          // Truncate malicious string payloads
           if (jsonMap['message'] != null && jsonMap['message'].toString().length > 500) {
             jsonMap['message'] = jsonMap['message'].toString().substring(0, 500);
           }
@@ -149,20 +174,31 @@ class OfflineMeshService {
           final alert = LocalSosAlert.fromJson(jsonMap);
 
           if (!OfflineCacheManager.alertExists(alert.id)) {
-            // New alert hopping through
             alert.isSynced = false;
             await OfflineCacheManager.saveAlert(alert);
             hasNewData = true;
+
+            // Map LocalSosAlert to SosAlert and push to MapPinsManager
+            final sosAlert = SosAlert(
+              id: int.tryParse(alert.id.replaceAll(RegExp(r'[^0-9]'), '')) ?? (DateTime.now().millisecondsSinceEpoch % 100000),
+              latitude: alert.lat,
+              longitude: alert.lng,
+              message: alert.message,
+              status: 'OPEN',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(alert.timestamp),
+              victimPhone: alert.victimPhone,
+              deviceId: alert.originalDeviceId,
+              senderName: alert.originalSenderName,
+            );
+            
+            MapPinsManager().addOrUpdatePin(sosAlert);
           }
         }
 
-        // If we received new data, relay the updated local queue to peers
         if (hasNewData) {
           for (final peerId in _connectedEndpoints) {
-            // Skip the peer that just sent us this data to prevent echo loops
             if (peerId != endpointId) {
               try {
-                // Re-syncs only the alerts marked as `isSynced = false` in our Hive DB
                 await _syncLocalDatabaseWithPeer(peerId);
               } catch (e) {
                 debugPrint('Failed to relay to peer $peerId: $e');
