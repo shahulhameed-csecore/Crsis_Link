@@ -354,32 +354,47 @@ class SosEndpoint extends Endpoint {
 
   /// Verifies the helper's PIN for an active SOS
   Future<SosAlert> verifyHelperPin(Session session, int sosId, String pin) async {
+    // Atomic State Transition: Validates PIN and updates in a single database lock
+    final query = '''
+      UPDATE "sos_alert" 
+      SET "isRescuerVerified" = true 
+      WHERE "id" = $sosId AND "status" = 'CLAIMED' AND "verificationPin" = '$pin' AND "isRescuerVerified" = false 
+      RETURNING *;
+    ''';
+    
+    final result = await session.db.unsafeQuery(query);
+    if (result.isEmpty) {
+      throw Exception('Incorrect PIN, Invalid SOS Request, or already verified.');
+    }
+    
+    // Retrieve the fully deserialized object
     final alert = await SosAlert.db.findById(session, sosId);
-    if (alert == null || alert.status != 'CLAIMED') {
-      throw Exception('Invalid SOS Request');
-    }
-    if (alert.verificationPin == pin) {
-      alert.isRescuerVerified = true;
-      await SosAlert.db.updateRow(session, alert);
-      unawaited(session.messages.postMessage('sos_broadcasts', alert));
-      return alert;
-    }
-    throw Exception('Incorrect PIN. Please verify the 4-digit number with the victim.');
+    
+    unawaited(session.messages.postMessage('sos_broadcasts', alert!));
+    return alert;
   }
 
   /// Visually verifies an SOS alert (Hackathon Mocked Upload)
   /// Requires the calling deviceId to match the alert owner — prevents unauthorized verification.
   Future<bool> verifySOS(Session session, int sosId, String deviceId) async {
-    final alert = await SosAlert.db.findById(session, sosId);
-    if (alert == null || alert.deviceId != deviceId) {
-      return false;
+    // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
+    final query = '''
+      UPDATE "sos_alert" 
+      SET "isVisuallyVerified" = true 
+      WHERE "id" = $sosId AND "deviceId" = '$deviceId' AND "isVisuallyVerified" = false 
+      RETURNING *;
+    ''';
+    
+    final result = await session.db.unsafeQuery(query);
+    if (result.isEmpty) {
+      return false; // Already verified or wrong owner
     }
     
-    alert.isVisuallyVerified = true;
-    await SosAlert.db.updateRow(session, alert);
+    // Retrieve the fully deserialized object
+    final alert = await SosAlert.db.findById(session, sosId);
     
     // Broadcast update so map pins reflect the verified badge
-    unawaited(session.messages.postMessage('sos_broadcasts', alert));
+    unawaited(session.messages.postMessage('sos_broadcasts', alert!));
     
     return true;
   }
