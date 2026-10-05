@@ -24,6 +24,7 @@ import 'package:uuid/uuid.dart';
 import 'package:serverpod_client/serverpod_client.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
+import '../widgets/disaster_radar_view.dart';
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
 
@@ -874,7 +875,11 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           Positioned.fill(
             child: Container(color: const Color(0xFF1a1a2e)),
           ),
-          if (_currentLocation != null)
+          if (!_isConnected)
+            Positioned.fill(
+              child: DisasterRadarView(currentLocation: _currentLocation ?? _mapCenter),
+            )
+          else if (_currentLocation != null)
             Positioned.fill(
               child: FlutterMap(
                 mapController: _mapController,
