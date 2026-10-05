@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:crsis_link_client/crsis_link_client.dart';
 
 void main() async {
@@ -5,7 +6,7 @@ void main() async {
   print('Connecting to live server to fetch active alerts...');
   
   try {
-    final alerts = await client.sos.getActiveAlerts();
+    final alerts = await client.sos.getActiveAlerts(0.0, 0.0);
     print('Found ${alerts.length} active pins.');
     
     for (var alert in alerts) {

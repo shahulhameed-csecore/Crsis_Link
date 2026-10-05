@@ -3,15 +3,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/map_pins_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import 'main_navigation.dart';
-import '../widgets/voice_note_recorder.dart';
-import '../widgets/capsule_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/offline_mesh_service.dart';
+import '../../core/services/offline_cache_manager.dart';
+import '../../core/models/local_sos_alert.dart';
+import 'package:uuid/uuid.dart';
 
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
@@ -80,19 +82,145 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
         position = await Geolocator.getLastKnownPosition();
         
         // If there's no last known position, try one more time with low accuracy (network/cell tower)
-        if (position == null) {
-          position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-          ).timeout(const Duration(seconds: 5));
-        }
+        position ??= await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        ).timeout(const Duration(seconds: 5));
       }
       
 
       
-      // DOUBLE-TAP FIX: Do NOT reset _isLocating here.
-      // Await the modal so _isLocating stays true (button locked) until modal is fully dismissed.
+      // INSTANT BROADCAST LOGIC
       if (mounted) {
-        await _showSosModal(position);
+        try {
+          String? approxLocation;
+          try {
+            List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+            if (placemarks.isNotEmpty) {
+              final place = placemarks.first;
+              approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
+              if (approxLocation != null && approxLocation.isNotEmpty) {
+                approxLocation = 'Emergency in $approxLocation';
+              }
+            }
+          } catch (e) {
+            debugPrint('Geocoding failed: $e');
+          }
+
+          final prefs = await SharedPreferences.getInstance();
+          String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+          final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+
+          if (OfflineMeshService().isOfflineModeEnabled) {
+            final alert = LocalSosAlert(
+              id: const Uuid().v4(),
+              lat: position.latitude,
+              lng: position.longitude,
+              message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+              victimPhone: victimPhone,
+              approximateLocationText: approxLocation,
+              originalDeviceId: AuthManager.deviceId,
+              originalSenderName: AuthManager.displayName,
+              timestamp: DateTime.now().millisecondsSinceEpoch,
+            );
+            await OfflineCacheManager.saveAlert(alert);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              MainNavigation.jumpToMap();
+              globalHomeMapKey.currentState?.jumpToCurrentLocation();
+            }
+            return;
+          }
+
+          final response = await AuthManager.client.sos.broadcastSos(
+            AuthManager.deviceId,
+            AuthManager.displayName,
+            position.latitude,
+            position.longitude,
+            'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+            null,
+            victimPhone,
+            null,
+            approxLocation,
+          ).timeout(const Duration(seconds: 10));
+          
+          final finalAlert = response.alert;
+          MapPinsManager().addOrUpdatePin(finalAlert);
+          AlertsManager().addSosAlert(finalAlert);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.notifiedCount == 0 
+                  ? 'No one is available near you at the moment. Your request is still active.'
+                  : 'SOS Broadcasted successfully!'),
+                backgroundColor: AppColors.emergencyRed,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+            
+            // Bridge to Map Screen automatically
+            MainNavigation.jumpToMap();
+            globalHomeMapKey.currentState?.jumpToCurrentLocation();
+          }
+        } on TimeoutException catch (e) {
+          debugPrint('SOS Broadcast timed out: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Server timeout. Please check your connection and try again.'),
+                backgroundColor: AppColors.emergencyRed,
+              ),
+            );
+          }
+        } on SocketException catch (e) {
+          debugPrint('SOS Broadcast offline: $e');
+          if (mounted) {
+            // Auto-fallback to Mesh if network fails unexpectedly
+            try {
+              
+              final prefs = await SharedPreferences.getInstance();
+              String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+              final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+              
+              final alert = LocalSosAlert(
+                id: const Uuid().v4(),
+                lat: position.latitude,
+                lng: position.longitude,
+                message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+                victimPhone: victimPhone,
+                originalDeviceId: AuthManager.deviceId,
+                originalSenderName: AuthManager.displayName,
+                timestamp: DateTime.now().millisecondsSinceEpoch,
+              );
+              await OfflineCacheManager.saveAlert(alert);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              MainNavigation.jumpToMap();
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('SOS Broadcast failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to broadcast SOS: $e'),
+                backgroundColor: AppColors.emergencyRed,
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error: $e');
@@ -121,234 +249,7 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
     }
   }
 
-  Future<void> _showSosModal(Position position) async {
-    final TextEditingController messageController = TextEditingController();
-    final TextEditingController phoneController = TextEditingController();
-    bool isSubmitting = false;
-    String? pendingAudioUrl;
-    bool hasLivePhoto = false;
 
-    return showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.pitchBlack,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: AppColors.emergencyRed, size: 32),
-                      const SizedBox(width: 12),
-                      Text(
-                        'DROP SOS PIN',
-                        style: AppTypography.primaryHeader.copyWith(
-                          color: AppColors.emergencyRed,
-                          fontSize: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Provide emergency details to broadcast to nearby responders.',
-                    style: AppTypography.body.copyWith(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: messageController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Need generator, Medical help...',
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.1),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: AppColors.emergencyRed),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Victim Phone (Required)',
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.1),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: AppColors.emergencyRed),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  VoiceNoteRecorder(
-                    onRecorded: (url) {
-                      pendingAudioUrl = url.isEmpty ? null : url;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final ImagePicker picker = ImagePicker();
-                      final XFile? image = await picker.pickImage(source: ImageSource.camera);
-                      if (image != null) {
-                        setModalState(() => hasLivePhoto = true);
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Live Photo attached and verified locally!'), backgroundColor: Colors.green),
-                          );
-                        }
-                      }
-                    },
-                    icon: Icon(hasLivePhoto ? Icons.check_circle : Icons.camera_alt, color: Colors.white),
-                    label: Text(hasLivePhoto ? 'Photo Verified' : 'Take Live Photo to Verify (Recommended)'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: hasLivePhoto ? Colors.green : Colors.blueGrey,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  CapsuleButton(
-                    text: 'BROADCAST SOS',
-                    style: CapsuleStyle.emergency,
-                    isLoading: isSubmitting,
-                    onPressed: () async {
-                      setModalState(() => isSubmitting = true);
-                      try {
-                        String? approxLocation;
-                        try {
-                          List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-                          if (placemarks.isNotEmpty) {
-                            final place = placemarks.first;
-                            approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
-                            if (approxLocation != null && approxLocation.isNotEmpty) {
-                              approxLocation = 'Emergency in $approxLocation';
-                            }
-                          }
-                        } catch (e) {
-                          debugPrint('Geocoding failed: $e');
-                        }
-
-                        final response = await AuthManager.client.sos.broadcastSos(
-                          AuthManager.deviceId,
-                          AuthManager.displayName,
-                          position.latitude,
-                          position.longitude,
-                          messageController.text.trim().isEmpty ? null : messageController.text.trim(),
-                          pendingAudioUrl,
-                          phoneController.text.trim(),
-                          null,
-                          approxLocation,
-                        ).timeout(const Duration(seconds: 10));
-                        
-                        var finalAlert = response.alert;
-                        if (hasLivePhoto) {
-                          final verified = await AuthManager.client.sos.verifySOS(finalAlert.id!, AuthManager.deviceId).timeout(const Duration(seconds: 5));
-                          if (verified) {
-                            finalAlert.isVisuallyVerified = true;
-                          }
-                        }
-                        
-                        MapPinsManager().addOrUpdatePin(finalAlert);
-                        AlertsManager().addSosAlert(finalAlert);
-                        
-                        if (ctx.mounted) {
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(response.notifiedCount == 0 
-                                ? 'No one is available near you at the moment. Your request is still active.'
-                                : 'SOS Broadcasted successfully!'),
-                              backgroundColor: AppColors.emergencyRed,
-                              duration: const Duration(seconds: 5),
-                            ),
-                          );
-                          
-                          // Bridge to Map Screen automatically
-                          MainNavigation.jumpToMap();
-                          globalHomeMapKey.currentState?.jumpToCurrentLocation();
-                        }
-                      } on TimeoutException catch (e) {
-                        debugPrint('SOS Broadcast timed out: $e');
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text('Server timeout. Please check your connection and try again.'),
-                              backgroundColor: AppColors.emergencyRed,
-                            ),
-                          );
-                        }
-                        setModalState(() => isSubmitting = false);
-                      } on SocketException catch (e) {
-                        debugPrint('SOS Broadcast offline: $e');
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text('No internet connection. Please connect and try again.'),
-                              backgroundColor: AppColors.emergencyRed,
-                            ),
-                          );
-                        }
-                        setModalState(() => isSubmitting = false);
-                      } catch (e) {
-                        debugPrint('SOS Broadcast failed: $e');
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to drop pin: $e'),
-                              backgroundColor: AppColors.emergencyRed,
-                            ),
-                          );
-                        }
-                        setModalState(() => isSubmitting = false);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          );
-          },
-        );
-      },
-    // LEAK-P3-02 FIX: Dispose the controller when the modal is dismissed in any way.
-    ).whenComplete(() {
-      messageController.dispose();
-      phoneController.dispose();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +297,20 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
                     ),
                     child: Center(
                       child: _isLocating
-                          ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 4)
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const CircularProgressIndicator(color: Colors.white, strokeWidth: 4),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Broadcasting...',
+                                  style: AppTypography.primaryHeader.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ],
+                            )
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

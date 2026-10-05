@@ -6,7 +6,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/alerts_manager.dart';
@@ -18,6 +17,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/map_pins_manager.dart';
+import '../widgets/audio_player_button.dart';
 import 'package:geocoding/geocoding.dart';
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
@@ -50,6 +50,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     
     // Start periodic heartbeat to prevent server-side TTL eviction (5 min)
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      // ignore: deprecated_member_use
       if (_currentLocation != null && AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
         AuthManager.client.sos.updateLocation(
           AuthManager.deviceId, 
@@ -97,15 +98,18 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
 
   void _initStreaming() {
     // 1. Listen to streaming status changes to handle reconnects safely
+    // ignore: deprecated_member_use
     AuthManager.client.addStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
 
     // 2. If already connected when this runs, immediately bind
+    // ignore: deprecated_member_use
     if (AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
       _bindStream();
     }
   }
 
   void _onStreamingConnectionStatusChanged() {
+    // ignore: deprecated_member_use
     if (AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
       _bindStream();
       
@@ -184,12 +188,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         debugPrint('WebSocket stream error: $e');
       });
     } catch (e) {
-      debugPrint('Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error occurred')),
-        );
-      }
+      debugPrint('Failed to bind streaming: $e');
     }
   }
 
@@ -199,6 +198,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     _heartbeatTimer?.cancel();
     MapPinsManager().removeListener(_onPinsChanged);
     _sosSubscription?.cancel();
+    // ignore: deprecated_member_use
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
     AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
     super.dispose();
@@ -207,6 +207,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // ignore: deprecated_member_use
       if (_currentLocation != null && AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
         AuthManager.client.sos.updateLocation(
           AuthManager.deviceId, 
@@ -224,7 +225,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     HapticFeedback.mediumImpact();
     
     // Attempt to re-establish connection if needed
+    // ignore: deprecated_member_use
     if (AuthManager.client.streamingConnectionStatus != StreamingConnectionStatus.connected) {
+      // ignore: deprecated_member_use
       await AuthManager.client.openStreamingConnection();
     }
     
@@ -246,24 +249,12 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       final lat = _currentLocation?.latitude ?? _mapCenter.latitude;
       final lng = _currentLocation?.longitude ?? _mapCenter.longitude;
       
-      final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng).timeout(const Duration(seconds: 10));
+      final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng);
       if (mounted) {
         MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList());
       }
-    } on TimeoutException catch (e) {
-      debugPrint('Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Server timeout. Please check your connection and try again.')),
-        );
-      }
     } catch (e) {
-      debugPrint('Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error occurred')),
-        );
-      }
+      debugPrint('Error fetching SOS pins: $e');
     }
   }
 
@@ -291,11 +282,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         ).timeout(const Duration(seconds: 5));
       } catch (e) {
         position = await Geolocator.getLastKnownPosition();
-        if (position == null) {
-          position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-          ).timeout(const Duration(seconds: 5));
-        }
+        position ??= await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        ).timeout(const Duration(seconds: 5));
       }
       
 
@@ -311,35 +300,18 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         
         // Push the location to the server for spatial broadcasting
         try {
-          await AuthManager.client.sos.updateLocation(AuthManager.deviceId, position!.latitude, position.longitude).timeout(const Duration(seconds: 10));
-        } on TimeoutException catch (e) {
-          debugPrint('Error: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Server timeout. Please check your connection and try again.')),
-            );
-          }
+          await AuthManager.client.sos.updateLocation(AuthManager.deviceId, position.latitude, position.longitude);
         } catch (e) {
-          debugPrint('Error: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Network error occurred')),
-            );
-          }
+          debugPrint('Failed to update location on server: $e');
         }
       }
     } catch (e) {
-      debugPrint('Error: $e');
       if (mounted) {
         setState(() {
           // Explicitly block map rendering instead of falling back to a hardcoded location
           _currentLocation = null;
           _errorMsg = e.toString();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error occurred')),
-        );
-      }
         
         final isPermanent = _errorMsg.contains('permanently denied') || _errorMsg.contains('disabled');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -465,7 +437,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         const SizedBox(height: 20),
                         const Text('VOICE NOTE', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        _AudioPlayerButton(audioUrl: alert.audioUrl!),
+                        AudioPlayerButton(audioUrl: alert.audioUrl!),
                       ],
                       const SizedBox(height: 32),
                       
@@ -503,7 +475,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                 if (alertId == null) return;
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId).timeout(const Duration(seconds: 10));
+                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
                                   if (ctx.mounted) {
                                     final updatedAlert = alert.copyWith(
                                       status: 'CLAIMED',
@@ -525,16 +497,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                       ),
                                     );
                                   }
-                                } on TimeoutException catch (e) {
-                                  debugPrint('Error: $e');
-                                  if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(content: Text('Server timeout. Please check your connection and try again.')),
-                                    );
-                                  }
-                                  setModalState(() => isSubmitting = false);
                                 } catch (e) {
-                                  debugPrint('Error: $e');
                                   if (ctx.mounted) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(
                                       SnackBar(content: Text('Failed to claim: $e')),
@@ -571,10 +534,10 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     final TextEditingController messageController = TextEditingController();
     final TextEditingController phoneController = TextEditingController();
     bool isSubmitting = false;
-    String? _pendingAudioUrl;
-    String? _pendingPhotoBase64;
+    String? pendingAudioUrl;
+    String? pendingPhotoBase64;
 
-    Future<void> _pickImage(StateSetter setModalState) async {
+    Future<void> pickImage(StateSetter setModalState) async {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.camera);
       if (pickedFile != null) {
@@ -586,7 +549,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           quality: 50,
         );
         setModalState(() {
-          _pendingPhotoBase64 = base64Encode(compressed);
+          pendingPhotoBase64 = base64Encode(compressed);
         });
       }
     }
@@ -676,9 +639,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     children: [
                       IconButton(
                         icon: const Icon(Icons.camera_alt, color: Colors.blue),
-                        onPressed: () => _pickImage(setModalState),
+                        onPressed: () => pickImage(setModalState),
                       ),
-                      if (_pendingPhotoBase64 != null)
+                      if (pendingPhotoBase64 != null)
                         const Text('Photo attached', style: TextStyle(color: Colors.green)),
                     ],
                   ),
@@ -686,7 +649,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                   // Voice Note Recorder
                   VoiceNoteRecorder(
                     onRecorded: (url) {
-                      _pendingAudioUrl = url.isEmpty ? null : url;
+                      pendingAudioUrl = url.isEmpty ? null : url;
                     },
                   ),
                   const SizedBox(height: 24),
@@ -717,9 +680,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           position.latitude,
                           position.longitude,
                           messageController.text.trim().isEmpty ? null : messageController.text.trim(),
-                          _pendingAudioUrl,
+                          pendingAudioUrl,
                           phoneController.text.trim(),
-                          _pendingPhotoBase64,
+                          pendingPhotoBase64,
                           approxLocation,
                         ).timeout(const Duration(seconds: 10));
                         if (mounted) {
@@ -730,8 +693,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         _fetchActiveSos(); // Ensure sync
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
+                          if (!mounted) return;
                           if (response.notifiedCount == 0) {
-                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('No one is available near you at the moment. Your request is still active.'),
@@ -746,7 +709,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
-                              content: Text('Server timeout. Please check your connection and try again.'),
+                              content: Text('Connection timed out. Please check your internet and try again.'),
                               backgroundColor: AppColors.emergencyRed,
                             ),
                           );
@@ -1222,8 +1185,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         }
                       }
                     } catch (e) {
-                      debugPrint('Error: $e');
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Failed to open Maps: $e'), backgroundColor: Colors.red),
                       );
@@ -1320,260 +1282,348 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
   }
 
   void _showSosDetails(BuildContext context, SosAlert alert, bool isOwnPin) {
+    bool isSubmitting = false;
+    final TextEditingController pinController = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.pitchBlack,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       isScrollControlled: true,
       builder: (ctx) {
-        return SosDetailsBottomSheet(
-          alert: alert,
-          isOwnPin: isOwnPin,
-          onIgnore: widget.onIgnore,
-          onResolve: widget.onResolve,
-        );
-      },
-    );
-  }
-}
-
-class SosDetailsBottomSheet extends StatefulWidget {
-  final SosAlert alert;
-  final bool isOwnPin;
-  final Function(int) onIgnore;
-  final Function(int) onResolve;
-
-  const SosDetailsBottomSheet({
-    super.key,
-    required this.alert,
-    required this.isOwnPin,
-    required this.onIgnore,
-    required this.onResolve,
-  });
-
-  @override
-  State<SosDetailsBottomSheet> createState() => _SosDetailsBottomSheetState();
-}
-
-class _SosDetailsBottomSheetState extends State<SosDetailsBottomSheet> {
-  bool isSubmitting = false;
-  late final TextEditingController pinController;
-
-  @override
-  void initState() {
-    super.initState();
-    pinController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    pinController.dispose();
-    super.dispose();
-  }
-
-  void setModalState(VoidCallback fn) {
-    setState(fn);
-  }
-
-  @override
-  Widget build(BuildContext ctx) {
-    final alert = widget.alert;
-    final isOwnPin = widget.isOwnPin;
-    final bool isClaimed = alert.status == 'CLAIMED';
-
-    return PopScope(
-      canPop: false,
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          left: 24,
-          right: 24,
-          top: 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-Row(
-                children: [
-                  Icon(isClaimed ? Icons.check_circle : Icons.emergency, 
-                       color: isClaimed ? Colors.green : AppColors.emergencyRed, size: 32),
-                  const SizedBox(width: 12),
-                  Text(
-                    isOwnPin ? 'YOUR SOS' : (isClaimed ? 'RESCUE CLAIMED' : 'SOS ALERT'),
-                    style: AppTypography.primaryHeader.copyWith(
-                      color: isOwnPin ? Colors.blue : (isClaimed ? Colors.green : AppColors.emergencyRed),
-                      fontSize: 22,
-                    ),
-                  ),
-                ],
+        return PopScope(
+          canPop: false,
+          child: StatefulBuilder(
+            builder: (ctx, setModalState) {
+              final bool isClaimed = alert.status == 'CLAIMED';
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Victim: ${alert.senderName}',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: 220,
-                    width: double.infinity,
-                    child: Image.memory(
-                      base64Decode(alert.photoBase64!),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ],
-              if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _AudioPlayerButton(audioUrl: alert.audioUrl!),
-              ],
-              if (isOwnPin && isClaimed && alert.verificationPin != null && !alert.isRescuerVerified) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
-                  ),
-                  child: Column(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                  Row(
                     children: [
-                      const Text(
-                        'Show this PIN to your rescuer when they arrive.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.green, fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
+                      Icon(isClaimed ? Icons.check_circle : Icons.emergency, 
+                           color: isClaimed ? Colors.green : AppColors.emergencyRed, size: 32),
+                      const SizedBox(width: 12),
                       Text(
-                        alert.verificationPin!,
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 8),
+                        isOwnPin ? 'YOUR SOS' : (isClaimed ? 'RESCUE CLAIMED' : 'SOS ALERT'),
+                        style: AppTypography.primaryHeader.copyWith(
+                          color: isOwnPin ? Colors.blue : (isClaimed ? Colors.green : AppColors.emergencyRed),
+                          fontSize: 22,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-              const SizedBox(height: 24),
-              if (isOwnPin)
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: const Text('CANCEL'),
-                          ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Victim: ${alert.senderName}',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                  if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 220,
+                        width: double.infinity,
+                        child: Image.memory(
+                          base64Decode(alert.photoBase64!),
+                          fit: BoxFit.cover,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isSubmitting ? null : () async {
+                      ),
+                    ),
+                  ],
+                  if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    AudioPlayerButton(audioUrl: alert.audioUrl!),
+                  ],
+                  if (isOwnPin && isClaimed && alert.verificationPin != null && !alert.isRescuerVerified) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Show this PIN to your rescuer when they arrive.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.green, fontSize: 14),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            alert.verificationPin!,
+                            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  if (isOwnPin)
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: const Text('CANCEL'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting ? null : () async {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
+                                    if (!success) {
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
+                                      }
+                                      setModalState(() => isSubmitting = false);
+                                      return;
+                                    }
+                                    if (ctx.mounted) {
+                                      Navigator.pop(ctx);
+                                      widget.onResolve(alertId);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('SOS Resolved / Cleared.')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.emergencyRed,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: isSubmitting 
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                  : const Text('RESOLVE SOS'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (!isClaimed)
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  widget.onIgnore(alertId);
+                                  Navigator.pop(ctx);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: const Text('DENY / IGNORE'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting ? null : () async {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                    if (ctx.mounted) {
+                                      final updatedAlert = alert.copyWith(
+                                        status: 'CLAIMED',
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      );
+                                      MapPinsManager().addOrUpdatePin(updatedAlert);
+                                      
+                                      AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                                        victimDeviceId: alert.deviceId,
+                                        volunteerName: AuthManager.displayName,
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      ));
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Rescue Claimed Successfully!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        SnackBar(content: Text('Failed to claim: $e')),
+                                      );
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: isSubmitting 
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                  : const Text('ACCEPT RESCUE'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (isClaimed && alert.volunteerDeviceId == AuthManager.deviceId)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!alert.isRescuerVerified) ...[
+                          CapsuleButton(
+                            text: 'Contact Victim',
+                            style: CapsuleStyle.secondary,
+                            onPressed: () async {
+                              try {
+                                final url = Uri.parse('tel:${alert.victimPhone}');
+                                bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                if (!launched) {
+                                  throw Exception('Dialer not supported on this device.');
+                                }
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Could not open phone: $e'), backgroundColor: Colors.red),
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Search the 200-meter area. Ask the victim for their 4-digit PIN to verify and reveal exact coordinates.',
+                            style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: pinController,
+                            keyboardType: TextInputType.number,
+                            maxLength: 4,
+                            style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                            decoration: InputDecoration(
+                              hintText: 'Enter 4-Digit Victim PIN',
+                              hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16, letterSpacing: 0, fontWeight: FontWeight.normal),
+                              filled: true,
+                              fillColor: Colors.grey.withValues(alpha: 0.1),
+                              counterText: '',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          CapsuleButton(
+                            text: 'VERIFY PIN',
+                            style: CapsuleStyle.primary,
+                            isLoading: isSubmitting,
+                            onPressed: () async {
                               final alertId = alert.id;
                               if (alertId == null) return;
+                              if (pinController.text.length != 4) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
-                                if (!success) {
-                                  if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
-                                  }
-                                  setModalState(() => isSubmitting = false);
-                                  return;
-                                }
+                                await AuthManager.client.sos.verifyHelperPin(alertId, pinController.text);
                                 if (ctx.mounted) {
-                                  Navigator.pop(ctx);
-                                  widget.onResolve(alertId);
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(content: Text('SOS Resolved / Cleared.')),
-                                  );
+                                  alert.isRescuerVerified = true;
+                                  setModalState(() => isSubmitting = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('PIN Verified! Exact location revealed.', style: TextStyle(color: Colors.green))));
                                 }
                               } catch (e) {
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed to resolve: $e')));
+                                  setModalState(() => isSubmitting = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Incorrect PIN. Please verify the 4-digit number with the victim.'), backgroundColor: AppColors.emergencyRed));
                                 }
-                                setModalState(() => isSubmitting = false);
                               }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.emergencyRed,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: isSubmitting 
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
-                              : const Text('RESOLVE SOS'),
+                            }
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (!isClaimed)
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              final alertId = alert.id;
-                              if (alertId == null) return;
-                              widget.onIgnore(alertId);
-                              Navigator.pop(ctx);
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
                             ),
-                            child: const Text('DENY / IGNORE'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Exact GPS Coordinates:', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('${alert.latitude}, ${alert.longitude}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                const SizedBox(height: 8),
+                                const Text('Street Address:', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                const Text('Verified Victim Location', style: TextStyle(color: Colors.white, fontSize: 16)),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isSubmitting ? null : () async {
+                          const SizedBox(height: 16),
+                          CapsuleButton(
+                            text: 'COMPLETE RESCUE',
+                            style: CapsuleStyle.primary,
+                            isLoading: isSubmitting,
+                            onPressed: () async {
                               final alertId = alert.id;
                               if (alertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alertId);
                                 if (ctx.mounted) {
-                                  final updatedAlert = alert.copyWith(
-                                    status: 'CLAIMED',
-                                    volunteerDeviceId: AuthManager.deviceId,
-                                  );
-                                  MapPinsManager().addOrUpdatePin(updatedAlert);
-                                  
-                                  AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
-                                    victimDeviceId: alert.deviceId,
-                                    volunteerName: AuthManager.displayName,
-                                    volunteerDeviceId: AuthManager.deviceId,
-                                  ));
                                   Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                  widget.onResolve(alertId);
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Rescue Claimed Successfully!'),
+                                      content: Text('Rescue Completed Successfully!'),
                                       backgroundColor: Colors.green,
                                     ),
                                   );
@@ -1581,315 +1631,28 @@ Row(
                               } catch (e) {
                                 if (ctx.mounted) {
                                   ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(content: Text('Failed to claim: $e')),
+                                    SnackBar(content: Text('Failed to complete: $e')),
                                   );
                                 }
                                 setModalState(() => isSubmitting = false);
                               }
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: isSubmitting 
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
-                              : const Text('ACCEPT RESCUE'),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                  ),
-                )
-              else if (isClaimed && alert.volunteerDeviceId == AuthManager.deviceId)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (!alert.isRescuerVerified) ...[
-                      CapsuleButton(
-                        text: 'Contact Victim',
-                        style: CapsuleStyle.secondary,
-                        onPressed: () async {
-                          try {
-                            final url = Uri.parse('tel:${alert.victimPhone}');
-                            bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-                            if (!launched) {
-                              throw Exception('Dialer not supported on this device.');
-                            }
-                          } catch (e) {
-                            debugPrint('Error: $e');
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Could not open phone: $e'), backgroundColor: Colors.red),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Search the 200-meter area. Ask the victim for their 4-digit PIN to verify and reveal exact coordinates.',
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: pinController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 4,
-                        style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          hintText: 'Enter 4-Digit Victim PIN',
-                          hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16, letterSpacing: 0, fontWeight: FontWeight.normal),
-                          filled: true,
-                          fillColor: Colors.grey.withValues(alpha: 0.1),
-                          counterText: '',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      CapsuleButton(
-                        text: 'VERIFY PIN',
-                        style: CapsuleStyle.primary,
-                        isLoading: isSubmitting,
-                        onPressed: () async {
-                          final alertId = alert.id;
-                          if (alertId == null) return;
-                          if (pinController.text.length != 4) return;
-                          setModalState(() => isSubmitting = true);
-                          try {
-                            await AuthManager.client.sos.verifyHelperPin(alertId, pinController.text).timeout(const Duration(seconds: 10));
-                            if (ctx.mounted) {
-                              alert.isRescuerVerified = true;
-                              setModalState(() => isSubmitting = false);
-                              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('PIN Verified! Exact location revealed.', style: TextStyle(color: Colors.green))));
-                            }
-                          } on TimeoutException catch (e) {
-                            debugPrint('Error: $e');
-                            if (ctx.mounted) {
-                              setModalState(() => isSubmitting = false);
-                              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Server timeout. Please check your connection and try again.'), backgroundColor: AppColors.emergencyRed));
-                            }
-                          } catch (e) {
-                            debugPrint('Error: $e');
-                            if (ctx.mounted) {
-                              setModalState(() => isSubmitting = false);
-                              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Incorrect PIN. Please verify the 4-digit number with the victim.'), backgroundColor: AppColors.emergencyRed));
-                            }
-                          }
-                        }
-                      ),
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Exact GPS Coordinates:', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text('${alert.latitude}, ${alert.longitude}', style: const TextStyle(color: Colors.white, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            const Text('Street Address:', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            const Text('Verified Victim Location', style: TextStyle(color: Colors.white, fontSize: 16)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      CapsuleButton(
-                        text: 'COMPLETE RESCUE',
-                        style: CapsuleStyle.primary,
-                        isLoading: isSubmitting,
-                        onPressed: () async {
-                          final alertId = alert.id;
-                          if (alertId == null) return;
-                          setModalState(() => isSubmitting = true);
-                          try {
-                            await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alertId).timeout(const Duration(seconds: 10));
-                            if (ctx.mounted) {
-                              Navigator.pop(ctx);
-                              widget.onResolve(alertId);
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Rescue Completed Successfully!'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } on TimeoutException catch (e) {
-                            debugPrint('Error: $e');
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Server timeout. Please check your connection and try again.')),
-                              );
-                            }
-                            setModalState(() => isSubmitting = false);
-                          } catch (e) {
-                            debugPrint('Error: $e');
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text('Failed to complete: $e')),
-                              );
-                            }
-                            setModalState(() => isSubmitting = false);
-                          }
-                        },
-                      ),
-                    ],
-                  ],
-                ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-class _AudioPlayerButton extends StatefulWidget {
-  final String audioUrl;
-  const _AudioPlayerButton({required this.audioUrl});
-
-  @override
-  State<_AudioPlayerButton> createState() => _AudioPlayerButtonState();
-}
-
-class _AudioPlayerButtonState extends State<_AudioPlayerButton> {
-  late AudioPlayer _audioPlayer;
-  bool _isPlaying = false;
-  bool _isLoading = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-  
-  StreamSubscription? _playerStateSubscription;
-  StreamSubscription? _durationSubscription;
-  StreamSubscription? _positionSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _audioPlayer = AudioPlayer();
-    
-    _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-          if (state == PlayerState.completed) {
-            _position = Duration.zero;
-          }
-        });
-      }
-    });
-
-    _durationSubscription = _audioPlayer.onDurationChanged.listen((newDuration) {
-      if (mounted) setState(() => _duration = newDuration);
-    });
-
-    _positionSubscription = _audioPlayer.onPositionChanged.listen((newPosition) {
-      if (mounted) setState(() => _position = newPosition);
-    });
-  }
-
-  @override
-  void dispose() {
-    _playerStateSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _positionSubscription?.cancel();
-    // LOGIC-P3-04 FIX: Explicitly stop the player before disposing to prevent
-    // native audio engine exceptions on some Android versions when the modal
-    // is closed while a voice note is actively playing.
-    _audioPlayer.stop();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  Future<void> _togglePlay() async {
-    if (_isPlaying) {
-      await _audioPlayer.pause();
-    } else {
-      setState(() => _isLoading = true);
-      try {
-        await _audioPlayer.play(UrlSource(widget.audioUrl));
-      } catch (e) {
-        debugPrint('Audio playback error: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to play audio: $e'),
-              backgroundColor: AppColors.emergencyRed,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.pitchBlack.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _togglePlay,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: AppColors.emergencyRed,
-                shape: BoxShape.circle,
+                  const SizedBox(height: 16),
+                ],
               ),
-              child: _isLoading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 20),
             ),
+            );
+            },
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Voice Note attached', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(
-                  value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0.0,
-                  backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.emergencyRed),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      },
+    ).whenComplete(() {
+      pinController.dispose();
+    });
   }
 }
 

@@ -1,7 +1,6 @@
 import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthManager {
@@ -38,6 +37,7 @@ class AuthManager {
     displayName = storedName;
     
     // Open streaming connection for WebSocket
+    // ignore: deprecated_member_use
     client.openStreamingConnection();
   }
   

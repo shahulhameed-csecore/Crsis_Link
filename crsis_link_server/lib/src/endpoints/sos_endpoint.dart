@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:serverpod/serverpod.dart';
+import 'dart:async';
 import '../generated/protocol.dart';
 
 class DeviceLocationData {
@@ -26,9 +27,10 @@ class SosEndpoint extends Endpoint {
     // We cannot get deviceId here without a message, but we can listen to general messages.
     // However, we will register listeners dynamically when they call updateLocation or via a setup message.
     final sessionId = session.sessionLogId.toString();
-    final MessageCentralListenerCallback broadcastListener = (message) {
+    void broadcastListener(SerializableModel message) {
+      // ignore: deprecated_member_use
       sendStreamMessage(session, message);
-    };
+    }
     session.messages.addListener('sos_broadcasts', broadcastListener);
     _sessionListeners["${sessionId}_broadcast"] = broadcastListener;
   }
@@ -65,9 +67,10 @@ class SosEndpoint extends Endpoint {
       _sessionToDevice[sessionId] = deviceId;
       
       if (!_sessionListeners.containsKey(sessionId)) {
-        final MessageCentralListenerCallback listener = (msg) {
+        void listener(SerializableModel msg) {
+          // ignore: deprecated_member_use
           sendStreamMessage(session, msg);
-        };
+        }
         session.messages.addListener('sos_device_$deviceId', listener);
         _sessionListeners[sessionId] = listener;
       }
@@ -102,35 +105,34 @@ class SosEndpoint extends Endpoint {
       throw ArgumentError('Audio URL exceeds maximum length');
     }
 
-    final lastAlerts = await SosAlert.db.find(
-      session,
-      where: (t) => t.deviceId.equals(deviceId),
-      orderBy: (t) => t.timestamp,
-      orderDescending: true,
-      limit: 1,
-    );
-    if (lastAlerts.isNotEmpty) {
-      if (DateTime.now().toUtc().difference(lastAlerts.first.timestamp).inSeconds < 30) {
-        throw Exception('Rate limit exceeded. Please wait 30 seconds before broadcasting again.');
-      }
-    }
-
     session.log('SOS Triggered by $deviceId at $latitude, $longitude', level: LogLevel.info);
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
     // BUG-P3-03 FIX: Wrap deactivation and insertion in a single atomic transaction
     // to prevent phantom pins if the server crashes mid-operation.
     final savedAlert = await session.db.transaction((transaction) async {
+      // 1. Lock and check rate limit inside the transaction
       final existingAlerts = await SosAlert.db.find(
         session,
-        where: (t) => t.deviceId.equals(deviceId) & t.isActive.equals(true),
+        where: (t) => t.deviceId.equals(deviceId),
+        orderBy: (t) => t.timestamp,
+        orderDescending: true,
         transaction: transaction,
       );
-      for (var alert in existingAlerts) {
+      
+      if (existingAlerts.isNotEmpty) {
+        if (DateTime.now().toUtc().difference(existingAlerts.first.timestamp).inSeconds < 30) {
+          throw Exception('Rate limit exceeded. Please wait 30 seconds before broadcasting again.');
+        }
+      }
+
+      // 2. Deactivate previous active pins
+      for (var alert in existingAlerts.where((a) => a.isActive)) {
         alert.isActive = false;
         await SosAlert.db.updateRow(session, alert, transaction: transaction);
       }
 
+      // 3. Insert new alert
       final newAlert = SosAlert(
         deviceId: deviceId,
         latitude: latitude,
@@ -175,8 +177,12 @@ class SosEndpoint extends Endpoint {
         // BUG-P3-01 FIX: Post ONLY to the targeted device channel.
         // The global 'sos_broadcasts' channel is for cross-cutting events (claimRescue, resolve)
         // not spatially-filtered SOS pins — all sessions already listen to it via streamOpened.
-        session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
-        notifiedCount++;
+        try {
+          await session.messages.postMessage('sos_device_$targetDeviceId', savedAlert);
+          notifiedCount++;
+        } catch (e) {
+          session.log('Failed to post message to $targetDeviceId: $e', level: LogLevel.error);
+        }
       }
     }
     
@@ -278,42 +284,36 @@ class SosEndpoint extends Endpoint {
     await SosAlert.db.updateRow(session, alert);
     
     // Broadcast the resolved event
-    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: deviceId));
+    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: deviceId)));
     
     return true;
   }
 
   /// Claims an active SOS alert
   Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, int sosId) async {
-    final alert = await session.db.transaction((transaction) async {
-      final targetAlert = await SosAlert.db.findById(session, sosId, transaction: transaction);
-      if (targetAlert == null) throw Exception('SOS alert not found.');
-      if (targetAlert.deviceId == volunteerDeviceId) throw Exception('Cannot claim your own rescue.');
-      if (targetAlert.status != 'OPEN') throw Exception('SOS alert is already claimed or resolved.');
-
-      targetAlert.status = 'CLAIMED';
-      targetAlert.volunteerDeviceId = volunteerDeviceId;
-      targetAlert.verificationPin = (1000 + Random().nextInt(9000)).toString();
-      
-      // Atomic Update: Ensure it was STILL 'OPEN' at the exact moment of writing
-      final updatedRows = await SosAlert.db.update(
-        session,
-        [targetAlert],
-        transaction: transaction,
-      );
-      
-      // If no rows were returned, another transaction beat us to the update
-      if (updatedRows.isEmpty) {
-        throw Exception('SOS was just claimed by another rescuer.');
-      }
-      return updatedRows.first;
-    });
-
-    session.messages.postMessage('sos_broadcasts', alert);
-    session.messages.postMessage(
+    final pin = (1000 + Random().nextInt(9000)).toString();
+    
+    // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
+    final query = '''
+      UPDATE "sos_alert" 
+      SET "status" = 'CLAIMED', "volunteerDeviceId" = '$volunteerDeviceId', "verificationPin" = '$pin' 
+      WHERE "id" = $sosId AND "status" = 'OPEN' 
+      RETURNING *;
+    ''';
+    
+    final result = await session.db.unsafeQuery(query);
+    if (result.isEmpty) {
+      throw Exception('SOS was just claimed by another rescuer.');
+    }
+    
+    // Retrieve the fully deserialized object
+    final alert = await SosAlert.db.findById(session, sosId);
+    
+    unawaited(session.messages.postMessage('sos_broadcasts', alert!));
+    unawaited(session.messages.postMessage(
       'sos_broadcasts', 
       RescueAcceptedEvent(victimDeviceId: alert.deviceId, volunteerName: volunteerName, volunteerDeviceId: volunteerDeviceId)
-    );
+    ));
     return alert;
   }
 
@@ -331,7 +331,7 @@ class SosEndpoint extends Endpoint {
     alert.isActive = false;
     final updatedAlert = await SosAlert.db.updateRow(session, alert);
 
-    session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert.deviceId));
+    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert.deviceId)));
     return updatedAlert;
   }
 
@@ -344,7 +344,7 @@ class SosEndpoint extends Endpoint {
     if (alert.verificationPin == pin) {
       alert.isRescuerVerified = true;
       await SosAlert.db.updateRow(session, alert);
-      session.messages.postMessage('sos_broadcasts', alert);
+      unawaited(session.messages.postMessage('sos_broadcasts', alert));
       return alert;
     }
     throw Exception('Incorrect PIN. Please verify the 4-digit number with the victim.');
@@ -362,7 +362,7 @@ class SosEndpoint extends Endpoint {
     await SosAlert.db.updateRow(session, alert);
     
     // Broadcast update so map pins reflect the verified badge
-    session.messages.postMessage('sos_broadcasts', alert);
+    unawaited(session.messages.postMessage('sos_broadcasts', alert));
     
     return true;
   }

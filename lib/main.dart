@@ -3,6 +3,8 @@ import 'core/theme/design_system.dart';
 import 'presentation/screens/main_navigation.dart';
 import 'core/error/global_error_handler.dart';
 import 'core/auth/auth_manager.dart';
+import 'core/services/offline_cache_manager.dart';
+import 'core/services/network_sync_manager.dart';
 
 import 'package:flutter/services.dart';
 
@@ -21,6 +23,9 @@ void main() async {
 
   GlobalErrorHandler.initialize();
   await AuthManager.initialize();
+  await OfflineCacheManager.init();
+  NetworkSyncManager().init();
+  NetworkSyncManager().uploadPendingAlerts();
   runApp(const CrsisLinkApp());
 }
 

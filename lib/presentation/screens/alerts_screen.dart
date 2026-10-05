@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/state/alerts_manager.dart';
-import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'main_navigation.dart';
 import '../../core/auth/auth_manager.dart';

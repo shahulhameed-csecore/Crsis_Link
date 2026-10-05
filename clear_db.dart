@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:crsis_link_client/crsis_link_client.dart';
 void main() async {
   final client = Client('https://crsis-link-api.onrender.com/');

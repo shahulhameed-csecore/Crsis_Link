@@ -6,7 +6,7 @@ import 'alerts_screen.dart';
 import 'my_profile_screen.dart';
 import 'sos_screen.dart';
 
-final GlobalKey<_MainNavigationState> globalNavKey = GlobalKey<_MainNavigationState>();
+final GlobalKey<MainNavigationState> globalNavKey = GlobalKey<MainNavigationState>();
 final GlobalKey<HomeMapScreenState> globalHomeMapKey = GlobalKey<HomeMapScreenState>();
 
 class MainNavigation extends StatefulWidget {
@@ -17,10 +17,10 @@ class MainNavigation extends StatefulWidget {
   }
 
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  State<MainNavigation> createState() => MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
