@@ -179,46 +179,49 @@ class _SosScreenState extends State<SosScreen> with SingleTickerProviderStateMix
               ),
             );
           }
-        } on SocketException catch (e) {
-          debugPrint('SOS Broadcast offline: $e');
-          if (mounted) {
-            // Auto-fallback to Mesh if network fails unexpectedly
-            try {
-              
-              final prefs = await SharedPreferences.getInstance();
-              String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
-              final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
-              
-              final alert = LocalSosAlert(
-                id: const Uuid().v4(),
-                lat: position.latitude,
-                lng: position.longitude,
-                message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
-                victimPhone: victimPhone,
-                originalDeviceId: AuthManager.deviceId,
-                originalSenderName: AuthManager.displayName,
-                timestamp: DateTime.now().millisecondsSinceEpoch,
-              );
-              await OfflineCacheManager.saveAlert(alert);
-              if (!mounted) return;
+        } catch (e) {
+          final errorStr = e.toString();
+          if (e is SocketException || errorStr.contains('SocketException') || errorStr.contains('ServerpodClientException')) {
+            debugPrint('SOS Broadcast offline: $e');
+            if (mounted) {
+              // Auto-fallback to Mesh if network fails unexpectedly
+              try {
+                final prefs = await SharedPreferences.getInstance();
+                String cachedPhone = prefs.getString('phone') ?? prefs.getString('user_phone') ?? prefs.getString('phoneNumber') ?? '';
+                final victimPhone = cachedPhone.isNotEmpty ? cachedPhone : 'URGENT-NO-NUMBER';
+                
+                final alert = LocalSosAlert(
+                  id: const Uuid().v4(),
+                  lat: position.latitude,
+                  lng: position.longitude,
+                  message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+                  victimPhone: victimPhone,
+                  originalDeviceId: AuthManager.deviceId,
+                  originalSenderName: AuthManager.displayName,
+                  timestamp: DateTime.now().millisecondsSinceEpoch,
+                );
+                await OfflineCacheManager.saveAlert(alert);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                MainNavigation.jumpToMap();
+                globalHomeMapKey.currentState?.jumpToCurrentLocation();
+              } catch (_) {}
+            }
+          } else {
+            debugPrint('SOS Broadcast failed: $e');
+            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
-                  backgroundColor: Colors.orange,
+                SnackBar(
+                  content: Text('Failed to broadcast SOS: $e'),
+                  backgroundColor: AppColors.emergencyRed,
                 ),
               );
-              MainNavigation.jumpToMap();
-            } catch (_) {}
-          }
-        } catch (e) {
-          debugPrint('SOS Broadcast failed: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to broadcast SOS: $e'),
-                backgroundColor: AppColors.emergencyRed,
-              ),
-            );
+            }
           }
         }
       }

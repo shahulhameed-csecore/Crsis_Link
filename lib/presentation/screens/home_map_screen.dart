@@ -715,28 +715,46 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           );
                         }
                         setModalState(() => isSubmitting = false);
-                      } on SocketException catch (e) {
-                        debugPrint('SOS Broadcast offline: $e');
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text('No internet connection. Please connect and try again.'),
-                              backgroundColor: AppColors.emergencyRed,
-                            ),
-                          );
-                        }
-                        setModalState(() => isSubmitting = false);
                       } catch (e) {
-                        debugPrint('SOS Broadcast failed: $e');
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to drop pin: $e'),
-                              backgroundColor: AppColors.emergencyRed,
-                            ),
-                          );
+                        final errorStr = e.toString();
+                        if (e is SocketException || errorStr.contains('SocketException') || errorStr.contains('ServerpodClientException')) {
+                          debugPrint('SOS Broadcast offline: $e');
+                          if (ctx.mounted) {
+                            try {
+                              final alert = LocalSosAlert(
+                                id: const Uuid().v4(),
+                                lat: position.latitude,
+                                lng: position.longitude,
+                                message: messageController.text.trim().isEmpty ? 'CRITICAL EMERGENCY: Immediate assistance required. (Custom SOS)' : messageController.text.trim(),
+                                victimPhone: phoneController.text.trim().isEmpty ? 'URGENT-NO-NUMBER' : phoneController.text.trim(),
+                                originalDeviceId: AuthManager.deviceId,
+                                originalSenderName: AuthManager.displayName,
+                                timestamp: DateTime.now().millisecondsSinceEpoch,
+                              );
+                              OfflineCacheManager.saveAlert(alert).then((_) {
+                                if (!ctx.mounted) return;
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                Navigator.pop(ctx);
+                              });
+                            } catch (_) {}
+                          }
+                        } else {
+                          debugPrint('SOS Broadcast failed: $e');
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to drop pin: $e'),
+                                backgroundColor: AppColors.emergencyRed,
+                              ),
+                            );
+                          }
+                          setModalState(() => isSubmitting = false);
                         }
-                        setModalState(() => isSubmitting = false);
                       }
                     },
                   ),
