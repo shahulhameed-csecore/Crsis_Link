@@ -123,18 +123,20 @@ class OfflineMeshService {
           if (jsonMap['lat'] is num) jsonMap['lat'] = (jsonMap['lat'] as num).toDouble();
           if (jsonMap['lng'] is num) jsonMap['lng'] = (jsonMap['lng'] as num).toDouble();
           
-          final alert = LocalSosAlert.fromJson(jsonMap);
+          // STRICT MESH VALIDATION BEFORE IMMUTABLE INSTANTIATION
+          if (jsonMap['lat'] < -90 || jsonMap['lat'] > 90 || jsonMap['lng'] < -180 || jsonMap['lng'] > 180) {
+            continue; // Drop impossible GPS coordinates entirely
+          }
           
-          // STRICT MESH VALIDATION (Threat Vector 2)
-          if (alert.lat < -90 || alert.lat > 90 || alert.lng < -180 || alert.lng > 180) {
-            continue; // Invalid coordinates, drop payload
+          // Truncate malicious string payloads
+          if (jsonMap['message'] != null && jsonMap['message'].toString().length > 500) {
+            jsonMap['message'] = jsonMap['message'].toString().substring(0, 500);
           }
-          if (alert.message.length > 500) {
-            alert.message = alert.message.substring(0, 500); // Truncate DoS payloads
+          if (jsonMap['victimPhone'] != null && jsonMap['victimPhone'].toString().length > 20) {
+            jsonMap['victimPhone'] = jsonMap['victimPhone'].toString().substring(0, 20);
           }
-          if (alert.victimPhone.length > 20) {
-            alert.victimPhone = alert.victimPhone.substring(0, 20);
-          }
+          
+          final alert = LocalSosAlert.fromJson(jsonMap);
 
           if (!OfflineCacheManager.alertExists(alert.id)) {
             // New alert hopping through
