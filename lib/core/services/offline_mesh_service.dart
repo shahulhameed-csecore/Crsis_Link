@@ -93,7 +93,11 @@ class OfflineMeshService {
     final jsonList = unsynced.map((a) => a.toJson()).toList();
     final payloadStr = jsonEncode(jsonList);
     
-    await Nearby().sendBytesPayload(endpointId, Uint8List.fromList(utf8.encode(payloadStr)));
+    try {
+      await Nearby().sendBytesPayload(endpointId, Uint8List.fromList(utf8.encode(payloadStr)));
+    } catch (e) {
+      debugPrint('Failed to sync mesh database with peer $endpointId: $e');
+    }
   }
 
   Future<void> _handleIncomingPayload(Payload payload, String endpointId) async {
