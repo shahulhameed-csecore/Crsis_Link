@@ -136,12 +136,16 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       // Ensure we don't duplicate subscriptions on reconnect
       _sosSubscription?.cancel();
       
-      // Send a Greeting to bind the stream to this deviceId on the server
-      AuthManager.client.sos.sendStreamMessage(Greeting(
-        message: AuthManager.deviceId,
-        author: AuthManager.displayName,
-        timestamp: DateTime.now(),
-      ));
+      // Safely attempt to send a Greeting to bind the stream
+      try {
+        AuthManager.client.sos.sendStreamMessage(Greeting(
+          message: AuthManager.deviceId,
+          author: AuthManager.displayName,
+          timestamp: DateTime.now(),
+        ));
+      } catch (e) {
+        debugPrint('Failed to send stream greeting (socket likely closed): $e');
+      }
 
       _sosSubscription = AuthManager.client.sos.stream.listen((message) {
         debugPrint('Received stream message: ${message.runtimeType}');
