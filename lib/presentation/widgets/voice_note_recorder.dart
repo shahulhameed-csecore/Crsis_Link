@@ -204,6 +204,8 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
           .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
           .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
 
+      if (!mounted) return;
+
       setState(() {
         _uploadedUrl = publicUrl;
         _isUploading = false;
