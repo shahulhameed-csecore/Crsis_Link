@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
-import '../../core/auth/auth_manager.dart';
 
 class DisasterRadarView extends StatefulWidget {
   final LatLng currentLocation;

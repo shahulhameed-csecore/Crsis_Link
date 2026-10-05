@@ -23,6 +23,8 @@ import 'package:geocoding/geocoding.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
 import '../widgets/disaster_radar_view.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
 
@@ -50,7 +52,24 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     MapPinsManager().addListener(_onPinsChanged);
     _determinePosition().whenComplete(() => _fetchActiveSos());
     _initStreaming();
-    AuthManager.client.connectivityMonitor?.addListener(_onConnectivityChanged);
+    
+    // Instant offline detection via connectivity_plus
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      if (mounted) {
+        setState(() {
+          _isConnected = !results.contains(ConnectivityResult.none);
+        });
+      }
+    });
+
+    // Check initial state immediately
+    Connectivity().checkConnectivity().then((List<ConnectivityResult> results) {
+      if (mounted) {
+        setState(() {
+          _isConnected = !results.contains(ConnectivityResult.none);
+        });
+      }
+    });
     
     // Start periodic heartbeat to prevent server-side TTL eviction (5 min)
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
@@ -67,13 +86,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     });
   }
 
-  void _onConnectivityChanged(bool connected) {
-    if (mounted) {
-      setState(() {
-        _isConnected = connected;
-      });
-    }
-  }
+  // Legacy fallback not needed, removed _onConnectivityChanged
 
   Future<void> _loadIgnoredIds() async {
     final prefs = await SharedPreferences.getInstance();
@@ -208,7 +221,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     _sosSubscription?.cancel();
     // ignore: deprecated_member_use
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
-    AuthManager.client.connectivityMonitor?.removeListener(_onConnectivityChanged);
     super.dispose();
   }
 
