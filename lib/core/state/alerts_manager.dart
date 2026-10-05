@@ -174,6 +174,13 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
       type: AlertType.ignored,
     ));
     
+    
     _applyCapAndNotify(newList);
+  }
+
+  Future<void> clearAll() async {
+    value = [];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
   }
 }

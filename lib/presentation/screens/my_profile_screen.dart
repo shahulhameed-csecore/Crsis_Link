@@ -5,6 +5,8 @@ import '../../core/auth/auth_manager.dart';
 import '../widgets/capsule_button.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/state/map_pins_manager.dart';
+import '../../core/state/alerts_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -60,6 +62,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   void _hardResetData() async {
     HapticFeedback.heavyImpact();
     await OfflineCacheManager.clearEntireCache();
+    await AlertsManager().clearAll();
+    
+    // Aggressively wipe any stray SharedPreferences (like ignored pins)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('ignoredSosIds');
+    await prefs.remove('alertsHistory'); // Just to be safe
+    
     MapPinsManager().setPins([]);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
