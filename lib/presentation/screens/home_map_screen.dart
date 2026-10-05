@@ -849,8 +849,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           },
         );
       },
-    // LEAK-P3-01 FIX: Dispose the controller when the modal is dismissed in any way.
-    ).whenComplete(() {
+    ).then((_) {
       messageController.dispose();
       phoneController.dispose();
     });
