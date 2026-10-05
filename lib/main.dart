@@ -8,6 +8,38 @@ import 'core/services/network_sync_manager.dart';
 
 import 'package:flutter/services.dart';
 
+import 'dart:ui';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'core/services/offline_mesh_service.dart';
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
+  OfflineMeshService().startMesh(); 
+  
+  service.on('stopService').listen((event) {
+    OfflineMeshService().toggleOfflineMode(false);
+    service.stopSelf();
+  });
+}
+
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: false,
+      isForegroundMode: true,
+      initialNotificationTitle: 'Crsis_Link Mesh Active',
+      initialNotificationContent: 'Relaying emergency alerts in the background',
+    ),
+    iosConfiguration: IosConfiguration(
+      autoStart: false,
+      onForeground: onStart,
+    ),
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -26,6 +58,9 @@ void main() async {
   await OfflineCacheManager.init();
   NetworkSyncManager().init();
   NetworkSyncManager().uploadPendingAlerts();
+  
+  await initializeService();
+  
   runApp(const CrsisLinkApp());
 }
 
