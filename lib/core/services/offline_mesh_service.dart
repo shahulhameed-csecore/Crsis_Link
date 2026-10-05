@@ -71,7 +71,7 @@ class OfflineMeshService {
 
       // 2. The P2P_CLUSTER Strategy
       await Nearby().startAdvertising(
-        AuthManager.displayName,
+        AuthManager.deviceId,
         _strategy,
         onConnectionInitiated: (id, info) async {
           // 3. The Two-Way Handshake (Auto-Accept)
@@ -95,11 +95,11 @@ class OfflineMeshService {
       );
 
       await Nearby().startDiscovery(
-        AuthManager.displayName,
+        AuthManager.deviceId,
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
           await Nearby().requestConnection(
-            AuthManager.displayName,
+            AuthManager.deviceId,
             id,
             onConnectionInitiated: (id, info) async {
               // 3. The Two-Way Handshake Auto-Accept for Discoverer
@@ -140,6 +140,19 @@ class OfflineMeshService {
       await Nearby().sendBytesPayload(endpointId, bytes);
     } catch (e) {
       debugPrint('Failed to sync mesh database with peer $endpointId: $e');
+    }
+  }
+
+  Future<void> broadcastNewAlert(LocalSosAlert alert) async {
+    final payloadStr = jsonEncode([alert.toJson()]);
+    final bytes = Uint8List.fromList(utf8.encode(payloadStr));
+    
+    for (final peerId in _connectedEndpoints) {
+      try {
+        await Nearby().sendBytesPayload(peerId, bytes);
+      } catch (e) {
+        debugPrint('Failed to broadcast alert to peer $peerId: $e');
+      }
     }
   }
 

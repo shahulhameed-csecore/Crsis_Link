@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
+import '../../core/state/map_pins_manager.dart';
 
 class DisasterRadarView extends StatefulWidget {
   final LatLng currentLocation;
@@ -25,6 +26,7 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     
+    MapPinsManager().addListener(_loadAlerts);
     _loadAlerts();
   }
 
@@ -37,6 +39,7 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
   @override
   void dispose() {
     _pulseController.dispose();
+    MapPinsManager().removeListener(_loadAlerts);
     super.dispose();
   }
 

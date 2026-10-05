@@ -158,6 +158,7 @@ class _SosScreenState extends State<SosScreen>
               timestamp: DateTime.now().millisecondsSinceEpoch,
             );
             await OfflineCacheManager.saveAlert(alert);
+            await OfflineMeshService().broadcastNewAlert(alert);
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -265,6 +266,7 @@ class _SosScreenState extends State<SosScreen>
                 timestamp: DateTime.now().millisecondsSinceEpoch,
               );
               await OfflineCacheManager.saveAlert(alert);
+              await OfflineMeshService().broadcastNewAlert(alert);
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -331,6 +333,7 @@ class _SosScreenState extends State<SosScreen>
                 timestamp: DateTime.now().millisecondsSinceEpoch,
               );
               await OfflineCacheManager.saveAlert(alert);
+              await OfflineMeshService().broadcastNewAlert(alert);
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

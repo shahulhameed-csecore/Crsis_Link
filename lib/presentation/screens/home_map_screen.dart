@@ -761,6 +761,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               timestamp: DateTime.now().millisecondsSinceEpoch,
                             );
                             OfflineCacheManager.saveAlert(alert).then((_) {
+                              OfflineMeshService().broadcastNewAlert(alert);
                               if (!ctx.mounted) return;
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
@@ -810,6 +811,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               timestamp: DateTime.now().millisecondsSinceEpoch,
                             );
                             OfflineCacheManager.saveAlert(alert).then((_) {
+                              OfflineMeshService().broadcastNewAlert(alert);
                               if (!ctx.mounted) return;
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
