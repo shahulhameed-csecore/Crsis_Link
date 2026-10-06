@@ -15,7 +15,7 @@ kotlin {
 
 android {
     namespace = "com.example.crsis_link"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
