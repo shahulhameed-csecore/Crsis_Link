@@ -174,7 +174,7 @@ class OfflineMeshService {
     
     for (final peerId in _connectedEndpoints) {
       try {
-        await Nearby().sendBytesPayload(peerId, bytes);
+        await Nearby().sendBytesPayload(peerId, bytes).timeout(const Duration(seconds: 3));
       } catch (e) {
         debugPrint('Failed to broadcast alert to peer $peerId: $e');
       }

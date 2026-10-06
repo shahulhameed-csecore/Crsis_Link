@@ -102,7 +102,7 @@ class _SosScreenState extends State<SosScreen>
             List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(
               position.latitude,
               position.longitude,
-            );
+            ).timeout(const Duration(seconds: 3));
             if (placemarks.isNotEmpty) {
               final place = placemarks.first;
               approxLocation = place.subLocality?.isNotEmpty == true

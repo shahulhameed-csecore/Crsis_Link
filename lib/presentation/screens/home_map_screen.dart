@@ -694,7 +694,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                       String? approxLocation;
                       try {
                         try {
-                          List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(position.latitude, position.longitude);
+                          List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(position.latitude, position.longitude).timeout(const Duration(seconds: 3));
                           if (placemarks.isNotEmpty) {
                             final place = placemarks.first;
                             approxLocation = place.subLocality?.isNotEmpty == true ? place.subLocality : (place.locality?.isNotEmpty == true ? place.locality : place.name);
