@@ -78,9 +78,13 @@ class OfflineMeshService {
         _strategy,
         onConnectionInitiated: (id, info) async {
           // 3. The Two-Way Handshake (Auto-Accept)
-          await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-            _handleIncomingPayload(endpointId, payload);
-          });
+          try {
+            await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
+              _handleIncomingPayload(endpointId, payload);
+            });
+          } catch (e) {
+            debugPrint('Hardware fault or security rejection during accept: $e');
+          }
         },
         onConnectionResult: (id, status) {
           // 4. Triggering the Payload Transfer
@@ -242,7 +246,7 @@ class OfflineMeshService {
             await OfflineCacheManager.saveAlert(alert);
             hasNewData = true;
 
-            // Map LocalSosAlert to SosAlert and push to MapPinsManager
+            // Map LocalSosAlert to SosAlert and push to MapPinsManager and AlertsManager
             final sosAlert = SosAlert(
               id: int.tryParse(alert.id.replaceAll(RegExp(r'[^0-9]'), '')) ?? (DateTime.now().millisecondsSinceEpoch % 100000),
               latitude: alert.lat,
@@ -257,6 +261,7 @@ class OfflineMeshService {
             );
             
             MapPinsManager().addOrUpdatePin(sosAlert);
+            AlertsManager().addSosAlert(sosAlert);
           }
         }
 
