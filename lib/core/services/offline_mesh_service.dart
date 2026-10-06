@@ -66,9 +66,7 @@ class OfflineMeshService {
     try {
       // 1. Aggressive Permission Requesting (Android 12+)
       await requestPermissions();
-    // We don't abort on hasPermissions because Android versions will reject either legacy or modern permissions
-    // We just request them and let the OS handle it, then try starting the mesh.
-
+      
       String shortId = AuthManager.deviceId;
       if (shortId.length > 31) shortId = shortId.substring(0, 31);
       
@@ -105,6 +103,14 @@ class OfflineMeshService {
         shortId,
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
+          // Prevent mutual request collision: only one device initiates connection
+          if (shortId.compareTo(name) > 0) {
+            debugPrint('Yielding connection request to peer $name to avoid collision');
+            return;
+          }
+          
+          if (_connectedEndpoints.contains(id)) return;
+          
           try {
             await Nearby().requestConnection(
               shortId,

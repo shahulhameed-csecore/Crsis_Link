@@ -168,6 +168,7 @@ class _SosScreenState extends State<SosScreen>
               latitude: alert.lat,
               longitude: alert.lng,
               message: alert.message,
+              status: 'OPEN',
               victimPhone: alert.victimPhone,
               approximateLocationText: alert.approximateLocationText,
               timestamp: DateTime.now(),
