@@ -77,11 +77,21 @@ class OfflineMeshService {
   Future<void> startMesh() async {
     try {
       // 1. Aggressive Permission Requesting (Android 12+)
-      await requestPermissions();
-      
+      bool hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        _showDebugToast('Mesh Start Failed: Missing Permissions');
+      }
+
+      bool locationEnabled = await Nearby().checkLocationEnabled();
+      if (!locationEnabled) {
+        _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
+      }
+
       String shortId = AuthManager.deviceId;
       if (shortId.length > 31) shortId = shortId.substring(0, 31);
       
+      _showDebugToast('Starting Mesh Network...');
+
       // 2. The P2P_CLUSTER Strategy
       await Nearby().startAdvertising(
         shortId,
@@ -161,6 +171,7 @@ class OfflineMeshService {
         serviceId: _serviceId,
       );
     } catch (e) {
+      _showDebugToast("Mesh start failed: $e");
       debugPrint("Mesh start failed: $e");
     }
   }
