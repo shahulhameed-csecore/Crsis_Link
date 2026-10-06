@@ -22,6 +22,17 @@ class SosEndpoint extends Endpoint {
   // Track active targeted listeners per session to prevent duplicates
   static final Map<String, MessageCentralListenerCallback> _sessionListeners = {};
 
+  static Timer? _cleanupTimer;
+
+  static void initializeReaper() {
+    _cleanupTimer ??= Timer.periodic(const Duration(minutes: 5), (timer) {
+      final now = DateTime.now();
+      _deviceLocations.removeWhere((key, value) {
+        return now.difference(value.lastUpdated) > const Duration(minutes: 5);
+      });
+    });
+  }
+
   @override
   Future<void> streamOpened(StreamingSession session) async {
     // We cannot get deviceId here without a message, but we can listen to general messages.
