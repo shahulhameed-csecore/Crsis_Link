@@ -205,7 +205,7 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                           painter: RadarPainter(
                             cachedPins: _cachedPins,
                             pulseValue: _pulseController.value,
-                            hasOwnSos: _offlineAlerts.length > peerAlerts.length,
+                            hasOwnSos: rawAlerts.length > peerAlerts.length,
                             ringTextPainters: _ringTextPainters,
                             cardinalTextPainters: _cardinalTextPainters,
                             youTextPainter: _youTextPainter!,

@@ -246,9 +246,8 @@ class OfflineMeshService {
             await OfflineCacheManager.saveAlert(alert);
             hasNewData = true;
 
-            // Map LocalSosAlert to SosAlert and push to MapPinsManager and AlertsManager
             final sosAlert = SosAlert(
-              id: int.tryParse(alert.id.replaceAll(RegExp(r'[^0-9]'), '')) ?? (DateTime.now().millisecondsSinceEpoch % 100000),
+              id: alert.id.hashCode,
               latitude: alert.lat,
               longitude: alert.lng,
               message: alert.message,

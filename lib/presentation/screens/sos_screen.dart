@@ -160,6 +160,22 @@ class _SosScreenState extends State<SosScreen>
             await OfflineCacheManager.saveAlert(alert);
             await OfflineMeshService().broadcastNewAlert(alert);
 
+            // NEW: Notify the local UI immediately
+            final localUiAlert = SosAlert(
+              id: alert.id.hashCode, // Unique temporary ID
+              deviceId: AuthManager.deviceId,
+              senderName: AuthManager.displayName,
+              latitude: alert.lat,
+              longitude: alert.lng,
+              message: alert.message,
+              victimPhone: alert.victimPhone,
+              approximateLocationText: alert.approximateLocationText,
+              timestamp: DateTime.now(),
+              isActive: true,
+            );
+            MapPinsManager().addOrUpdatePin(localUiAlert);
+            AlertsManager().addSosAlert(localUiAlert);
+
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
