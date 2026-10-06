@@ -7,7 +7,7 @@ import '../models/local_sos_alert.dart';
 import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
 import '../state/map_pins_manager.dart';
-
+import '../state/alerts_manager.dart';
 class OfflineMeshService {
   static final OfflineMeshService _instance = OfflineMeshService._internal();
   factory OfflineMeshService() => _instance;
