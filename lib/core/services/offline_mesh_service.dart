@@ -135,14 +135,19 @@ class OfflineMeshService {
     final unsynced = OfflineCacheManager.getUnsyncedAlerts();
     if (unsynced.isEmpty) return;
 
-    final jsonList = unsynced.map((a) => a.toJson()).toList();
-    final payloadStr = jsonEncode(jsonList);
-    
-    try {
-      final bytes = Uint8List.fromList(utf8.encode(payloadStr));
-      await Nearby().sendBytesPayload(endpointId, bytes);
-    } catch (e) {
-      debugPrint('Failed to sync mesh database with peer $endpointId: $e');
+    for (final alert in unsynced) {
+      try {
+        final payloadStr = jsonEncode([alert.toJson()]);
+        final bytes = Uint8List.fromList(utf8.encode(payloadStr));
+        
+        if (bytes.lengthInBytes <= 32768) {
+          await Nearby().sendBytesPayload(endpointId, bytes);
+        } else {
+          debugPrint('Alert payload too large, skipping sync for peer $endpointId.');
+        }
+      } catch (e) {
+        debugPrint('Failed to sync mesh database alert with peer $endpointId: $e');
+      }
     }
   }
 

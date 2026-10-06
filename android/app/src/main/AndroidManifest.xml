@@ -12,12 +12,14 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     
     <!-- Android 12+ (API 31+) Permissions -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     
     <!-- Android 13+ (API 33+) Permissions -->
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <application
         android:label="crsis_link"
         android:name="${applicationName}"
@@ -52,6 +54,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            
+        <service
+            android:name=".MeshForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
