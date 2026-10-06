@@ -99,7 +99,7 @@ class _SosScreenState extends State<SosScreen>
         String? approxLocation;
         try {
           try {
-            List<Placemark> placemarks = await placemarkFromCoordinates(
+            List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(
               position.latitude,
               position.longitude,
             );
