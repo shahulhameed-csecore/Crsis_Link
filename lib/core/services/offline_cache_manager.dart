@@ -17,13 +17,21 @@ class OfflineCacheManager {
     await Hive.openBox<LocalSosAlert>(_boxName);
   }
 
-  static Box<LocalSosAlert> get _box => Hive.box<LocalSosAlert>(_boxName);
+  static Box<LocalSosAlert> get _box {
+    if (!Hive.isBoxOpen(_boxName)) {
+      throw StateError('OfflineCacheManager not initialized: Box is not open.');
+    }
+    return Hive.box<LocalSosAlert>(_boxName);
+  }
   
   static Box<LocalSosAlert> getBox() => _box;
 
   static Future<void> saveAlert(LocalSosAlert alert) async {
     if (_box.length >= 1000) {
-      final syncedKeys = _box.keys.where((k) => _box.get(k)!.isSynced).toList();
+      final syncedKeys = _box.keys.where((k) {
+        final item = _box.get(k);
+        return item != null && item.isSynced;
+      }).toList();
       if (syncedKeys.isNotEmpty) {
         await _box.delete(syncedKeys.first);
       } else {
