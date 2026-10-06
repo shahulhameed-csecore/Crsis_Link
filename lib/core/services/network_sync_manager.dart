@@ -51,8 +51,8 @@ class NetworkSyncManager {
             await alert.save(); // explicitly save back to Hive box
             await OfflineCacheManager.markAsSynced(alert.id);
             debugPrint('Alert ${alert.id} already exists on server, marking as synced.');
-          } else if (errorStr.contains('Rate limit')) {
-            debugPrint('Rate limit hit while syncing alert ${alert.id}. Retrying after backoff.');
+          } else if (errorStr.contains('Rate limit') || errorStr.contains('500') || errorStr.contains('503')) {
+            debugPrint('Server unavailable or rate limited. Retrying after backoff.');
             break;
           } else {
             debugPrint('Failed to sync alert ${alert.id}: $e');

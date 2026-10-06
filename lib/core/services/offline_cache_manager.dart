@@ -27,18 +27,22 @@ class OfflineCacheManager {
   static Box<LocalSosAlert> getBox() => _box;
 
   static Future<void> saveAlert(LocalSosAlert alert) async {
-    if (_box.length >= 1000) {
-      final syncedKeys = _box.keys.where((k) {
-        final item = _box.get(k);
-        return item != null && item.isSynced;
-      }).toList();
-      if (syncedKeys.isNotEmpty) {
-        await _box.delete(syncedKeys.first);
-      } else {
-        await _box.delete(_box.keys.first);
+    try {
+      if (_box.length >= 1000) {
+        final syncedKeys = _box.keys.where((k) {
+          final item = _box.get(k);
+          return item != null && item.isSynced;
+        }).toList();
+        if (syncedKeys.isNotEmpty) {
+          await _box.delete(syncedKeys.first);
+        } else {
+          await _box.delete(_box.keys.first);
+        }
       }
+      await _box.put(alert.id, alert);
+    } catch (e) {
+      debugPrint('Storage Exhaustion or Hive Error: $e');
     }
-    await _box.put(alert.id, alert);
   }
 
   static List<LocalSosAlert> getUnsyncedAlerts() {

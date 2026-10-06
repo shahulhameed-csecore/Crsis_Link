@@ -101,27 +101,34 @@ class OfflineMeshService {
         shortId,
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
-          await Nearby().requestConnection(
-            shortId,
-            id,
-            onConnectionInitiated: (id, info) async {
-              // 3. The Two-Way Handshake Auto-Accept for Discoverer
-              await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-                _handleIncomingPayload(endpointId, payload);
-              });
-            },
-            onConnectionResult: (id, status) {
-              if (status == Status.CONNECTED) {
-                if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
-                _syncLocalDatabaseWithPeer(id);
-              } else {
+          try {
+            await Nearby().requestConnection(
+              shortId,
+              id,
+              onConnectionInitiated: (id, info) async {
+                try {
+                  await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
+                    _handleIncomingPayload(endpointId, payload);
+                  });
+                } catch (e) {
+                  debugPrint('Hardware fault during accept: $e');
+                }
+              },
+              onConnectionResult: (id, status) {
+                if (status == Status.CONNECTED) {
+                  if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
+                  _syncLocalDatabaseWithPeer(id);
+                } else {
+                  _connectedEndpoints.remove(id);
+                }
+              },
+              onDisconnected: (id) {
                 _connectedEndpoints.remove(id);
-              }
-            },
-            onDisconnected: (id) {
-              _connectedEndpoints.remove(id);
-            },
-          );
+              },
+            );
+          } catch (e) {
+            debugPrint('Hardware fault during request: $e');
+          }
         },
         onEndpointLost: (id) {},
         serviceId: _serviceId,
