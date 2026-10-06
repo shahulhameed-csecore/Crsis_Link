@@ -291,7 +291,7 @@ class SosEndpoint extends Endpoint {
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: [sosId, deviceId]);
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, deviceId]));
     if (result.isEmpty) {
       return false; // Already resolved or wrong owner
     }
@@ -314,7 +314,7 @@ class SosEndpoint extends Endpoint {
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: [volunteerDeviceId, pin, sosId]);
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([volunteerDeviceId, pin, sosId]));
     if (result.isEmpty) {
       throw Exception('SOS was just claimed by another rescuer.');
     }
@@ -340,7 +340,7 @@ class SosEndpoint extends Endpoint {
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: [sosId, volunteerDeviceId]);
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, volunteerDeviceId]));
     if (result.isEmpty) {
       throw Exception('SOS alert not found, or you are not the assigned volunteer.');
     }
@@ -362,7 +362,7 @@ class SosEndpoint extends Endpoint {
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: [sosId, pin]);
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, pin]));
     if (result.isEmpty) {
       throw Exception('Incorrect PIN, Invalid SOS Request, or already verified.');
     }
@@ -385,7 +385,7 @@ class SosEndpoint extends Endpoint {
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: [sosId, deviceId]);
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, deviceId]));
     if (result.isEmpty) {
       return false; // Already verified or wrong owner
     }
