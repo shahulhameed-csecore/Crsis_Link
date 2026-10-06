@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import '../../main.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
@@ -19,6 +21,16 @@ class OfflineMeshService {
   bool _isOfflineModeEnabled = false;
   
   bool get isOfflineModeEnabled => _isOfflineModeEnabled;
+
+  void _showDebugToast(String message) {
+    globalMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Text('Mesh: $message'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.blueGrey,
+      ),
+    );
+  }
 
   bool _isToggling = false;
 
@@ -75,6 +87,7 @@ class OfflineMeshService {
         shortId,
         _strategy,
         onConnectionInitiated: (id, info) async {
+          _showDebugToast('Connection Initiated with $id');
           // 3. The Two-Way Handshake (Auto-Accept)
           try {
             await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
@@ -87,6 +100,7 @@ class OfflineMeshService {
         onConnectionResult: (id, status) {
           // 4. Triggering the Payload Transfer
           if (status == Status.CONNECTED) {
+            _showDebugToast('Connected to $id');
             if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
             _syncLocalDatabaseWithPeer(id);
           } else {
@@ -103,6 +117,7 @@ class OfflineMeshService {
         shortId,
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
+          _showDebugToast('Discovered peer $name ($id)');
           // Prevent mutual request collision: only one device initiates connection
           if (shortId.compareTo(name) > 0) {
             debugPrint('Yielding connection request to peer $name to avoid collision');
@@ -112,6 +127,7 @@ class OfflineMeshService {
           if (_connectedEndpoints.contains(id)) return;
           
           try {
+            _showDebugToast('Requesting connection to $name');
             await Nearby().requestConnection(
               shortId,
               id,
@@ -126,6 +142,7 @@ class OfflineMeshService {
               },
               onConnectionResult: (id, status) {
                 if (status == Status.CONNECTED) {
+                  _showDebugToast('Connected to $id');
                   if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
                   _syncLocalDatabaseWithPeer(id);
                 } else {
@@ -158,6 +175,7 @@ class OfflineMeshService {
         final bytes = Uint8List.fromList(utf8.encode(payloadStr));
         
         if (bytes.lengthInBytes <= 32768) {
+          _showDebugToast('Syncing DB to $endpointId');
           await Nearby().sendBytesPayload(endpointId, bytes);
         } else {
           debugPrint('Alert payload too large, skipping sync for peer $endpointId.');
@@ -174,6 +192,7 @@ class OfflineMeshService {
     
     for (final peerId in _connectedEndpoints) {
       try {
+        _showDebugToast('Transmitting SOS to $peerId');
         await Nearby().sendBytesPayload(peerId, bytes).timeout(const Duration(seconds: 3));
       } catch (e) {
         debugPrint('Failed to broadcast alert to peer $peerId: $e');
@@ -250,6 +269,7 @@ class OfflineMeshService {
           if (!OfflineCacheManager.alertExists(alert.id)) {
             alert.isSynced = false;
             await OfflineCacheManager.saveAlert(alert);
+            _showDebugToast('Received SOS from ${alert.originalSenderName}');
             hasNewData = true;
 
             final sosAlert = SosAlert(

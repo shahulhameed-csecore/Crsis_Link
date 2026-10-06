@@ -12,6 +12,9 @@ import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'core/services/offline_mesh_service.dart';
 
+final GlobalKey<ScaffoldMessengerState> globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
@@ -71,6 +74,7 @@ class CrsisLinkApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Crsis Link',
+      scaffoldMessengerKey: globalMessengerKey,
       theme: AppTheme.lightTheme,
       home: MainNavigation(key: globalNavKey),
       builder: (context, widget) {
