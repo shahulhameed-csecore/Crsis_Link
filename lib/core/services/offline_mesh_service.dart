@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../main.dart';
 import 'package:nearby_connections/nearby_connections.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import '../models/local_sos_alert.dart';
@@ -82,7 +83,7 @@ class OfflineMeshService {
         _showDebugToast('Mesh Start Failed: Missing Permissions');
       }
 
-      bool locationEnabled = await Nearby().checkLocationEnabled();
+      bool locationEnabled = await Geolocator.isLocationServiceEnabled();
       if (!locationEnabled) {
         _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
       }
