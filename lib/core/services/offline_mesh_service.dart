@@ -199,14 +199,27 @@ class OfflineMeshService {
         bool hasNewData = false;
 
         for (var item in dataList) {
-          final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item as Map);
+          if (item is! Map) continue;
           
-          if (jsonMap['lat'] is num) jsonMap['lat'] = (jsonMap['lat'] as num).toDouble();
-          if (jsonMap['lng'] is num) jsonMap['lng'] = (jsonMap['lng'] as num).toDouble();
+          final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item);
           
-          if (jsonMap['lat'] < -90 || jsonMap['lat'] > 90 || jsonMap['lng'] < -180 || jsonMap['lng'] > 180) {
-            continue; // Drop impossible coordinates
+          if (jsonMap['id'] == null || jsonMap['timestamp'] == null) {
+            continue;
           }
+          
+          if (jsonMap['lat'] is! num || jsonMap['lng'] is! num) {
+            continue;
+          }
+          
+          double lat = (jsonMap['lat'] as num).toDouble();
+          double lng = (jsonMap['lng'] as num).toDouble();
+          
+          if (lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
+            continue;
+          }
+          
+          jsonMap['lat'] = lat.clamp(-90.0, 90.0);
+          jsonMap['lng'] = lng.clamp(-180.0, 180.0);
           
           if (jsonMap['message'] != null && jsonMap['message'].toString().length > 500) {
             jsonMap['message'] = jsonMap['message'].toString().substring(0, 500);
