@@ -180,9 +180,11 @@ class OfflineMeshService {
         final dynamic decodedData = jsonDecode(str);
 
         if (decodedData is Map && decodedData['command'] == 'NUKE_MESH') {
-          debugPrint('Nuke Command Received! Wiping local mesh database.');
-          await OfflineCacheManager.clearEntireCache();
-          MapPinsManager().setPins([]);
+          if (kDebugMode && decodedData['adminKey'] == AuthManager.deviceId) {
+            debugPrint('Authenticated debug cache reset initiated.');
+            await OfflineCacheManager.clearEntireCache();
+            MapPinsManager().setPins([]);
+          }
           return;
         }
 

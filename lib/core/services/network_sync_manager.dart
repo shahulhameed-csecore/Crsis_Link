@@ -46,11 +46,14 @@ class NetworkSyncManager {
         } catch (e) {
           final errorStr = e.toString();
           // If Serverpod throws duplicate entry or rate limit, we can assume it was already synced by another peer
-          if (errorStr.contains('duplicate') || errorStr.contains('already exists') || errorStr.contains('Rate limit')) {
+          if (errorStr.contains('duplicate') || errorStr.contains('already exists')) {
             alert.isSynced = true;
             await alert.save(); // explicitly save back to Hive box
             await OfflineCacheManager.markAsSynced(alert.id);
             debugPrint('Alert ${alert.id} already exists on server, marking as synced.');
+          } else if (errorStr.contains('Rate limit')) {
+            debugPrint('Rate limit hit while syncing alert ${alert.id}. Retrying after backoff.');
+            break;
           } else {
             debugPrint('Failed to sync alert ${alert.id}: $e');
           }
