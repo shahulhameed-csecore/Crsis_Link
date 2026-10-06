@@ -40,6 +40,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   String _errorMsg = '';
   final Set<int> _ignoredSosIds = {};
   StreamSubscription? _sosSubscription;
+  StreamSubscription? _connectivitySubscription;
   bool _isConnected = true;
   // Default center (India) shown instantly while GPS resolves
   LatLng _mapCenter = const LatLng(20.5937, 78.9629);
@@ -55,7 +56,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     _initStreaming();
     
     // Instant offline detection via connectivity_plus
-    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (mounted) {
         final connected = !results.contains(ConnectivityResult.none);
         setState(() {
@@ -89,6 +90,16 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel();
+    _sosSubscription?.cancel();
+    _connectivitySubscription?.cancel();
+    MapPinsManager().removeListener(_onPinsChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   // Legacy fallback not needed, removed _onConnectivityChanged

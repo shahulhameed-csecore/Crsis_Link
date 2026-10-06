@@ -7,6 +7,22 @@ import '../../core/state/map_pins_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/auth/auth_manager.dart';
 
+class CachedRadarPin {
+  final Offset offset;
+  final double distance;
+  final String label;
+  final bool isWithinRange;
+  final TextPainter textPainter;
+
+  CachedRadarPin({
+    required this.offset,
+    required this.distance,
+    required this.label,
+    required this.isWithinRange,
+    required this.textPainter,
+  });
+}
+
 class DisasterRadarView extends StatefulWidget {
   final LatLng currentLocation;
 
@@ -19,6 +35,12 @@ class DisasterRadarView extends StatefulWidget {
 class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   List<LocalSosAlert> _offlineAlerts = [];
+  List<CachedRadarPin> _cachedPins = [];
+  
+  // Cache for static elements
+  final List<TextPainter> _ringTextPainters = [];
+  final Map<String, TextPainter> _cardinalTextPainters = {};
+  TextPainter? _youTextPainter;
 
   @override
   void initState() {
@@ -30,6 +52,55 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
     
     MapPinsManager().addListener(_loadAlerts);
     _loadAlerts();
+    _initStaticTextPainters();
+  }
+
+  void _initStaticTextPainters() {
+    final ringLabels = ['100m', '500m', '1km'];
+    for (var label in ringLabels) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: Colors.tealAccent.withValues(alpha: 0.7),
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      _ringTextPainters.add(tp);
+    }
+
+    for (var label in ['N', 'S', 'E', 'W']) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+            color: Colors.tealAccent,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      _cardinalTextPainters[label] = tp;
+    }
+
+    _youTextPainter = TextPainter(
+      text: const TextSpan(
+        text: 'YOU',
+        style: TextStyle(
+          color: Colors.blue,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    _youTextPainter!.layout();
   }
 
   void _loadAlerts() {
@@ -45,6 +116,52 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
     super.dispose();
   }
 
+  void _recalculatePinProjections(Size size, List<LocalSosAlert> peerAlerts) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius = math.min(size.width, size.height) / 2 * 0.9;
+    final maxRangeMeters = 1200.0;
+    final distanceCalc = const Distance();
+
+    List<CachedRadarPin> newPins = [];
+
+    for (var alert in peerAlerts) {
+      final target = LatLng(alert.lat, alert.lng);
+      final dist = distanceCalc.as(LengthUnit.Meter, widget.currentLocation, target).toDouble();
+      final bearingDegrees = distanceCalc.bearing(widget.currentLocation, target);
+      final bearingRad = bearingDegrees * (math.pi / 180.0);
+      
+      final scale = maxRadius / maxRangeMeters;
+      final r = math.min(dist * scale, maxRadius); 
+      
+      final dx = center.dx + r * math.sin(bearingRad);
+      final dy = center.dy - r * math.cos(bearingRad);
+      
+      final label = 'SOS: ${alert.originalSenderName} (${dist.toInt()}m)';
+      
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+            color: Colors.redAccent, 
+            fontSize: 10, 
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+
+      newPins.add(CachedRadarPin(
+        offset: Offset(dx, dy),
+        distance: dist,
+        label: label,
+        isWithinRange: dist <= maxRangeMeters,
+        textPainter: tp,
+      ));
+    }
+    _cachedPins = newPins;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -53,12 +170,10 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
         final distanceCalc = const Distance();
         final rawAlerts = OfflineCacheManager.getUnsyncedAlerts();
         
-        // Strictly read REAL LocalSosAlert items and filter out user's own broadcast using originalDeviceId
         final peerAlerts = rawAlerts.where((a) {
           return a.originalDeviceId != AuthManager.deviceId;
         }).toList();
 
-        // Find nearest alert for the Tactical HUD
         LocalSosAlert? nearestAlert;
         double nearestDist = double.infinity;
         double nearestBearing = 0.0;
@@ -74,159 +189,163 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
         }
 
         return Container(
-          color: const Color(0xFF0D1117), // Tactical Dark Background
+          color: const Color(0xFF0D1117), 
           child: Stack(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return SizedBox.expand(
-                child: AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: RadarPainter(
-                        currentLocation: widget.currentLocation,
-                        alerts: peerAlerts,
-                        pulseValue: _pulseController.value,
-                        hasOwnSos: _offlineAlerts.length > peerAlerts.length, 
-                      ),
-                      size: Size(constraints.maxWidth, constraints.maxHeight),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-          
-          // Empty State: Scanning Overlay
-          if (peerAlerts.isEmpty)
-            Center(
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: 0.3 + (_pulseController.value * 0.7),
-                    child: const Text(
-                      "SCANNING LOCAL MESH\nFOR SOS SIGNALS...",
-                      style: TextStyle(
-                        color: Colors.tealAccent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        height: 1.5,
-                        shadows: [
-                          Shadow(color: Colors.tealAccent, blurRadius: 10)
-                        ]
-                      ),
-                      textAlign: TextAlign.center,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  _recalculatePinProjections(size, peerAlerts);
+
+                  return SizedBox.expand(
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: RadarPainter(
+                            cachedPins: _cachedPins,
+                            pulseValue: _pulseController.value,
+                            hasOwnSos: _offlineAlerts.length > peerAlerts.length,
+                            ringTextPainters: _ringTextPainters,
+                            cardinalTextPainters: _cardinalTextPainters,
+                            youTextPainter: _youTextPainter!,
+                          ),
+                          size: size,
+                        );
+                      },
                     ),
                   );
                 },
               ),
-            ),
-            
-          // Tactical Navigation HUD
-          if (nearestAlert != null)
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 40,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF161B22).withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.5), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.tealAccent.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    )
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Dynamic rotation arrow pointing towards SOS
-                    Transform.rotate(
-                      angle: nearestBearing * (math.pi / 180.0),
-                      child: const Icon(
-                        Icons.arrow_upward,
-                        color: Colors.tealAccent,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            nearestAlert.originalSenderName.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+              
+              if (peerAlerts.isEmpty)
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: 0.3 + (_pulseController.value * 0.7),
+                        child: const Text(
+                          "SCANNING LOCAL MESH\nFOR SOS SIGNALS...",
+                          style: TextStyle(
+                            color: Colors.tealAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2.0,
+                            height: 1.5,
+                            shadows: [
+                              Shadow(color: Colors.tealAccent, blurRadius: 10)
+                            ]
                           ),
-                          Text(
-                            '${nearestDist.toInt()}m AWAY',
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.tealAccent.withValues(alpha: 0.2),
-                        foregroundColor: Colors.tealAccent,
-                        side: const BorderSide(color: Colors.tealAccent),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Tracking ${nearestAlert!.originalSenderName}...')),
-                        );
-                      },
-                      child: const Text('TRACK'),
-                    ),
-                  ],
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ),
-        ],
-      ),
-    );
+                
+              if (nearestAlert != null)
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 40,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161B22).withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.5), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.tealAccent.withValues(alpha: 0.2),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Transform.rotate(
+                          angle: nearestBearing * (math.pi / 180.0),
+                          child: const Icon(
+                            Icons.arrow_upward,
+                            color: Colors.tealAccent,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                nearestAlert.originalSenderName.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${nearestDist.toInt()}m AWAY',
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent.withValues(alpha: 0.2),
+                            foregroundColor: Colors.tealAccent,
+                            side: const BorderSide(color: Colors.tealAccent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Tracking ${nearestAlert!.originalSenderName}...')),
+                            );
+                          },
+                          child: const Text('TRACK'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
       },
     );
   }
 }
 
 class RadarPainter extends CustomPainter {
-  final LatLng currentLocation;
-  final List<LocalSosAlert> alerts;
+  final List<CachedRadarPin> cachedPins;
   final double pulseValue;
   final bool hasOwnSos;
-  final Distance distanceCalc = const Distance();
+  final List<TextPainter> ringTextPainters;
+  final Map<String, TextPainter> cardinalTextPainters;
+  final TextPainter youTextPainter;
 
   RadarPainter({
-    required this.currentLocation,
-    required this.alerts,
+    required this.cachedPins,
     required this.pulseValue,
     required this.hasOwnSos,
+    required this.ringTextPainters,
+    required this.cardinalTextPainters,
+    required this.youTextPainter,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = math.min(size.width, size.height) / 2 * 0.9;
-    final maxRangeMeters = 1200.0;
 
     // Background Base
     final bgPaint = Paint()..color = const Color(0xFF0D1117);
@@ -246,50 +365,28 @@ class RadarPainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     final ringPercentages = [0.25, 0.55, 0.85];
-    final ringLabels = ['100m', '500m', '1km'];
     
     for (int i = 0; i < ringPercentages.length; i++) {
       final r = maxRadius * ringPercentages[i];
       canvas.drawCircle(center, r, ringPaint);
-      
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: ringLabels[i],
-          style: TextStyle(
-            color: Colors.tealAccent.withValues(alpha: 0.7),
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(center.dx + 5, center.dy - r - 15));
+      if (i < ringTextPainters.length) {
+        ringTextPainters[i].paint(canvas, Offset(center.dx + 5, center.dy - r - 15));
+      }
     }
 
     // Cardinal Markers
-    _drawCardinalMarker(canvas, 'N', Offset(center.dx - 4, center.dy - maxRadius - 20));
-    _drawCardinalMarker(canvas, 'S', Offset(center.dx - 4, center.dy + maxRadius + 8));
-    _drawCardinalMarker(canvas, 'E', Offset(center.dx + maxRadius + 8, center.dy - 7));
-    _drawCardinalMarker(canvas, 'W', Offset(center.dx - maxRadius - 20, center.dy - 7));
+    if (cardinalTextPainters['N'] != null) {
+      cardinalTextPainters['N']!.paint(canvas, Offset(center.dx - 4, center.dy - maxRadius - 20));
+      cardinalTextPainters['S']!.paint(canvas, Offset(center.dx - 4, center.dy + maxRadius + 8));
+      cardinalTextPainters['E']!.paint(canvas, Offset(center.dx + maxRadius + 8, center.dy - 7));
+      cardinalTextPainters['W']!.paint(canvas, Offset(center.dx - maxRadius - 20, center.dy - 7));
+    }
 
     // Volunteer center dot (Blue)
     canvas.drawCircle(center, 6, Paint()..color = Colors.blue);
     
     // "YOU" Label
-    final youPainter = TextPainter(
-      text: const TextSpan(
-        text: 'YOU',
-        style: TextStyle(
-          color: Colors.blue,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    youPainter.layout();
-    youPainter.paint(canvas, Offset(center.dx - (youPainter.width / 2), center.dy - 20));
+    youTextPainter.paint(canvas, Offset(center.dx - (youTextPainter.width / 2), center.dy - 20));
 
     // Own SOS pulse effect
     if (hasOwnSos) {
@@ -311,80 +408,16 @@ class RadarPainter extends CustomPainter {
       ..color = Colors.redAccent.withValues(alpha: 0.3 * (1 - pulseValue))
       ..style = PaintingStyle.fill;
 
-    for (var alert in alerts) {
-      final target = LatLng(alert.lat, alert.lng);
-      final dist = distanceCalc.as(LengthUnit.Meter, currentLocation, target).toDouble();
-      final bearing = distanceCalc.bearing(currentLocation, target);
+    for (var pin in cachedPins) {
+      // Pulsing outer halo
+      canvas.drawCircle(pin.offset, 8 + (pulseValue * 15), pulsePaint);
       
-      _drawSosPin(
-        canvas, center, maxRadius, maxRangeMeters, 
-        dist, bearing, 
-        alert.originalSenderName,
-        sosPaint, pulsePaint,
-      );
+      // Glowing red marker
+      canvas.drawCircle(pin.offset, 6, sosPaint);
+      
+      // Real Alert Badge
+      pin.textPainter.paint(canvas, Offset(pin.offset.dx - pin.textPainter.width / 2, pin.offset.dy + 12));
     }
-  }
-
-  void _drawCardinalMarker(Canvas canvas, String label, Offset position) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: Colors.tealAccent,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, position);
-  }
-
-  void _drawSosPin(
-    Canvas canvas, 
-    Offset center, 
-    double maxRadius, 
-    double maxRangeMeters,
-    double dist, 
-    double bearingDegrees,
-    String senderName,
-    Paint sosPaint,
-    Paint pulsePaint,
-  ) {
-    final bearingRad = bearingDegrees * (math.pi / 180.0);
-    
-    // Scale distance onto the radar radius
-    final scale = maxRadius / maxRangeMeters;
-    final r = math.min(dist * scale, maxRadius); // Clamp visually
-    
-    // North is locked to Top
-    final dx = center.dx + r * math.sin(bearingRad);
-    final dy = center.dy - r * math.cos(bearingRad);
-    
-    final dotCenter = Offset(dx, dy);
-
-    // Pulsing outer halo
-    canvas.drawCircle(dotCenter, 8 + (pulseValue * 15), pulsePaint);
-    
-    // Glowing red marker
-    canvas.drawCircle(dotCenter, 6, sosPaint);
-    
-    // Real Alert Badge
-    final label = 'SOS: $senderName (${dist.toInt()}m)';
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: Colors.redAccent, 
-          fontSize: 10, 
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(dx - textPainter.width / 2, dy + 12));
   }
 
   @override
