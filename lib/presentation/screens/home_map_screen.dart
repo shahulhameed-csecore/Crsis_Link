@@ -92,16 +92,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     });
   }
 
-  @override
-  void dispose() {
-    _heartbeatTimer?.cancel();
-    _sosSubscription?.cancel();
-    _connectivitySubscription?.cancel();
-    MapPinsManager().removeListener(_onPinsChanged);
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
   // Legacy fallback not needed, removed _onConnectivityChanged
 
   Future<void> _loadIgnoredIds() async {
@@ -235,6 +225,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     _heartbeatTimer?.cancel();
     MapPinsManager().removeListener(_onPinsChanged);
     _sosSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     // ignore: deprecated_member_use
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
     super.dispose();

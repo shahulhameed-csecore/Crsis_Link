@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/local_sos_alert.dart';
-
 class OfflineCacheManager {
   static const String _boxName = 'offline_sos_box';
 
