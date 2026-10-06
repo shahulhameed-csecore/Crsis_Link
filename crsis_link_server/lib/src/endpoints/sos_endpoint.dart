@@ -287,11 +287,11 @@ class SosEndpoint extends Endpoint {
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'RESOLVED', "isActive" = false 
-      WHERE "id" = $sosId AND "deviceId" = '$deviceId' AND "isActive" = true 
+      WHERE "id" = \$1 AND "deviceId" = \$2 AND "isActive" = true 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query);
+    final result = await session.db.unsafeQuery(query, parameters: [sosId, deviceId]);
     if (result.isEmpty) {
       return false; // Already resolved or wrong owner
     }
@@ -309,12 +309,12 @@ class SosEndpoint extends Endpoint {
     // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
     final query = '''
       UPDATE "sos_alert" 
-      SET "status" = 'CLAIMED', "volunteerDeviceId" = '$volunteerDeviceId', "verificationPin" = '$pin' 
-      WHERE "id" = $sosId AND "status" = 'OPEN' 
+      SET "status" = 'CLAIMED', "volunteerDeviceId" = \$1, "verificationPin" = \$2 
+      WHERE "id" = \$3 AND "status" = 'OPEN' 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query);
+    final result = await session.db.unsafeQuery(query, parameters: [volunteerDeviceId, pin, sosId]);
     if (result.isEmpty) {
       throw Exception('SOS was just claimed by another rescuer.');
     }
@@ -336,11 +336,11 @@ class SosEndpoint extends Endpoint {
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'COMPLETED', "isActive" = false 
-      WHERE "id" = $sosId AND "volunteerDeviceId" = '$volunteerDeviceId' AND "status" = 'CLAIMED' 
+      WHERE "id" = \$1 AND "volunteerDeviceId" = \$2 AND "status" = 'CLAIMED' 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query);
+    final result = await session.db.unsafeQuery(query, parameters: [sosId, volunteerDeviceId]);
     if (result.isEmpty) {
       throw Exception('SOS alert not found, or you are not the assigned volunteer.');
     }
@@ -358,11 +358,11 @@ class SosEndpoint extends Endpoint {
     final query = '''
       UPDATE "sos_alert" 
       SET "isRescuerVerified" = true 
-      WHERE "id" = $sosId AND "status" = 'CLAIMED' AND "verificationPin" = '$pin' AND "isRescuerVerified" = false 
+      WHERE "id" = \$1 AND "status" = 'CLAIMED' AND "verificationPin" = \$2 AND "isRescuerVerified" = false 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query);
+    final result = await session.db.unsafeQuery(query, parameters: [sosId, pin]);
     if (result.isEmpty) {
       throw Exception('Incorrect PIN, Invalid SOS Request, or already verified.');
     }
@@ -381,11 +381,11 @@ class SosEndpoint extends Endpoint {
     final query = '''
       UPDATE "sos_alert" 
       SET "isVisuallyVerified" = true 
-      WHERE "id" = $sosId AND "deviceId" = '$deviceId' AND "isVisuallyVerified" = false 
+      WHERE "id" = \$1 AND "deviceId" = \$2 AND "isVisuallyVerified" = false 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query);
+    final result = await session.db.unsafeQuery(query, parameters: [sosId, deviceId]);
     if (result.isEmpty) {
       return false; // Already verified or wrong owner
     }
