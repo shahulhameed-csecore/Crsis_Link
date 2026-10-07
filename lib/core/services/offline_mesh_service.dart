@@ -102,12 +102,14 @@ class OfflineMeshService {
         // 1. Aggressive Permission Requesting (Android 12+)
         bool hasPermissions = await requestPermissions();
         if (!hasPermissions) {
+          debugPrint('[P2P_DEBUG] Mesh Start Failed: Missing Permissions');
           _showDebugToast('Mesh Start Failed: Missing Location Permission');
           return false;
         }
 
         bool locationEnabled = await Geolocator.isLocationServiceEnabled();
         if (!locationEnabled) {
+          debugPrint('[P2P_DEBUG] Mesh Start Failed: Location Services OFF');
           _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
           return false;
         }
@@ -116,6 +118,7 @@ class OfflineMeshService {
       String shortId = AuthManager.deviceId;
       if (shortId.length > 31) shortId = shortId.substring(0, 31);
       
+      debugPrint('[P2P_DEBUG] Starting Mesh Network Logic...');
       _showDebugToast('Starting Mesh Network...');
 
       // 2. The P2P_CLUSTER Strategy

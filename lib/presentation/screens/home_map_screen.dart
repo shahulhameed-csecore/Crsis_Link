@@ -60,7 +60,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     // Instant offline detection via connectivity_plus
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (mounted) {
-        final connected = !results.contains(ConnectivityResult.none);
+        final connected = results.any((r) => r == ConnectivityResult.wifi || r == ConnectivityResult.mobile || r == ConnectivityResult.ethernet || r == ConnectivityResult.vpn);
         setState(() {
           _isConnected = connected;
         });
@@ -71,7 +71,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     // Check initial state immediately
     Connectivity().checkConnectivity().then((List<ConnectivityResult> results) {
       if (mounted) {
-        final connected = !results.contains(ConnectivityResult.none);
+        final connected = results.any((r) => r == ConnectivityResult.wifi || r == ConnectivityResult.mobile || r == ConnectivityResult.ethernet || r == ConnectivityResult.vpn);
         setState(() {
           _isConnected = connected;
         });
