@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/p2p_crypto_service.dart';
 
 class AuthManager {
   static late Client client;
@@ -20,23 +21,15 @@ class AuthManager {
 
     client = Client(serverUrl);
 
-    // Initialize Secure Device Identity and Profile
-    const secureStorage = FlutterSecureStorage();
+    // Ensure Crypto Service is ready
+    await P2pCryptoService().init();
+    
     final prefs = await SharedPreferences.getInstance();
     
-    // Secure Storage for deviceId (Threat Vector 4)
-    String? storedId = await secureStorage.read(key: 'secure_device_id');
-    if (storedId == null) {
-      if (prefs.containsKey('device_id')) {
-        storedId = prefs.getString('device_id');
-        await prefs.remove('device_id'); // Clear legacy insecure ID
-      } else {
-        storedId = 'dev_${const Uuid().v4()}';
-      }
-      await secureStorage.write(key: 'secure_device_id', value: storedId!);
-    }
-    deviceId = storedId;
-    debugPrint('MY DEVICE ID: $deviceId');
+    // Secure Identity Binding (Threat Vector P2P-02)
+    // The device identity is mathematically bound to the private key
+    deviceId = P2pCryptoService.deriveDeviceIdFromKey(P2pCryptoService().publicKey);
+    debugPrint('MY CRYPTOGRAPHIC DEVICE ID: $deviceId');
     
     // Non-sensitive data can stay in SharedPreferences
     String? storedName = prefs.getString('display_name');

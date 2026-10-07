@@ -255,18 +255,21 @@ class OfflineMeshService {
 
     for (final alert in unsynced) {
       try {
-        final payloadData = jsonEncode([{
-          "t": "SOS",
-          "i": alert.id,
-          "l": alert.lat,
-          "g": alert.lng,
-          "m": alert.message,
-          "v": alert.victimPhone,
-          "a": alert.approximateLocationText,
-          "d": alert.originalDeviceId,
-          "n": alert.originalSenderName,
-          "ts": alert.timestamp
-        }]);
+        final payloadData = jsonEncode({
+          "deviceId": AuthManager.deviceId,
+          "alerts": [{
+            "t": "SOS",
+            "i": alert.id,
+            "l": alert.lat,
+            "g": alert.lng,
+            "m": alert.message,
+            "v": alert.victimPhone,
+            "a": alert.approximateLocationText,
+            "d": alert.originalDeviceId,
+            "n": alert.originalSenderName,
+            "ts": alert.timestamp
+          }]
+        });
         
         final signature = await P2pCryptoService().signPayload(payloadData);
         final envelope = jsonEncode({
@@ -292,18 +295,21 @@ class OfflineMeshService {
   }
 
   Future<void> broadcastNewAlert(LocalSosAlert alert) async {
-    final payloadData = jsonEncode([{
-      "t": "SOS",
-      "i": alert.id,
-      "l": alert.lat,
-      "g": alert.lng,
-      "m": alert.message,
-      "v": alert.victimPhone,
-      "a": alert.approximateLocationText,
-      "d": alert.originalDeviceId,
-      "n": alert.originalSenderName,
-      "ts": alert.timestamp
-    }]);
+    final payloadData = jsonEncode({
+      "deviceId": AuthManager.deviceId,
+      "alerts": [{
+        "t": "SOS",
+        "i": alert.id,
+        "l": alert.lat,
+        "g": alert.lng,
+        "m": alert.message,
+        "v": alert.victimPhone,
+        "a": alert.approximateLocationText,
+        "d": alert.originalDeviceId,
+        "n": alert.originalSenderName,
+        "ts": alert.timestamp
+      }]
+    });
     
     final signature = await P2pCryptoService().signPayload(payloadData);
     final envelope = jsonEncode({
@@ -341,6 +347,7 @@ class OfflineMeshService {
           final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
           _telemetrySequence++;
           final payloadData = jsonEncode({
+            "deviceId": AuthManager.deviceId,
             "t": "LOC",
             "i": ownActiveAlert.id,
             "l": position.latitude,
@@ -371,19 +378,6 @@ class OfflineMeshService {
     _telemetryTimer = null;
   }
 
-  Future<void> broadcastNukeCommand() async {
-    final payloadStr = jsonEncode({"command": "NUKE_MESH"});
-    final bytes = Uint8List.fromList(utf8.encode(payloadStr));
-    
-    for (final peerId in _connectedEndpoints) {
-      try {
-        await Nearby().sendBytesPayload(peerId, bytes);
-      } catch (e) {
-        debugPrint('Failed to broadcast nuke command to peer $peerId: $e');
-      }
-    }
-  }
-
   // 5. Receiving and Processing
   Future<void> _handleIncomingPayload(String endpointId, Payload payload) async {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
@@ -391,26 +385,34 @@ class OfflineMeshService {
         final str = utf8.decode(payload.bytes!);
         final dynamic envelopeData = jsonDecode(str);
         
-        dynamic decodedData;
-        
-        if (envelopeData is Map && envelopeData.containsKey('p') && envelopeData.containsKey('k') && envelopeData.containsKey('s')) {
-          final String payloadStr = envelopeData['p'];
-          final String pubKey = envelopeData['k'];
-          final String signature = envelopeData['s'];
-          
-          final isValid = await P2pCryptoService().verifyPayload(payloadStr, pubKey, signature);
-          if (!isValid) {
-            debugPrint('[P2P_DEBUG] CRITICAL: Signature verification failed! Packet dropped (Potential spoofing/tampering).');
-            return;
-          }
-          
-          decodedData = jsonDecode(payloadStr);
-        } else {
-          // Fallback for legacy unsecured packets or NUKE_MESH debug commands
-          decodedData = envelopeData;
+        if (envelopeData is! Map || !envelopeData.containsKey('p') || !envelopeData.containsKey('k') || !envelopeData.containsKey('s')) {
+          debugPrint('[P2P_SECURITY] Dropping unauthenticated or legacy non-signed packet.');
+          return;
         }
 
-        if (decodedData is Map && (decodedData['type'] == 'LOCATION_UPDATE' || decodedData['t'] == 'LOC')) {
+        final String payloadStr = envelopeData['p'];
+        final String pubKey = envelopeData['k'];
+        final String signature = envelopeData['s'];
+        
+        final isValid = await P2pCryptoService().verifyPayload(payloadStr, pubKey, signature);
+        if (!isValid) {
+          debugPrint('[P2P_DEBUG] CRITICAL: Signature verification failed! Packet dropped (Potential spoofing/tampering).');
+          return;
+        }
+        
+        final decodedData = jsonDecode(payloadStr);
+        if (decodedData is! Map || !decodedData.containsKey('deviceId')) {
+          debugPrint('[P2P_DEBUG] CRITICAL: Missing deviceId in payload!');
+          return;
+        }
+
+        final expectedDeviceId = P2pCryptoService.deriveDeviceIdFromKey(pubKey);
+        if (decodedData['deviceId'] != expectedDeviceId) {
+          debugPrint('[P2P_DEBUG] CRITICAL: Identity Spoofing Detected! Payload deviceId does not match derived public key.');
+          return;
+        }
+
+        if (decodedData['type'] == 'LOCATION_UPDATE' || decodedData['t'] == 'LOC') {
           final String alertId = decodedData['id'] ?? decodedData['i'];
           final double lat = decodedData['lat'] ?? decodedData['l'];
           final double lng = decodedData['lng'] ?? decodedData['g'];
@@ -442,6 +444,7 @@ class OfflineMeshService {
             // Relay to other peers with decremented hop count
             final relayedData = Map<String, dynamic>.from(decodedData);
             relayedData['hop'] = hops - 1;
+            relayedData['deviceId'] = AuthManager.deviceId;
             
             final relayedPayloadStr = jsonEncode(relayedData);
             final relayedSignature = await P2pCryptoService().signPayload(relayedPayloadStr);
@@ -459,18 +462,9 @@ class OfflineMeshService {
           return;
         }
 
-        if (decodedData is Map && decodedData['command'] == 'NUKE_MESH') {
-          if (kDebugMode && decodedData['adminKey'] == AuthManager.deviceId) {
-            debugPrint('Authenticated debug cache reset initiated.');
-            await OfflineCacheManager.clearEntireCache();
-            MapPinsManager().setPins([]);
-          }
-          return;
-        }
-
-        if (decodedData is! List) return;
+        if (!decodedData.containsKey('alerts')) return;
         
-        final List<dynamic> dataList = decodedData;
+        final List<dynamic> dataList = decodedData['alerts'];
         bool hasNewData = false;
 
         for (var item in dataList) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 class P2pCryptoService {
@@ -39,6 +40,13 @@ class P2pCryptoService {
   }
 
   String get publicKey => _publicKeyCache ?? '';
+
+  static String deriveDeviceIdFromKey(String publicKeyBase64) {
+    final bytes = base64Decode(publicKeyBase64);
+    final hash = sha256.convert(bytes).bytes;
+    final hexString = hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    return 'dev_${hexString.substring(0, 16)}';
+  }
 
   Future<String> signPayload(String payloadString) async {
     if (_keyPair == null) return '';

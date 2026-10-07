@@ -70,8 +70,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     await prefs.remove('ignoredSosIds');
     await prefs.remove('alertsHistory'); // Just to be safe
     
-    // Broadcast nuke command to any connected mesh peers
-    await OfflineMeshService().broadcastNukeCommand();
+    // NUKE_MESH was removed for security reasons
     
     MapPinsManager().setPins([]);
     if (mounted) {
