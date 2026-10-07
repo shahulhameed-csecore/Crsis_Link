@@ -55,7 +55,7 @@ class _SosDetailsBottomSheetState extends State<SosDetailsBottomSheet> {
     final bool isClaimed = alert.status == 'CLAIMED';
 
     return PopScope(
-      canPop: false,
+      canPop: !isSubmitting,
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,

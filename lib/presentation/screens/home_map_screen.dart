@@ -1433,12 +1433,12 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       isScrollControlled: true,
       builder: (ctx) {
-        return PopScope(
-          canPop: false,
-          child: StatefulBuilder(
-            builder: (ctx, setModalState) {
-              final bool isClaimed = alert.status == 'CLAIMED';
-            return Padding(
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final bool isClaimed = alert.status == 'CLAIMED';
+            return PopScope(
+              canPop: !isSubmitting,
+              child: Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
                 left: 24,
@@ -1787,9 +1787,9 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                 ],
               ),
             ),
+            ),
             );
-            },
-          ),
+          },
         );
       },
     ).whenComplete(() {
