@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/offline_cache_manager.dart';
 
 enum AlertType { sos, accepted, resolved, ignored }
 
@@ -64,10 +65,19 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
 
   Future<void> _loadFromPrefs() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final List<String>? jsonList = prefs.getStringList(_prefsKey);
+      final box = OfflineCacheManager.getNotificationsBox();
+      final List<String>? jsonList = box.get(_prefsKey)?.cast<String>();
       if (jsonList != null) {
         value = jsonList.map((str) => AlertNotification.fromJson(jsonDecode(str))).toList();
+      } else {
+        // Migration: check if legacy unencrypted prefs exist and migrate
+        final prefs = await SharedPreferences.getInstance();
+        final List<String>? legacyList = prefs.getStringList(_prefsKey);
+        if (legacyList != null) {
+          value = legacyList.map((str) => AlertNotification.fromJson(jsonDecode(str))).toList();
+          await box.put(_prefsKey, legacyList);
+          await prefs.remove(_prefsKey);
+        }
       }
     } catch (e) {
       debugPrint('Failed to load alerts history: $e');
@@ -76,9 +86,9 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
 
   Future<void> _saveToPrefs(List<AlertNotification> list) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final box = OfflineCacheManager.getNotificationsBox();
       final jsonList = list.map((n) => jsonEncode(n.toJson())).toList();
-      await prefs.setStringList(_prefsKey, jsonList);
+      await box.put(_prefsKey, jsonList);
     } catch (e) {
       debugPrint('Failed to save alerts history: $e');
     }
@@ -180,6 +190,11 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
 
   Future<void> clearAll() async {
     value = [];
+    try {
+      final box = OfflineCacheManager.getNotificationsBox();
+      await box.delete(_prefsKey);
+    } catch (_) {}
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
   }

@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/local_sos_alert.dart';
 class OfflineCacheManager {
   static const String _boxName = 'offline_sos_box';
+  static const String _notificationsBoxName = 'secure_alerts_history';
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -34,6 +35,18 @@ class OfflineCacheManager {
       _boxName,
       encryptionCipher: HiveAesCipher(encryptionKeyUint8List),
     );
+    
+    await Hive.openBox<String>(
+      _notificationsBoxName,
+      encryptionCipher: HiveAesCipher(encryptionKeyUint8List),
+    );
+  }
+
+  static Box<String> getNotificationsBox() {
+    if (!Hive.isBoxOpen(_notificationsBoxName)) {
+      throw StateError('Notifications Box is not open.');
+    }
+    return Hive.box<String>(_notificationsBoxName);
   }
 
   static Box<LocalSosAlert> get _box {
@@ -109,6 +122,9 @@ class OfflineCacheManager {
 
   static Future<void> clearEntireCache() async {
     await _box.clear();
+    if (Hive.isBoxOpen(_notificationsBoxName)) {
+      await Hive.box<String>(_notificationsBoxName).clear();
+    }
   }
 }
 

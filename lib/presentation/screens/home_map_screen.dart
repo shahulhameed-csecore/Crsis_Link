@@ -487,31 +487,25 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                       const SizedBox(height: 32),
                       
                       // Action Buttons
-                      Row(
+                      Column(
                         children: [
-                          Expanded(
-                            flex: 1,
-                            child: TextButton(
-                              onPressed: () {
-                                final alertId = alert.clientAlertId;
-                                if (alertId == null) return;
-                                setState(() {
-                                  _ignoredSosIds.add(alertId);
-                                  MapPinsManager().removePin(alertId);
-                                });
-                                _saveIgnoredIds();
-                                AlertsManager().addIgnoredAlert(alertId, alert.senderName);
-                                Navigator.pop(ctx);
-                              },
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.grey,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 1,
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                  },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.grey,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                  ),
+                                  child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ),
                               ),
-                              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
+                              const SizedBox(width: 16),
                           Expanded(
                             flex: 2,
                             child: ElevatedButton(
@@ -564,16 +558,53 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          final alertId = alert.clientAlertId;
+                          if (alertId == null) return;
+                          showDialog(
+                            context: ctx,
+                            builder: (dialogCtx) => AlertDialog(
+                              backgroundColor: const Color(0xFF1A1A1A),
+                              title: const Text('Hide Alert?', style: TextStyle(color: Colors.white)),
+                              content: const Text('Hide this alert from your radar?', style: TextStyle(color: Colors.white70)),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogCtx),
+                                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _ignoredSosIds.add(alertId);
+                                      MapPinsManager().removePin(alertId);
+                                    });
+                                    _saveIgnoredIds();
+                                    AlertsManager().addIgnoredAlert(alertId, alert.senderName);
+                                    Navigator.pop(dialogCtx);
+                                    Navigator.pop(ctx);
+                                  },
+                                  child: const Text('Hide', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: const Text('Ignore & Hide from Map', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
                     ],
                   ),
-                ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
-  }
+  },
+);
+}
 
   void _showSosModal(LatLng position) {
     final TextEditingController messageController = TextEditingController();
