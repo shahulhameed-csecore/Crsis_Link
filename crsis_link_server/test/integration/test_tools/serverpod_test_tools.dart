@@ -624,6 +624,7 @@ class _SosEndpoint {
     String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
+    String? clientAlertId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -646,6 +647,7 @@ class _SosEndpoint {
             'victimPhone': victimPhone,
             'photoBase64': photoBase64,
             'approximateLocationText': approximateLocationText,
+            'clientAlertId': clientAlertId,
           }),
           serializationManager: _serializationManager,
         );

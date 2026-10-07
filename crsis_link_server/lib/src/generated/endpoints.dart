@@ -387,6 +387,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -403,6 +408,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['victimPhone'],
                 params['photoBase64'],
                 params['approximateLocationText'],
+                params['clientAlertId'],
               ),
         ),
         'getActiveAlerts': _i1.MethodConnector(

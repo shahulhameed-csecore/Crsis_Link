@@ -305,6 +305,7 @@ class EndpointSos extends _i2.EndpointRef {
     String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
+    String? clientAlertId,
   ) => caller.callServerEndpoint<_i5.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
@@ -318,6 +319,7 @@ class EndpointSos extends _i2.EndpointRef {
       'victimPhone': victimPhone,
       'photoBase64': photoBase64,
       'approximateLocationText': approximateLocationText,
+      'clientAlertId': clientAlertId,
     },
   );
 
