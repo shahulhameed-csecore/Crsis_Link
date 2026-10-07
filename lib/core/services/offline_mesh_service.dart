@@ -11,6 +11,8 @@ import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
 import '../state/map_pins_manager.dart';
 import '../state/alerts_manager.dart';
+import 'dart:async';
+
 class OfflineMeshService {
   static final OfflineMeshService _instance = OfflineMeshService._internal();
   factory OfflineMeshService() => _instance;
@@ -20,6 +22,7 @@ class OfflineMeshService {
   final String _serviceId = "com.crsis_link.mesh";
   final List<String> _connectedEndpoints = [];
   bool _isOfflineModeEnabled = false;
+  Timer? _telemetryTimer;
   
   bool get isOfflineModeEnabled => _isOfflineModeEnabled;
 
@@ -40,14 +43,16 @@ class OfflineMeshService {
     _isToggling = true;
     
     try {
-      _isOfflineModeEnabled = enable;
       if (enable) {
-        await startMesh();
+        bool success = await startMesh();
+        _isOfflineModeEnabled = success;
       } else {
         await Nearby().stopAdvertising();
         await Nearby().stopDiscovery();
         Nearby().stopAllEndpoints();
         _connectedEndpoints.clear();
+        _stopTelemetryBroadcast();
+        _isOfflineModeEnabled = false;
       }
     } finally {
       _isToggling = false;
@@ -64,28 +69,29 @@ class OfflineMeshService {
       Permission.nearbyWifiDevices,
     ].request();
 
-    bool allGranted = true;
+    bool hasEssential = await Permission.location.isGranted;
     statuses.forEach((permission, status) {
       if (!status.isGranted) {
-        debugPrint('Mesh Permission missing: $permission');
-        allGranted = false;
+        debugPrint('[P2P_DEBUG] Permission missing: $permission');
       }
     });
 
-    return allGranted;
+    return hasEssential;
   }
 
-  Future<void> startMesh() async {
+  Future<bool> startMesh() async {
     try {
       // 1. Aggressive Permission Requesting (Android 12+)
       bool hasPermissions = await requestPermissions();
       if (!hasPermissions) {
-        _showDebugToast('Mesh Start Failed: Missing Permissions');
+        _showDebugToast('Mesh Start Failed: Missing Location Permission');
+        return false;
       }
 
       bool locationEnabled = await Geolocator.isLocationServiceEnabled();
       if (!locationEnabled) {
         _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
+        return false;
       }
 
       String shortId = AuthManager.deviceId;
@@ -99,13 +105,20 @@ class OfflineMeshService {
         _strategy,
         onConnectionInitiated: (id, info) async {
           _showDebugToast('Connection Initiated with $id');
+          debugPrint('[P2P_DEBUG] startAdvertising: Connection Initiated with $id (name: ${info.endpointName})');
           // 3. The Two-Way Handshake (Auto-Accept)
           try {
-            await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-              _handleIncomingPayload(endpointId, payload);
-            });
+            await Nearby().acceptConnection(
+              id, 
+              onPayLoadRecieved: (endpointId, payload) {
+                _handleIncomingPayload(endpointId, payload);
+              },
+              onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
+                debugPrint('[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}');
+              }
+            );
           } catch (e) {
-            debugPrint('Hardware fault or security rejection during accept: $e');
+            debugPrint('[P2P_DEBUG] Hardware fault or security rejection during accept: $e');
           }
         },
         onConnectionResult: (id, status) {
@@ -129,9 +142,10 @@ class OfflineMeshService {
         _strategy,
         onEndpointFound: (id, name, serviceId) async {
           _showDebugToast('Discovered peer $name ($id)');
+          debugPrint('[P2P_DEBUG] Discovered peer $name ($id)');
           // Prevent mutual request collision: only one device initiates connection
-          if (shortId.compareTo(name) > 0) {
-            debugPrint('Yielding connection request to peer $name to avoid collision');
+          if (shortId.compareTo(name) >= 0) {
+            debugPrint('[P2P_DEBUG] Yielding connection request to peer $name to avoid collision');
             return;
           }
           
@@ -139,16 +153,24 @@ class OfflineMeshService {
           
           try {
             _showDebugToast('Requesting connection to $name');
+            debugPrint('[P2P_DEBUG] Requesting connection to $name ($id)');
             await Nearby().requestConnection(
               shortId,
               id,
               onConnectionInitiated: (id, info) async {
+                debugPrint('[P2P_DEBUG] requestConnection: Connection Initiated with $id');
                 try {
-                  await Nearby().acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {
-                    _handleIncomingPayload(endpointId, payload);
-                  });
+                  await Nearby().acceptConnection(
+                    id, 
+                    onPayLoadRecieved: (endpointId, payload) {
+                      _handleIncomingPayload(endpointId, payload);
+                    },
+                    onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
+                      debugPrint('[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}');
+                    }
+                  );
                 } catch (e) {
-                  debugPrint('Hardware fault during accept: $e');
+                  debugPrint('[P2P_DEBUG] Hardware fault during accept: $e');
                 }
               },
               onConnectionResult: (id, status) {
@@ -168,12 +190,18 @@ class OfflineMeshService {
             debugPrint('Hardware fault during request: $e');
           }
         },
-        onEndpointLost: (id) {},
+        onEndpointLost: (id) {
+          debugPrint('[P2P_DEBUG] Endpoint lost: $id');
+        },
         serviceId: _serviceId,
       );
+      debugPrint('[P2P_DEBUG] Mesh started successfully');
+      _startTelemetryBroadcast();
+      return true;
     } catch (e) {
       _showDebugToast("Mesh start failed: $e");
-      debugPrint("Mesh start failed: $e");
+      debugPrint("[P2P_DEBUG] Mesh start failed: $e");
+      return false;
     }
   }
 
@@ -205,11 +233,43 @@ class OfflineMeshService {
     for (final peerId in _connectedEndpoints) {
       try {
         _showDebugToast('Transmitting SOS to $peerId');
-        await Nearby().sendBytesPayload(peerId, bytes).timeout(const Duration(seconds: 3));
+        debugPrint('[P2P_DEBUG] Transmitting SOS to $peerId');
+        await Nearby().sendBytesPayload(peerId, bytes);
       } catch (e) {
-        debugPrint('Failed to broadcast alert to peer $peerId: $e');
+        debugPrint('[P2P_DEBUG] Failed to broadcast alert to peer $peerId: $e');
       }
     }
+  }
+
+  void _startTelemetryBroadcast() {
+    _telemetryTimer?.cancel();
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (timer) async {
+      try {
+        final alerts = OfflineCacheManager.getUnsyncedAlerts();
+        final ownActiveAlert = alerts.where((a) => a.originalDeviceId == AuthManager.deviceId).firstOrNull;
+        if (ownActiveAlert != null && _connectedEndpoints.isNotEmpty) {
+          final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+          final payloadStr = jsonEncode({
+            "type": "LOCATION_UPDATE",
+            "id": ownActiveAlert.id,
+            "lat": position.latitude,
+            "lng": position.longitude,
+            "timestamp": DateTime.now().millisecondsSinceEpoch,
+          });
+          final bytes = Uint8List.fromList(utf8.encode(payloadStr));
+          for (final peerId in _connectedEndpoints) {
+            await Nearby().sendBytesPayload(peerId, bytes);
+          }
+        }
+      } catch (e) {
+        debugPrint('[P2P_DEBUG] Telemetry error: $e');
+      }
+    });
+  }
+
+  void _stopTelemetryBroadcast() {
+    _telemetryTimer?.cancel();
+    _telemetryTimer = null;
   }
 
   Future<void> broadcastNukeCommand() async {
@@ -231,6 +291,25 @@ class OfflineMeshService {
       try {
         final str = utf8.decode(payload.bytes!);
         final dynamic decodedData = jsonDecode(str);
+
+        if (decodedData is Map && decodedData['type'] == 'LOCATION_UPDATE') {
+          final String alertId = decodedData['id'];
+          final double lat = decodedData['lat'];
+          final double lng = decodedData['lng'];
+          
+          final existing = OfflineCacheManager.getAlert(alertId);
+          if (existing != null) {
+            existing.lat = lat;
+            existing.lng = lng;
+            existing.timestamp = decodedData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
+            await OfflineCacheManager.saveAlert(existing);
+            // Re-sync with other peers
+            for (final peerId in _connectedEndpoints) {
+              if (peerId != endpointId) await Nearby().sendBytesPayload(peerId, payload.bytes!);
+            }
+          }
+          return;
+        }
 
         if (decodedData is Map && decodedData['command'] == 'NUKE_MESH') {
           if (kDebugMode && decodedData['adminKey'] == AuthManager.deviceId) {

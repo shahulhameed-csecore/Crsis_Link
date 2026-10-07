@@ -6,6 +6,7 @@ import '../../core/models/local_sos_alert.dart';
 import '../../core/state/map_pins_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/auth/auth_manager.dart';
+import '../screens/rescue_compass_screen.dart';
 
 class CachedRadarPin {
   final Offset offset;
@@ -307,8 +308,11 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Tracking ${nearestAlert!.originalSenderName}...')),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RescueCompassScreen(victimAlert: nearestAlert!),
+                              ),
                             );
                           },
                           child: const Text('TRACK'),

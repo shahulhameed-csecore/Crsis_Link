@@ -61,6 +61,10 @@ class OfflineCacheManager {
     return _box.containsKey(id);
   }
 
+  static LocalSosAlert? getAlert(String id) {
+    return _box.get(id);
+  }
+
   static Future<void> clearEntireCache() async {
     await _box.clear();
   }

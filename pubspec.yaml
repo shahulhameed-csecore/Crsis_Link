@@ -63,6 +63,7 @@ dependencies:
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^11.2.0
   flutter_background_service: ^5.1.0
+  flutter_compass: ^0.8.1
 
 dev_dependencies:
   flutter_test:
