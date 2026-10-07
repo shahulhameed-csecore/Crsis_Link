@@ -28,6 +28,8 @@ class OfflineMeshService {
   Timer? _dutyCycleTimer;
   bool _isDiscovering = false;
   
+  int _telemetrySequence = 0;
+  final Set<String> _processedPacketIds = <String>{};
   bool get isOfflineModeEnabled => _isOfflineModeEnabled;
 
   void _showDebugToast(String message) {
@@ -337,12 +339,15 @@ class OfflineMeshService {
             return;
           }
           final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+          _telemetrySequence++;
           final payloadData = jsonEncode({
             "t": "LOC",
             "i": ownActiveAlert.id,
             "l": position.latitude,
             "g": position.longitude,
             "ts": DateTime.now().millisecondsSinceEpoch,
+            "seq": _telemetrySequence,
+            "hop": 4,
           });
           final signature = await P2pCryptoService().signPayload(payloadData);
           final envelope = jsonEncode({
@@ -410,16 +415,45 @@ class OfflineMeshService {
           final double lat = decodedData['lat'] ?? decodedData['l'];
           final double lng = decodedData['lng'] ?? decodedData['g'];
           final int ts = decodedData['timestamp'] ?? decodedData['ts'] ?? DateTime.now().millisecondsSinceEpoch;
+          final int incomingSeq = decodedData['seq'] ?? 0;
+          final int hops = decodedData['hop'] ?? 0;
+          
+          final String packetKey = "${alertId}_$incomingSeq";
+          if (_processedPacketIds.contains(packetKey)) return;
+          
+          _processedPacketIds.add(packetKey);
+          if (_processedPacketIds.length > 500) {
+            _processedPacketIds.remove(_processedPacketIds.first);
+          }
+          
+          if (hops <= 0) return;
           
           final existing = OfflineCacheManager.getAlert(alertId);
           if (existing != null) {
+            if (ts <= existing.timestamp && incomingSeq <= existing.sequenceNumber) {
+              return; // Ignore stale or delayed packet
+            }
             existing.lat = lat;
             existing.lng = lng;
             existing.timestamp = ts;
+            existing.sequenceNumber = incomingSeq;
             await OfflineCacheManager.saveAlert(existing);
-            // Re-sync with other peers
+            
+            // Relay to other peers with decremented hop count
+            final relayedData = Map<String, dynamic>.from(decodedData);
+            relayedData['hop'] = hops - 1;
+            
+            final relayedPayloadStr = jsonEncode(relayedData);
+            final relayedSignature = await P2pCryptoService().signPayload(relayedPayloadStr);
+            final relayedEnvelope = jsonEncode({
+              "p": relayedPayloadStr,
+              "k": P2pCryptoService().publicKey,
+              "s": relayedSignature,
+            });
+            final relayedBytes = Uint8List.fromList(utf8.encode(relayedEnvelope));
+            
             for (final peerId in _connectedEndpoints) {
-              if (peerId != endpointId) await Nearby().sendBytesPayload(peerId, payload.bytes!);
+              if (peerId != endpointId) await Nearby().sendBytesPayload(peerId, relayedBytes);
             }
           }
           return;

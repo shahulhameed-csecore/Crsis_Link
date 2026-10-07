@@ -10,6 +10,7 @@ class LocalSosAlert extends HiveObject {
   final String originalDeviceId;
   final String originalSenderName;
   int timestamp;
+  int sequenceNumber;
   bool isSynced;
 
   LocalSosAlert({
@@ -22,6 +23,7 @@ class LocalSosAlert extends HiveObject {
     required this.originalDeviceId,
     required this.originalSenderName,
     required this.timestamp,
+    this.sequenceNumber = 0,
     this.isSynced = false,
   });
 
@@ -36,6 +38,7 @@ class LocalSosAlert extends HiveObject {
       'originalDeviceId': originalDeviceId,
       'originalSenderName': originalSenderName,
       'timestamp': timestamp,
+      'sequenceNumber': sequenceNumber,
       'isSynced': isSynced,
     };
   }
@@ -51,6 +54,7 @@ class LocalSosAlert extends HiveObject {
       originalDeviceId: json['originalDeviceId'] ?? 'unknown_device',
       originalSenderName: json['originalSenderName'] ?? 'Unknown Sender',
       timestamp: json['timestamp'],
+      sequenceNumber: json['sequenceNumber'] ?? 0,
       isSynced: json['isSynced'] ?? false,
     );
   }
