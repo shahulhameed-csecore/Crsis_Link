@@ -12,6 +12,7 @@ import '../auth/auth_manager.dart';
 import '../state/map_pins_manager.dart';
 import '../state/alerts_manager.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 class OfflineMeshService {
   static final OfflineMeshService _instance = OfflineMeshService._internal();
@@ -198,6 +199,10 @@ class OfflineMeshService {
       debugPrint('[P2P_DEBUG] Mesh started successfully');
       _startTelemetryBroadcast();
       return true;
+    } on PlatformException catch (e) {
+      _showDebugToast("Mesh hardware fault: ${e.message}");
+      debugPrint("[P2P_DEBUG] Mesh platform fault: $e");
+      return false;
     } catch (e) {
       _showDebugToast("Mesh start failed: $e");
       debugPrint("[P2P_DEBUG] Mesh start failed: $e");
@@ -231,6 +236,8 @@ class OfflineMeshService {
         } else {
           debugPrint('Alert payload too large, skipping sync for peer $endpointId.');
         }
+      } on PlatformException catch (e) {
+        debugPrint('Platform fault syncing mesh alert: $e');
       } catch (e) {
         debugPrint('Failed to sync mesh database alert with peer $endpointId: $e');
       }
@@ -257,6 +264,8 @@ class OfflineMeshService {
         _showDebugToast('Transmitting SOS to $peerId');
         debugPrint('[P2P_DEBUG] Transmitting SOS to $peerId');
         await Nearby().sendBytesPayload(peerId, bytes);
+      } on PlatformException catch (e) {
+        debugPrint('[P2P_DEBUG] Platform fault broadcasting alert to $peerId: $e');
       } catch (e) {
         debugPrint('[P2P_DEBUG] Failed to broadcast alert to peer $peerId: $e');
       }
@@ -426,8 +435,8 @@ class OfflineMeshService {
             }
           }
         }
-      } catch (e) {
-        debugPrint('Error decoding mesh payload: $e');
+      } catch (e, stack) {
+        debugPrint('Error decoding mesh payload: $e\n$stack');
       }
     }
   }

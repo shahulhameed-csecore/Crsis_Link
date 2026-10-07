@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/services/offline_cache_manager.dart';
 import '../../core/models/local_sos_alert.dart';
-import '../../core/state/map_pins_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/auth/auth_manager.dart';
 import '../screens/rescue_compass_screen.dart';

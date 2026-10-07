@@ -51,6 +51,17 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
             }
           });
         }
+      }, onError: (error) {
+        debugPrint('[RescueCompass] GPS Stream Error: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('GPS Signal Lost or Denied. Please check location settings.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
       });
 
       // 2. Setup Magnetometer Stream

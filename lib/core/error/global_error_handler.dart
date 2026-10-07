@@ -1,17 +1,44 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class GlobalErrorHandler {
+  static const String _crashLogKey = 'crisis_link_crash_logs';
+  
+  static void recordError(Object error, StackTrace? stackTrace) async {
+    try {
+      AppLogger.error('Recorded Error: $error', error: error, stackTrace: stackTrace);
+      
+      final prefs = await SharedPreferences.getInstance();
+      List<String> logs = prefs.getStringList(_crashLogKey) ?? [];
+      
+      final crashEntry = {
+        'timestamp': DateTime.now().toIso8601String(),
+        'error': error.toString(),
+        'stack': stackTrace?.toString() ?? 'No stack trace',
+      };
+      
+      logs.add(jsonEncode(crashEntry));
+      if (logs.length > 20) {
+        logs = logs.sublist(logs.length - 20); // Keep only the last 20
+      }
+      
+      await prefs.setStringList(_crashLogKey, logs);
+    } catch (e) {
+      debugPrint('Failed to record crash log: $e');
+    }
+  }
+
   static void initialize() {
     // 1. Handle Flutter framework errors (e.g., layout, rendering)
     FlutterError.onError = (FlutterErrorDetails details) {
       AppLogger.error('Flutter Error: ${details.exception}',
           error: details.exception, stackTrace: details.stack);
+      recordError(details.exception, details.stack);
       
-      if (kReleaseMode) {
-        // Here you would log to Crashlytics / Serverpod / Sentry in production
-      } else {
+      if (!kReleaseMode) {
         FlutterError.presentError(details);
       }
     };
@@ -20,6 +47,7 @@ class GlobalErrorHandler {
     PlatformDispatcher.instance.onError = (error, stack) {
       AppLogger.error('Uncaught Async Error: $error',
           error: error, stackTrace: stack);
+      recordError(error, stack);
       return true; // Return true prevents default unhandled exception crash
     };
 

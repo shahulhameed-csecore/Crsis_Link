@@ -9,6 +9,7 @@ import 'core/services/network_sync_manager.dart';
 import 'package:flutter/services.dart';
 
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'core/services/offline_mesh_service.dart';
 
@@ -63,8 +64,11 @@ void main() async {
   NetworkSyncManager().uploadPendingAlerts();
   
   await initializeService();
-  
-  runApp(const CrsisLinkApp());
+  runZonedGuarded(() {
+    runApp(const CrsisLinkApp());
+  }, (error, stack) {
+    GlobalErrorHandler.recordError(error, stack);
+  });
 }
 
 class CrsisLinkApp extends StatelessWidget {
