@@ -10,7 +10,6 @@ import '../../core/services/offline_cache_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/offline_mesh_service.dart';
 
-
 class RescueCompassScreen extends StatefulWidget {
   final LocalSosAlert victimAlert;
 
@@ -20,10 +19,11 @@ class RescueCompassScreen extends StatefulWidget {
   State<RescueCompassScreen> createState() => _RescueCompassScreenState();
 }
 
-class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsBindingObserver {
+class _RescueCompassScreenState extends State<RescueCompassScreen>
+    with WidgetsBindingObserver {
   StreamSubscription<Position>? _positionStream;
   StreamSubscription<CompassEvent>? _compassStream;
-  
+
   LatLng? _currentLocation;
   double _currentHeading = 0.0;
   bool _hasCompassHardware = true;
@@ -40,9 +40,11 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      OfflineMeshService().resumeDutyCycle(); // Reactivate mesh when backgrounded
+      OfflineMeshService()
+          .resumeDutyCycle(); // Reactivate mesh when backgrounded
     } else if (state == AppLifecycleState.resumed) {
-      OfflineMeshService().pauseDutyCycle(); // Prioritize compass again when opened
+      OfflineMeshService()
+          .pauseDutyCycle(); // Prioritize compass again when opened
     }
   }
 
@@ -51,9 +53,11 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
     try {
       print('[COMPASS_INIT] Requesting initial GPS lock...');
       final Position initialPos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       ).timeout(const Duration(seconds: 3));
-      
+
       if (mounted) {
         setState(() {
           _currentLocation = LatLng(initialPos.latitude, initialPos.longitude);
@@ -63,55 +67,74 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
 
       // 1. Setup GPS Stream
       print('[COMPASS_INIT] Setting up GPS stream...');
-      _positionStream = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high, // Optimized from bestForNavigation
-          distanceFilter: 5, // Optimized from 1m to 5m to save battery
-        ),
-      ).listen((Position position) {
-        if (mounted) {
-          setState(() {
-            _currentLocation = LatLng(position.latitude, position.longitude);
-            // Fallback for devices without compass: use GPS course/heading
-            if (!_hasCompassHardware && position.heading >= 0) {
-              _currentHeading = position.heading;
-            }
-          });
-        }
-      }, onError: (error) {
-        debugPrint('[RescueCompass] GPS Stream Error: $error');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('GPS Signal Lost or Denied. Please check location settings.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
+      _positionStream =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy:
+                  LocationAccuracy.high, // Optimized from bestForNavigation
+              distanceFilter: 5, // Optimized from 1m to 5m to save battery
             ),
+          ).listen(
+            (Position position) {
+              if (mounted) {
+                setState(() {
+                  _currentLocation = LatLng(
+                    position.latitude,
+                    position.longitude,
+                  );
+                  // Fallback for devices without compass: use GPS course/heading
+                  if (!_hasCompassHardware && position.heading >= 0) {
+                    _currentHeading = position.heading;
+                  }
+                });
+              }
+            },
+            onError: (error) {
+              debugPrint('[RescueCompass] GPS Stream Error: $error');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'GPS Signal Lost or Denied. Please check location settings.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              }
+            },
           );
-        }
-      });
 
       // 2. Setup Magnetometer Stream
       print('[COMPASS_INIT] Setting up Magnetometer...');
       final compassEvents = FlutterCompass.events;
       if (compassEvents != null) {
         int lastCompassUpdate = 0;
-        _compassStream = compassEvents.listen((CompassEvent event) {
-          final now = DateTime.now().millisecondsSinceEpoch;
-          // Throttle updates to ~15 FPS (every 66ms) to save battery and CPU
-          if (now - lastCompassUpdate > 66 && mounted && event.heading != null) {
-            lastCompassUpdate = now;
-            setState(() {
-              // Apply simple damping/interpolation to avoid jitter
-              _currentHeading = _lerpAngle(_lastKnownHeading, event.heading!, 0.2);
-              _lastKnownHeading = _currentHeading;
-              _hasCompassHardware = true;
-            });
-          }
-        }, onError: (e) {
-          print('[COMPASS_INIT] Compass stream error: $e');
-          if (mounted) setState(() => _hasCompassHardware = false);
-        });
+        _compassStream = compassEvents.listen(
+          (CompassEvent event) {
+            final now = DateTime.now().millisecondsSinceEpoch;
+            // Throttle updates to ~15 FPS (every 66ms) to save battery and CPU
+            if (now - lastCompassUpdate > 66 &&
+                mounted &&
+                event.heading != null) {
+              lastCompassUpdate = now;
+              setState(() {
+                // Apply simple damping/interpolation to avoid jitter
+                _currentHeading = _lerpAngle(
+                  _lastKnownHeading,
+                  event.heading!,
+                  0.2,
+                );
+                _lastKnownHeading = _currentHeading;
+                _hasCompassHardware = true;
+              });
+            }
+          },
+          onError: (e) {
+            print('[COMPASS_INIT] Compass stream error: $e');
+            if (mounted) setState(() => _hasCompassHardware = false);
+          },
+        );
       } else {
         print('[COMPASS_INIT] No compass hardware found.');
         if (mounted) setState(() => _hasCompassHardware = false);
@@ -121,12 +144,6 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
       debugPrint('[RescueCompass] Sensor init failed: $e');
     } finally {
       print('[COMPASS_INIT] Initialization complete, releasing UI state.');
-      if (mounted) {
-        setState(() {
-          // ignore: undefined_identifier
-          isLoading = false; // Assuming isLoading is declared elsewhere in the class by user request
-        });
-      }
     }
   }
 
@@ -160,8 +177,23 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ACTIVE RESCUE', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            Text(widget.victimAlert.originalSenderName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'ACTIVE RESCUE',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+            Text(
+              widget.victimAlert.originalSenderName.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -169,7 +201,14 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0),
               child: Center(
-                child: Text('GPS FALLBACK', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'GPS FALLBACK',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
         ],
@@ -179,7 +218,9 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
         valueListenable: OfflineCacheManager.getBox().listenable(),
         builder: (context, box, child) {
           // Fetch latest coordinates for this victim
-          final currentAlert = OfflineCacheManager.getAlert(widget.victimAlert.id) ?? widget.victimAlert;
+          final currentAlert =
+              OfflineCacheManager.getAlert(widget.victimAlert.id) ??
+              widget.victimAlert;
           final victimLocation = LatLng(currentAlert.lat, currentAlert.lng);
 
           if (_currentLocation == null) {
@@ -189,15 +230,32 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
                 children: [
                   CircularProgressIndicator(color: Colors.tealAccent),
                   SizedBox(height: 16),
-                  Text('ACQUIRING GPS LOCK...', style: TextStyle(color: Colors.tealAccent, letterSpacing: 2)),
+                  Text(
+                    'ACQUIRING GPS LOCK...',
+                    style: TextStyle(
+                      color: Colors.tealAccent,
+                      letterSpacing: 2,
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          final double distance = RescueNavigationController.calculateDistanceInMeters(_currentLocation!, victimLocation);
-          final double bearing = RescueNavigationController.calculateBearing(_currentLocation!, victimLocation);
-          final double needleAngle = RescueNavigationController.computeNeedleRotation(bearing, _currentHeading);
+          final double distance =
+              RescueNavigationController.calculateDistanceInMeters(
+                _currentLocation!,
+                victimLocation,
+              );
+          final double bearing = RescueNavigationController.calculateBearing(
+            _currentLocation!,
+            victimLocation,
+          );
+          final double needleAngle =
+              RescueNavigationController.computeNeedleRotation(
+                bearing,
+                _currentHeading,
+              );
           final bool hasArrived = distance <= 10.0;
 
           return Column(
@@ -207,106 +265,139 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wifi_tethering, color: hasArrived ? Colors.green : Colors.tealAccent, size: 16),
+                  Icon(
+                    Icons.wifi_tethering,
+                    color: hasArrived ? Colors.green : Colors.tealAccent,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Text(
-                    hasArrived ? 'TARGET REACHED' : 'TELEMETRY SYNCED', 
-                    style: TextStyle(color: hasArrived ? Colors.green : Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)
+                    hasArrived ? 'TARGET REACHED' : 'TELEMETRY SYNCED',
+                    style: TextStyle(
+                      color: hasArrived ? Colors.green : Colors.tealAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ],
               ),
               const Spacer(),
-              
+
               // Tactical Compass HUD
               Center(
                 child: RepaintBoundary(
                   child: Container(
-                  width: 300,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: hasArrived ? Colors.green : Colors.tealAccent.withValues(alpha: 0.3), width: 2),
-                    color: Colors.black.withValues(alpha: 0.3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (hasArrived ? Colors.green : Colors.tealAccent).withValues(alpha: 0.1),
-                        blurRadius: 50,
-                        spreadRadius: 10,
-                      )
-                    ]
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Cardinal Directions (Rotated against device heading)
-                      Transform.rotate(
-                        angle: -_currentHeading * (math.pi / 180),
-                        child: Stack(
+                    width: 300,
+                    height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: hasArrived
+                            ? Colors.green
+                            : Colors.tealAccent.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                      color: Colors.black.withValues(alpha: 0.3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (hasArrived ? Colors.green : Colors.tealAccent)
+                              .withValues(alpha: 0.1),
+                          blurRadius: 50,
+                          spreadRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Cardinal Directions (Rotated against device heading)
+                        Transform.rotate(
+                          angle: -_currentHeading * (math.pi / 180),
+                          child: Stack(
+                            children: [
+                              _buildCardinalMarker('N', Alignment.topCenter),
+                              _buildCardinalMarker('S', Alignment.bottomCenter),
+                              _buildCardinalMarker('E', Alignment.centerRight),
+                              _buildCardinalMarker('W', Alignment.centerLeft),
+                            ],
+                          ),
+                        ),
+
+                        // Pointing Arrow (Needle)
+                        if (!hasArrived)
+                          Transform.rotate(
+                            angle: needleAngle * (math.pi / 180),
+                            child: const Align(
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 20),
+                                child: Icon(
+                                  Icons.navigation,
+                                  color: Colors.redAccent,
+                                  size: 80,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        if (hasArrived)
+                          const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                            size: 100,
+                          ),
+
+                        // Center Distance Text
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildCardinalMarker('N', Alignment.topCenter),
-                            _buildCardinalMarker('S', Alignment.bottomCenter),
-                            _buildCardinalMarker('E', Alignment.centerRight),
-                            _buildCardinalMarker('W', Alignment.centerLeft),
+                            Text(
+                              RescueNavigationController.formatDistance(
+                                distance,
+                              ),
+                              style: TextStyle(
+                                color: hasArrived ? Colors.green : Colors.white,
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              hasArrived ? 'WITHIN RANGE' : 'AWAY',
+                              style: TextStyle(
+                                color: hasArrived ? Colors.green : Colors.grey,
+                                fontSize: 14,
+                                letterSpacing: 2,
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      
-                      // Pointing Arrow (Needle)
-                      if (!hasArrived)
-                        Transform.rotate(
-                          angle: needleAngle * (math.pi / 180),
-                          child: const Align(
-                            alignment: Alignment.topCenter,
-                            child: Padding(
-                              padding: EdgeInsets.only(top: 20),
-                              child: Icon(Icons.navigation, color: Colors.redAccent, size: 80),
-                            ),
-                          ),
-                        ),
-                        
-                      if (hasArrived)
-                        const Icon(Icons.check_circle_outline, color: Colors.green, size: 100),
-
-                      // Center Distance Text
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            RescueNavigationController.formatDistance(distance),
-                            style: TextStyle(
-                              color: hasArrived ? Colors.green : Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            hasArrived ? 'WITHIN RANGE' : 'AWAY',
-                            style: TextStyle(
-                              color: hasArrived ? Colors.green : Colors.grey,
-                              fontSize: 14,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                ),
               ),
-              
+
               const Spacer(),
-              
+
               // Footer Controls
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: hasArrived ? Colors.green.withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
-                    foregroundColor: hasArrived ? Colors.green : Colors.redAccent,
-                    side: BorderSide(color: hasArrived ? Colors.green : Colors.redAccent),
+                    backgroundColor: hasArrived
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.redAccent.withValues(alpha: 0.2),
+                    foregroundColor: hasArrived
+                        ? Colors.green
+                        : Colors.redAccent,
+                    side: BorderSide(
+                      color: hasArrived ? Colors.green : Colors.redAccent,
+                    ),
                     minimumSize: const Size.fromHeight(60),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                   onPressed: () {
                     // Mark as rescued or cancel tracking
@@ -314,13 +405,17 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
                   },
                   child: Text(
                     hasArrived ? 'MARK AS RESCUED' : 'ABORT TRACKING',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
               ),
             ],
           );
-        }
+        },
       ),
     );
   }
@@ -332,7 +427,11 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
         padding: const EdgeInsets.all(12.0),
         child: Text(
           label,
-          style: const TextStyle(color: Colors.tealAccent, fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.tealAccent,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
