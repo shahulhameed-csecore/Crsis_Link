@@ -332,6 +332,7 @@ class _SosScreenState extends State<SosScreen>
               ),
               const SizedBox(height: 64),
               GestureDetector(
+                key: const ValueKey('sos_emergency_button'),
                 onTap: _handleSosTap,
                 child: ScaleTransition(
                   scale: _pulseAnimation,

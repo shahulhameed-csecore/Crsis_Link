@@ -1,0 +1,3 @@
+-keep class com.google.android.gms.nearby.** { *; }
+-keep class com.serverpod.** { *; }
+-keep class io.flutter.app.** { *; }
