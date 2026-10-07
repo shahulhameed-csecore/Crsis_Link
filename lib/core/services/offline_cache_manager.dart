@@ -47,6 +47,9 @@ class OfflineCacheManager {
 
   static Future<void> saveAlert(LocalSosAlert alert) async {
     try {
+      if (!Hive.isBoxOpen(_boxName)) {
+        await init();
+      }
       if (_box.length >= 1000) {
         final syncedKeys = _box.keys.where((k) {
           final item = _box.get(k);

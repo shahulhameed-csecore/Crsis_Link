@@ -13,14 +13,33 @@ import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'core/services/offline_mesh_service.dart';
 import 'core/services/p2p_crypto_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 final GlobalKey<ScaffoldMessengerState> globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
-  OfflineMeshService().startMesh(); 
+  
+  try {
+    const secureStorage = FlutterSecureStorage();
+    String? storedId = await secureStorage.read(key: 'secure_device_id');
+    if (storedId == null) {
+      final prefs = await SharedPreferences.getInstance();
+      storedId = prefs.getString('device_id') ?? 'dev_unknown_bg';
+    }
+    AuthManager.deviceId = storedId;
+  } catch (e) {
+    AuthManager.deviceId = 'dev_unknown_bg';
+  }
+
+  await P2pCryptoService().init();
+  await OfflineCacheManager.init();
+
+  OfflineMeshService().startMesh(isBackground: true); 
   
   service.on('stopService').listen((event) {
     OfflineMeshService().toggleOfflineMode(false);
@@ -37,6 +56,8 @@ Future<void> initializeService() async {
       isForegroundMode: true,
       initialNotificationTitle: 'Crsis_Link Mesh Active',
       initialNotificationContent: 'Relaying emergency alerts in the background',
+      notificationChannelId: 'mesh_background_channel',
+      foregroundServiceNotificationId: 888,
     ),
     iosConfiguration: IosConfiguration(
       autoStart: false,

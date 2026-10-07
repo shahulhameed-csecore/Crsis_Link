@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <application
         android:label="crsis_link"
         android:name="${applicationName}"
@@ -57,8 +59,8 @@
             android:value="2" />
             
         <service
-            android:name=".MeshForegroundService"
-            android:foregroundServiceType="connectedDevice"
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="connectedDevice|location"
             android:exported="false" />
     </application>
     <!-- Required to query activities that can process text, see:

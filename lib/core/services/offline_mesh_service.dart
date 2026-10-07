@@ -86,19 +86,21 @@ class OfflineMeshService {
     return hasEssential;
   }
 
-  Future<bool> startMesh() async {
+  Future<bool> startMesh({bool isBackground = false}) async {
     try {
-      // 1. Aggressive Permission Requesting (Android 12+)
-      bool hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        _showDebugToast('Mesh Start Failed: Missing Location Permission');
-        return false;
-      }
+      if (!isBackground) {
+        // 1. Aggressive Permission Requesting (Android 12+)
+        bool hasPermissions = await requestPermissions();
+        if (!hasPermissions) {
+          _showDebugToast('Mesh Start Failed: Missing Location Permission');
+          return false;
+        }
 
-      bool locationEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!locationEnabled) {
-        _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
-        return false;
+        bool locationEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!locationEnabled) {
+          _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
+          return false;
+        }
       }
 
       String shortId = AuthManager.deviceId;
@@ -323,6 +325,10 @@ class OfflineMeshService {
         final alerts = OfflineCacheManager.getUnsyncedAlerts();
         final ownActiveAlert = alerts.where((a) => a.originalDeviceId == AuthManager.deviceId).firstOrNull;
         if (ownActiveAlert != null && _connectedEndpoints.isNotEmpty) {
+          if (!await Permission.location.isGranted) {
+            debugPrint('[P2P_DEBUG] Telemetry paused: Location permission missing in background');
+            return;
+          }
           final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
           final payloadData = jsonEncode({
             "t": "LOC",
