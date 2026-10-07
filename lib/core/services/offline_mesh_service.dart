@@ -181,8 +181,12 @@ class OfflineMeshService {
     }
   }
 
+  bool _isPaused = false;
+  bool get _isRunning => !_isPaused;
+
   void pauseDutyCycle() {
     debugPrint('[P2P_DEBUG] Pausing Mesh Duty Cycle for Compass (Keeping connections alive)');
+    _isPaused = true;
     _dutyCycleTimer?.cancel();
     if (_isDiscovering) {
       Nearby().stopDiscovery();
@@ -193,6 +197,7 @@ class OfflineMeshService {
 
   void resumeDutyCycle() {
     debugPrint('[P2P_DEBUG] Resuming Mesh Duty Cycle');
+    _isPaused = false;
     String shortId = AuthManager.deviceId;
     if (shortId.length > 31) shortId = shortId.substring(0, 31);
     
@@ -202,12 +207,19 @@ class OfflineMeshService {
 
   void _startDutyCycle(String shortId) {
     _dutyCycleTimer?.cancel();
+    if (_isPaused) return;
     
     // Start initial discovery immediately
     _executeDiscoveryCycle(shortId);
     
     // Toggle every 15 seconds: 15s scan, 15s sleep (unless active SOS)
     _dutyCycleTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+      if (_isPaused) {
+        timer.cancel();
+        return;
+      }
+      print('[MESH_RADIO] Adv/Disc active: $_isRunning');
+      
       final alerts = OfflineCacheManager.getUnsyncedAlerts();
       final ownActiveAlert = alerts.where((a) => a.originalDeviceId == AuthManager.deviceId).firstOrNull;
       
@@ -323,19 +335,24 @@ class OfflineMeshService {
   }
 
   Future<void> broadcastNewAlert(LocalSosAlert alert) async {
+    final alertMap = <String, dynamic>{
+      "t": "SOS",
+      "i": alert.id,
+      "l": alert.lat,
+      "g": alert.lng,
+      "m": alert.message,
+      "d": alert.originalDeviceId,
+      "n": alert.originalSenderName,
+      "ts": alert.timestamp
+    };
+    
+    if (alert.approximateLocationText != null) {
+      alertMap["a"] = alert.approximateLocationText;
+    }
+
     final payloadData = jsonEncode({
       "deviceId": AuthManager.deviceId,
-      "alerts": [{
-        "t": "SOS",
-        "i": alert.id,
-        "l": alert.lat,
-        "g": alert.lng,
-        "m": alert.message,
-        "a": alert.approximateLocationText,
-        "d": alert.originalDeviceId,
-        "n": alert.originalSenderName,
-        "ts": alert.timestamp
-      }]
+      "alerts": [alertMap]
     });
     
     final signature = await P2pCryptoService().signPayload(payloadData);
@@ -346,6 +363,7 @@ class OfflineMeshService {
     });
     
     final bytes = Uint8List.fromList(utf8.encode(envelope));
+    print('[MESH_SEND] Packet encoded successfully: ${bytes.length} bytes');
     
     for (final peerId in _connectedEndpoints) {
       try {
@@ -463,17 +481,22 @@ class OfflineMeshService {
         final str = utf8.decode(payload.bytes!);
         final dynamic envelopeData = jsonDecode(str);
         
-        if (envelopeData is! Map || !envelopeData.containsKey('p') || !envelopeData.containsKey('k') || !envelopeData.containsKey('s')) {
+        final bool isValid = envelopeData is Map && envelopeData.containsKey('p') && envelopeData.containsKey('k') && envelopeData.containsKey('s');
+        print('[MESH_RECV] Envelope keys valid: $isValid');
+
+        if (!isValid) {
           debugPrint('[P2P_SECURITY] Dropping unauthenticated or legacy non-signed packet.');
           return;
         }
 
-        final String payloadStr = envelopeData['p'];
-        final String pubKey = envelopeData['k'];
-        final String signature = envelopeData['s'];
+        final String payloadStr = envelopeData['p'].toString();
+        final String pubKey = envelopeData['k'].toString();
+        final String signature = envelopeData['s'].toString();
         
-        final isValid = await P2pCryptoService().verifyPayload(payloadStr, pubKey, signature);
-        if (!isValid) {
+        final isVerified = await P2pCryptoService().verifyPayload(payloadStr, pubKey, signature);
+        print('[MESH_RECV] Signature matched: $isVerified');
+
+        if (!isVerified) {
           debugPrint('[P2P_DEBUG] CRITICAL: Signature verification failed! Packet dropped (Potential spoofing/tampering).');
           return;
         }
