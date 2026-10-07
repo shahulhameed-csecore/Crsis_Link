@@ -731,8 +731,9 @@ class _SosEndpoint {
   }
 
   _i3.Future<bool> nukeAllTestData(
-    _i1.TestSessionBuilder sessionBuilder,
-  ) async {
+    _i1.TestSessionBuilder sessionBuilder, {
+    required String devSecret,
+  }) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
           (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
@@ -744,7 +745,7 @@ class _SosEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'sos',
           methodName: 'nukeAllTestData',
-          parameters: _i1.testObjectToJson({}),
+          parameters: _i1.testObjectToJson({'devSecret': devSecret}),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =

@@ -345,11 +345,12 @@ class EndpointSos extends _i2.EndpointRef {
       );
 
   /// Nuke all test data (Hackathon Secret Reset)
-  _i3.Future<bool> nukeAllTestData() => caller.callServerEndpoint<bool>(
-    'sos',
-    'nukeAllTestData',
-    {},
-  );
+  _i3.Future<bool> nukeAllTestData({required String devSecret}) =>
+      caller.callServerEndpoint<bool>(
+        'sos',
+        'nukeAllTestData',
+        {'devSecret': devSecret},
+      );
 
   /// Resolves an active SOS alert
   _i3.Future<bool> resolveSOS(

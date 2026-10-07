@@ -455,13 +455,20 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
         'nukeAllTestData': _i1.MethodConnector(
           name: 'nukeAllTestData',
-          params: {},
+          params: {
+            'devSecret': _i1.ParameterDescription(
+              name: 'devSecret',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
           call:
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).nukeAllTestData(
                 session,
+                devSecret: params['devSecret'],
               ),
         ),
         'resolveSOS': _i1.MethodConnector(

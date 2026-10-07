@@ -305,15 +305,15 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Nuke all test data (Hackathon Secret Reset)
-  Future<bool> nukeAllTestData(Session session) async {
-    try {
-      await session.db.unsafeQuery('TRUNCATE TABLE "sos_alert" CASCADE;');
-      _deviceLocations.clear();
-      return true;
-    } catch (e) {
-      session.log('Operation failed: $e', level: LogLevel.error);
-      throw Exception('Operation failed: $e');
+  Future<bool> nukeAllTestData(Session session, {required String devSecret}) async {
+    final expectedSecret = session.serverpod.getPassword('DEV_ADMIN_SECRET');
+    if (session.serverpod.runMode != 'development' || devSecret.isEmpty || devSecret != expectedSecret) {
+      session.log('SECURITY WARNING: Unauthorized DB wipe attempt blocked.', level: LogLevel.warning);
+      return false;
     }
+    await session.db.unsafeQuery('TRUNCATE TABLE "sos_alert" CASCADE;');
+    _deviceLocations.clear();
+    return true;
   }
 
   
