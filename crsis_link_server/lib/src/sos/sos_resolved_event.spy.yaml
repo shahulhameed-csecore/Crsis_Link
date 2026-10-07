@@ -1,4 +1,4 @@
 class: SosResolvedEvent
 fields:
-  sosId: int
+  clientAlertId: String
   deviceId: String

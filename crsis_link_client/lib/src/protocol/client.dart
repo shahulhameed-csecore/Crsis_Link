@@ -305,7 +305,7 @@ class EndpointSos extends _i2.EndpointRef {
     String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
-    String? clientAlertId,
+    String clientAlertId,
   ) => caller.callServerEndpoint<_i5.SosBroadcastResponse>(
     'sos',
     'broadcastSos',
@@ -354,13 +354,13 @@ class EndpointSos extends _i2.EndpointRef {
 
   /// Resolves an active SOS alert
   _i3.Future<bool> resolveSOS(
-    int sosId,
+    String clientAlertId,
     String deviceId,
   ) => caller.callServerEndpoint<bool>(
     'sos',
     'resolveSOS',
     {
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'deviceId': deviceId,
     },
   );
@@ -369,39 +369,39 @@ class EndpointSos extends _i2.EndpointRef {
   _i3.Future<_i6.SosAlert> claimRescue(
     String volunteerDeviceId,
     String volunteerName,
-    int sosId,
+    String clientAlertId,
   ) => caller.callServerEndpoint<_i6.SosAlert>(
     'sos',
     'claimRescue',
     {
       'volunteerDeviceId': volunteerDeviceId,
       'volunteerName': volunteerName,
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
     },
   );
 
   /// Completes an active SOS alert (called when rescuer is safe)
   _i3.Future<_i6.SosAlert> completeRescue(
     String volunteerDeviceId,
-    int sosId,
+    String clientAlertId,
   ) => caller.callServerEndpoint<_i6.SosAlert>(
     'sos',
     'completeRescue',
     {
       'volunteerDeviceId': volunteerDeviceId,
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
     },
   );
 
   /// Verifies the helper's PIN for an active SOS
   _i3.Future<_i6.SosAlert> verifyHelperPin(
-    int sosId,
+    String clientAlertId,
     String pin,
   ) => caller.callServerEndpoint<_i6.SosAlert>(
     'sos',
     'verifyHelperPin',
     {
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'pin': pin,
     },
   );
@@ -409,13 +409,13 @@ class EndpointSos extends _i2.EndpointRef {
   /// Visually verifies an SOS alert (Hackathon Mocked Upload)
   /// Requires the calling deviceId to match the alert owner — prevents unauthorized verification.
   _i3.Future<bool> verifySOS(
-    int sosId,
+    String clientAlertId,
     String deviceId,
   ) => caller.callServerEndpoint<bool>(
     'sos',
     'verifySOS',
     {
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'deviceId': deviceId,
     },
   );

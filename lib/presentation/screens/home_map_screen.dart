@@ -25,6 +25,7 @@ import '../../core/models/local_sos_alert.dart';
 import '../widgets/disaster_radar_view.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_mesh_service.dart';
+import 'package:uuid/uuid.dart';
 
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
@@ -38,7 +39,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   LatLng? _currentLocation;
   final MapController _mapController = MapController();
   String _errorMsg = '';
-  final Set<int> _ignoredSosIds = {};
+  final Set<String> _ignoredSosIds = {};
   StreamSubscription? _sosSubscription;
   StreamSubscription? _connectivitySubscription;
   StreamSubscription<Position>? _positionStream;
@@ -100,14 +101,14 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     final list = prefs.getStringList('ignoredSosIds');
     if (list != null) {
       setState(() {
-        _ignoredSosIds.addAll(list.map((e) => int.parse(e)));
+        _ignoredSosIds.addAll(list);
       });
     }
   }
 
   Future<void> _saveIgnoredIds() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('ignoredSosIds', _ignoredSosIds.map((e) => e.toString()).toList());
+    await prefs.setStringList('ignoredSosIds', _ignoredSosIds.toList());
   }
 
   void _onPinsChanged() {
@@ -174,7 +175,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           if (message.deviceId == AuthManager.deviceId) return;
           
           // Early Exit Guard Clause: If user ignored this pin, drop it entirely
-          if (_ignoredSosIds.contains(message.id)) return;
+          if (_ignoredSosIds.contains(message.clientAlertId)) return;
           
           if (mounted) {
             setState(() {
@@ -208,9 +209,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
             }
           }
         } else if (message is SosResolvedEvent) {
-          debugPrint('[WebSocket] Received SosResolvedEvent for SOS ID: ${message.sosId}');
+          debugPrint('[WebSocket] Received SosResolvedEvent for SOS ID: ${message.clientAlertId}');
           AlertsManager().addResolvedEvent(message);
-          MapPinsManager().removePin(message.sosId);
+          MapPinsManager().removePin(message.clientAlertId);
         }
       }, onError: (e) {
         debugPrint('WebSocket stream error: $e');
@@ -280,7 +281,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       
       final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng);
       if (mounted) {
-        MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.id)).toList());
+        MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.clientAlertId)).toList());
       }
     } catch (e) {
       debugPrint('Error fetching SOS pins: $e');
@@ -492,7 +493,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                             flex: 1,
                             child: TextButton(
                               onPressed: () {
-                                final alertId = alert.id;
+                                final alertId = alert.clientAlertId;
                                 if (alertId == null) return;
                                 setState(() {
                                   _ignoredSosIds.add(alertId);
@@ -515,7 +516,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                             flex: 2,
                             child: ElevatedButton(
                               onPressed: isSubmitting ? null : () async {
-                                final alertId = alert.id;
+                                final alertId = alert.clientAlertId;
                                 if (alertId == null) return;
                                 setModalState(() => isSubmitting = true);
                                 try {
@@ -733,7 +734,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           phoneController.text.trim(),
                           pendingPhotoBase64,
                           approxLocation,
-                          null,
+                          const Uuid().v4(),
                         ).timeout(const Duration(seconds: 10));
                         if (mounted) {
                           setState(() {
@@ -1234,9 +1235,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                           Navigator.pop(ctx);
                                           setState(() {
                                             for (final pin in MapPinsManager().pins) {
-                                              if (pin.id != null) {
-                                                _ignoredSosIds.add(pin.id!);
-                                                AlertsManager().addIgnoredAlert(pin.id!, pin.senderName);
+                                              if (pin.clientAlertId != null) {
+                                                _ignoredSosIds.add(pin.clientAlertId!);
+                                                AlertsManager().addIgnoredAlert(pin.clientAlertId!, pin.senderName);
                                               }
                                             }
                                             _saveIgnoredIds();
@@ -1347,8 +1348,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
 
 class _AnimatedSosMarker extends StatefulWidget {
   final SosAlert alert;
-  final void Function(int) onIgnore;
-  final void Function(int) onResolve;
+  final void Function(String) onIgnore;
+  final void Function(String) onResolve;
   const _AnimatedSosMarker({super.key, required this.alert, required this.onIgnore, required this.onResolve});
 
   @override
@@ -1540,7 +1541,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: isSubmitting ? null : () async {
-                                  final alertId = alert.id;
+                                  final alertId = alert.clientAlertId;
                                   if (alertId == null) return;
                                   setModalState(() => isSubmitting = true);
                                   try {
@@ -1591,7 +1592,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () {
-                                  final alertId = alert.id;
+                                  final alertId = alert.clientAlertId;
                                   if (alertId == null) return;
                                   widget.onIgnore(alertId);
                                   Navigator.pop(ctx);
@@ -1608,7 +1609,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: isSubmitting ? null : () async {
-                                  final alertId = alert.id;
+                                  final alertId = alert.clientAlertId;
                                   if (alertId == null) return;
                                   setModalState(() => isSubmitting = true);
                                   try {
@@ -1709,7 +1710,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             style: CapsuleStyle.primary,
                             isLoading: isSubmitting,
                             onPressed: () async {
-                              final alertId = alert.id;
+                              final alertId = alert.clientAlertId;
                               if (alertId == null) return;
                               if (pinController.text.length != 4) return;
                               setModalState(() => isSubmitting = true);
@@ -1755,7 +1756,7 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                             style: CapsuleStyle.primary,
                             isLoading: isSubmitting,
                             onPressed: () async {
-                              final alertId = alert.id;
+                              final alertId = alert.clientAlertId;
                               if (alertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {

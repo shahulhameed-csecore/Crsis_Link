@@ -159,10 +159,10 @@ Row(
                           child: ElevatedButton(
                             onPressed: isSubmitting ? null : () async {
                               final alertId = alert.id;
-                              if (alertId == null) return;
+                              if (alertId == null || alert.clientAlertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
+                                final success = await AuthManager.client.sos.resolveSOS(alert.clientAlertId!, AuthManager.deviceId);
                                 if (!success) {
                                   if (ctx.mounted) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
@@ -227,10 +227,10 @@ Row(
                           child: ElevatedButton(
                             onPressed: isSubmitting ? null : () async {
                               final alertId = alert.id;
-                              if (alertId == null) return;
+                              if (alertId == null || alert.clientAlertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId).timeout(const Duration(seconds: 10));
+                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!).timeout(const Duration(seconds: 10));
                                 if (ctx.mounted) {
                                   final updatedAlert = alert.copyWith(
                                     status: 'CLAIMED',
@@ -328,11 +328,11 @@ Row(
                         isLoading: isSubmitting,
                         onPressed: () async {
                           final alertId = alert.id;
-                          if (alertId == null) return;
+                          if (alertId == null || alert.clientAlertId == null) return;
                           if (pinController.text.length != 4) return;
                           setModalState(() => isSubmitting = true);
                           try {
-                            await AuthManager.client.sos.verifyHelperPin(alertId, pinController.text).timeout(const Duration(seconds: 10));
+                            await AuthManager.client.sos.verifyHelperPin(alert.clientAlertId!, pinController.text).timeout(const Duration(seconds: 10));
                             if (ctx.mounted) {
                               alert.isRescuerVerified = true;
                               setModalState(() => isSubmitting = false);
@@ -374,10 +374,10 @@ Row(
                         isLoading: isSubmitting,
                         onPressed: () async {
                           final alertId = alert.id;
-                          if (alertId == null) return;
+                          if (alertId == null || alert.clientAlertId == null) return;
                           setModalState(() => isSubmitting = true);
                           try {
-                            await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alertId).timeout(const Duration(seconds: 10));
+                            await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.clientAlertId!).timeout(const Duration(seconds: 10));
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               widget.onResolve(alertId);

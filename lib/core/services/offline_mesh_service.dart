@@ -490,6 +490,7 @@ class OfflineMeshService {
 
             final sosAlert = SosAlert(
               id: alert.id.hashCode,
+              clientAlertId: alert.id,
               latitude: alert.lat,
               longitude: alert.lng,
               message: alert.message,

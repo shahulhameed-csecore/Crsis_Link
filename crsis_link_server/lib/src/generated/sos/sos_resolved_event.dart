@@ -16,23 +16,23 @@ import 'package:serverpod/serverpod.dart' as _i1;
 abstract class SosResolvedEvent
     implements _i1.SerializableModel, _i1.ProtocolSerialization {
   SosResolvedEvent._({
-    required this.sosId,
+    required this.clientAlertId,
     required this.deviceId,
   });
 
   factory SosResolvedEvent({
-    required int sosId,
+    required String clientAlertId,
     required String deviceId,
   }) = _SosResolvedEventImpl;
 
   factory SosResolvedEvent.fromJson(Map<String, dynamic> jsonSerialization) {
     return SosResolvedEvent(
-      sosId: jsonSerialization['sosId'] as int,
+      clientAlertId: jsonSerialization['clientAlertId'] as String,
       deviceId: jsonSerialization['deviceId'] as String,
     );
   }
 
-  int sosId;
+  String clientAlertId;
 
   String deviceId;
 
@@ -40,14 +40,14 @@ abstract class SosResolvedEvent
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
   SosResolvedEvent copyWith({
-    int? sosId,
+    String? clientAlertId,
     String? deviceId,
   });
   @override
   Map<String, dynamic> toJson() {
     return {
       '__className__': 'SosResolvedEvent',
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'deviceId': deviceId,
     };
   }
@@ -56,7 +56,7 @@ abstract class SosResolvedEvent
   Map<String, dynamic> toJsonForProtocol() {
     return {
       '__className__': 'SosResolvedEvent',
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'deviceId': deviceId,
     };
   }
@@ -69,10 +69,10 @@ abstract class SosResolvedEvent
 
 class _SosResolvedEventImpl extends SosResolvedEvent {
   _SosResolvedEventImpl({
-    required int sosId,
+    required String clientAlertId,
     required String deviceId,
   }) : super._(
-         sosId: sosId,
+         clientAlertId: clientAlertId,
          deviceId: deviceId,
        );
 
@@ -81,11 +81,11 @@ class _SosResolvedEventImpl extends SosResolvedEvent {
   @_i1.useResult
   @override
   SosResolvedEvent copyWith({
-    int? sosId,
+    String? clientAlertId,
     String? deviceId,
   }) {
     return SosResolvedEvent(
-      sosId: sosId ?? this.sosId,
+      clientAlertId: clientAlertId ?? this.clientAlertId,
       deviceId: deviceId ?? this.deviceId,
     );
   }

@@ -111,7 +111,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64, String? approximateLocationText, String? clientAlertId) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64, String? approximateLocationText, String clientAlertId) async {
     if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw ArgumentError('Invalid coordinates');
     }
@@ -151,15 +151,13 @@ class SosEndpoint extends Endpoint {
       }
 
       // Idempotency check: if we already have this exact offline alert, just return it
-      if (clientAlertId != null) {
-        final duplicateCheck = await SosAlert.db.findFirstRow(
-          session,
-          where: (t) => t.clientAlertId.equals(clientAlertId),
-          transaction: transaction,
-        );
-        if (duplicateCheck != null) {
-          return duplicateCheck; // Short-circuit: already successfully ingested
-        }
+      final duplicateCheck = await SosAlert.db.findFirstRow(
+        session,
+        where: (t) => t.clientAlertId.equals(clientAlertId),
+        transaction: transaction,
+      );
+      if (duplicateCheck != null) {
+        return duplicateCheck; // Short-circuit: already successfully ingested
       }
 
       // 2. Deactivate previous active pins
@@ -271,6 +269,7 @@ class SosEndpoint extends Endpoint {
         })
         .map((alert) => SosAlert(
               id: alert.id,
+              clientAlertId: alert.clientAlertId,
               deviceId: alert.deviceId,
               latitude: alert.latitude,
               longitude: alert.longitude,
@@ -318,45 +317,45 @@ class SosEndpoint extends Endpoint {
 
   
   /// Resolves an active SOS alert
-  Future<bool> resolveSOS(Session session, int sosId, String deviceId) async {
+  Future<bool> resolveSOS(Session session, String clientAlertId, String deviceId) async {
     // Atomic State Transition: Guarantees only one request can mark it resolved
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'RESOLVED', "isActive" = false 
-      WHERE "id" = \$1 AND "deviceId" = \$2 AND "isActive" = true 
+      WHERE "clientAlertId" = \$1 AND "deviceId" = \$2 AND "isActive" = true 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, deviceId]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, deviceId]));
     if (result.isEmpty) {
       return false; // Already resolved or wrong owner
     }
     
     // Broadcast the resolved event exactly once
-    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: deviceId)));
+    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(clientAlertId: clientAlertId, deviceId: deviceId)));
     
     return true;
   }
 
   /// Claims an active SOS alert
-  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, int sosId) async {
+  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, String clientAlertId) async {
     final pin = (1000 + Random().nextInt(9000)).toString();
     
     // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'CLAIMED', "volunteerDeviceId" = \$1, "verificationPin" = \$2 
-      WHERE "id" = \$3 AND "status" = 'OPEN' 
+      WHERE "clientAlertId" = \$3 AND "status" = 'OPEN' 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([volunteerDeviceId, pin, sosId]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([volunteerDeviceId, pin, clientAlertId]));
     if (result.isEmpty) {
       throw Exception('SOS was just claimed by another rescuer.');
     }
     
     // Retrieve the fully deserialized object
-    final alert = await SosAlert.db.findById(session, sosId);
+    final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
     
     unawaited(session.messages.postMessage('sos_broadcasts', alert!));
     unawaited(session.messages.postMessage(
@@ -367,44 +366,44 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Completes an active SOS alert (called when rescuer is safe)
-  Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, int sosId) async {
+  Future<SosAlert> completeRescue(Session session, String volunteerDeviceId, String clientAlertId) async {
     // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'COMPLETED', "isActive" = false 
-      WHERE "id" = \$1 AND "volunteerDeviceId" = \$2 AND "status" = 'CLAIMED' 
+      WHERE "clientAlertId" = \$1 AND "volunteerDeviceId" = \$2 AND "status" = 'CLAIMED' 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, volunteerDeviceId]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, volunteerDeviceId]));
     if (result.isEmpty) {
       throw Exception('SOS alert not found, or you are not the assigned volunteer.');
     }
     
     // Retrieve the fully deserialized object
-    final updatedAlert = await SosAlert.db.findById(session, sosId);
+    final updatedAlert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
     
-    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(sosId: sosId, deviceId: updatedAlert!.deviceId)));
+    unawaited(session.messages.postMessage('sos_broadcasts', SosResolvedEvent(clientAlertId: clientAlertId, deviceId: updatedAlert!.deviceId)));
     return updatedAlert;
   }
 
   /// Verifies the helper's PIN for an active SOS
-  Future<SosAlert> verifyHelperPin(Session session, int sosId, String pin) async {
+  Future<SosAlert> verifyHelperPin(Session session, String clientAlertId, String pin) async {
     // Atomic State Transition: Validates PIN and updates in a single database lock
     final query = '''
       UPDATE "sos_alert" 
       SET "isRescuerVerified" = true 
-      WHERE "id" = \$1 AND "status" = 'CLAIMED' AND "verificationPin" = \$2 AND "isRescuerVerified" = false 
+      WHERE "clientAlertId" = \$1 AND "status" = 'CLAIMED' AND "verificationPin" = \$2 AND "isRescuerVerified" = false 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, pin]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, pin]));
     if (result.isEmpty) {
       throw Exception('Incorrect PIN, Invalid SOS Request, or already verified.');
     }
     
     // Retrieve the fully deserialized object
-    final alert = await SosAlert.db.findById(session, sosId);
+    final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
     
     unawaited(session.messages.postMessage('sos_broadcasts', alert!));
     return alert;
@@ -412,22 +411,22 @@ class SosEndpoint extends Endpoint {
 
   /// Visually verifies an SOS alert (Hackathon Mocked Upload)
   /// Requires the calling deviceId to match the alert owner — prevents unauthorized verification.
-  Future<bool> verifySOS(Session session, int sosId, String deviceId) async {
+  Future<bool> verifySOS(Session session, String clientAlertId, String deviceId) async {
     // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed
     final query = '''
       UPDATE "sos_alert" 
       SET "isVisuallyVerified" = true 
-      WHERE "id" = \$1 AND "deviceId" = \$2 AND "isVisuallyVerified" = false 
+      WHERE "clientAlertId" = \$1 AND "deviceId" = \$2 AND "isVisuallyVerified" = false 
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([sosId, deviceId]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, deviceId]));
     if (result.isEmpty) {
       return false; // Already verified or wrong owner
     }
     
     // Retrieve the fully deserialized object
-    final alert = await SosAlert.db.findById(session, sosId);
+    final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
     
     // Broadcast update so map pins reflect the verified badge
     unawaited(session.messages.postMessage('sos_broadcasts', alert!));

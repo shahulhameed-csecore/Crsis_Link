@@ -624,7 +624,7 @@ class _SosEndpoint {
     String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
-    String? clientAlertId,
+    String clientAlertId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -763,7 +763,7 @@ class _SosEndpoint {
 
   _i3.Future<bool> resolveSOS(
     _i1.TestSessionBuilder sessionBuilder,
-    int sosId,
+    String clientAlertId,
     String deviceId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -778,7 +778,7 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'resolveSOS',
           parameters: _i1.testObjectToJson({
-            'sosId': sosId,
+            'clientAlertId': clientAlertId,
             'deviceId': deviceId,
           }),
           serializationManager: _serializationManager,
@@ -800,7 +800,7 @@ class _SosEndpoint {
     _i1.TestSessionBuilder sessionBuilder,
     String volunteerDeviceId,
     String volunteerName,
-    int sosId,
+    String clientAlertId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -816,7 +816,7 @@ class _SosEndpoint {
           parameters: _i1.testObjectToJson({
             'volunteerDeviceId': volunteerDeviceId,
             'volunteerName': volunteerName,
-            'sosId': sosId,
+            'clientAlertId': clientAlertId,
           }),
           serializationManager: _serializationManager,
         );
@@ -836,7 +836,7 @@ class _SosEndpoint {
   _i3.Future<_i6.SosAlert> completeRescue(
     _i1.TestSessionBuilder sessionBuilder,
     String volunteerDeviceId,
-    int sosId,
+    String clientAlertId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -851,7 +851,7 @@ class _SosEndpoint {
           methodName: 'completeRescue',
           parameters: _i1.testObjectToJson({
             'volunteerDeviceId': volunteerDeviceId,
-            'sosId': sosId,
+            'clientAlertId': clientAlertId,
           }),
           serializationManager: _serializationManager,
         );
@@ -870,7 +870,7 @@ class _SosEndpoint {
 
   _i3.Future<_i6.SosAlert> verifyHelperPin(
     _i1.TestSessionBuilder sessionBuilder,
-    int sosId,
+    String clientAlertId,
     String pin,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -885,7 +885,7 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'verifyHelperPin',
           parameters: _i1.testObjectToJson({
-            'sosId': sosId,
+            'clientAlertId': clientAlertId,
             'pin': pin,
           }),
           serializationManager: _serializationManager,
@@ -905,7 +905,7 @@ class _SosEndpoint {
 
   _i3.Future<bool> verifySOS(
     _i1.TestSessionBuilder sessionBuilder,
-    int sosId,
+    String clientAlertId,
     String deviceId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -920,7 +920,7 @@ class _SosEndpoint {
           endpointPath: 'sos',
           methodName: 'verifySOS',
           parameters: _i1.testObjectToJson({
-            'sosId': sosId,
+            'clientAlertId': clientAlertId,
             'deviceId': deviceId,
           }),
           serializationManager: _serializationManager,

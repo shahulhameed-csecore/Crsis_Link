@@ -17,4 +17,8 @@ fields:
   victimPhone: String
   photoBase64: String?
   approximateLocationText: String?
-  clientAlertId: String?
+  clientAlertId: String
+indexes:
+  sos_client_alert_id_idx:
+    fields: clientAlertId
+    unique: true

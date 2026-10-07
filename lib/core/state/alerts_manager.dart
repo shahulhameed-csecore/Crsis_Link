@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum AlertType { sos, accepted, resolved, ignored }
 
 class AlertNotification {
-  final int? sosId;
+  final String? clientAlertId;
   final DateTime timestamp;
   final String title;
   final String description;
@@ -16,7 +16,7 @@ class AlertNotification {
   final double? longitude;
 
   AlertNotification({
-    this.sosId,
+    this.clientAlertId,
     required this.timestamp,
     required this.title,
     required this.description,
@@ -27,7 +27,7 @@ class AlertNotification {
 
   Map<String, dynamic> toJson() {
     return {
-      'sosId': sosId,
+      'clientAlertId': clientAlertId,
       'timestamp': timestamp.toIso8601String(),
       'title': title,
       'description': description,
@@ -39,7 +39,7 @@ class AlertNotification {
 
   factory AlertNotification.fromJson(Map<String, dynamic> json) {
     return AlertNotification(
-      sosId: json['sosId'] as int?,
+      clientAlertId: json['clientAlertId'] as String?,
       timestamp: DateTime.parse(json['timestamp'] as String),
       title: json['title'] as String,
       description: json['description'] as String,
@@ -93,9 +93,9 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   }
 
   void addSosAlert(SosAlert alert) {
-    final idx = value.indexWhere((n) => n.sosId != null && n.sosId == alert.id);
+    final idx = value.indexWhere((n) => n.clientAlertId != null && n.clientAlertId == alert.clientAlertId);
     final notification = AlertNotification(
-      sosId: alert.id,
+      clientAlertId: alert.clientAlertId,
       timestamp: DateTime.now(),
       title: 'SOS Alert: ${alert.senderName}',
       description: alert.status == 'CLAIMED' ? 'Rescue on the way' : (alert.message ?? 'Needs emergency assistance.'),
@@ -138,12 +138,12 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     ]);
   }
 
-  void resolveSosAlert(int sosId) {
+  void resolveSosAlert(String clientAlertId) {
     final newList = List<AlertNotification>.from(value);
-    newList.removeWhere((n) => n.sosId == sosId);
+    newList.removeWhere((n) => n.clientAlertId == clientAlertId);
     
     newList.insert(0, AlertNotification(
-      sosId: sosId,
+      clientAlertId: clientAlertId,
       timestamp: DateTime.now(),
       title: 'SOS Resolved',
       description: 'An emergency has been resolved safely.',
@@ -158,16 +158,16 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   }
 
   void addResolvedEvent(SosResolvedEvent event) {
-    resolveSosAlert(event.sosId);
+    resolveSosAlert(event.clientAlertId);
   }
 
-  void addIgnoredAlert(int sosId, String? senderName) {
+  void addIgnoredAlert(String clientAlertId, String? senderName) {
     final newList = List<AlertNotification>.from(value);
     // Remove if it's already there as an SOS
-    newList.removeWhere((n) => n.sosId == sosId);
+    newList.removeWhere((n) => n.clientAlertId == clientAlertId);
     
     newList.insert(0, AlertNotification(
-      sosId: sosId,
+      clientAlertId: clientAlertId,
       timestamp: DateTime.now(),
       title: 'Ignored: ${senderName ?? 'SOS'}',
       description: 'You hid this pin from your map locally.',

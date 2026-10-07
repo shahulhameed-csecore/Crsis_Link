@@ -13,7 +13,7 @@ class MapPinsManager extends ValueNotifier<List<SosAlert>> {
   }
 
   void addOrUpdatePin(SosAlert alert) {
-    final idx = value.indexWhere((a) => a.id == alert.id);
+    final idx = value.indexWhere((a) => a.clientAlertId == alert.clientAlertId);
     final newList = List<SosAlert>.from(value);
     if (idx >= 0) {
       newList[idx] = alert;
@@ -23,9 +23,9 @@ class MapPinsManager extends ValueNotifier<List<SosAlert>> {
     value = newList;
   }
 
-  void removePin(int id) {
+  void removePin(String clientAlertId) {
     final newList = List<SosAlert>.from(value);
-    newList.removeWhere((a) => a.id == id);
+    newList.removeWhere((a) => a.clientAlertId == clientAlertId);
     value = newList;
   }
 }

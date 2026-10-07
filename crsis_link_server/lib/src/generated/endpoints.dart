@@ -389,8 +389,8 @@ class Endpoints extends _i1.EndpointDispatch {
             ),
             'clientAlertId': _i1.ParameterDescription(
               name: 'clientAlertId',
-              type: _i1.getType<String?>(),
-              nullable: true,
+              type: _i1.getType<String>(),
+              nullable: false,
             ),
           },
           call:
@@ -474,9 +474,9 @@ class Endpoints extends _i1.EndpointDispatch {
         'resolveSOS': _i1.MethodConnector(
           name: 'resolveSOS',
           params: {
-            'sosId': _i1.ParameterDescription(
-              name: 'sosId',
-              type: _i1.getType<int>(),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
             'deviceId': _i1.ParameterDescription(
@@ -491,7 +491,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).resolveSOS(
                 session,
-                params['sosId'],
+                params['clientAlertId'],
                 params['deviceId'],
               ),
         ),
@@ -508,9 +508,9 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
-            'sosId': _i1.ParameterDescription(
-              name: 'sosId',
-              type: _i1.getType<int>(),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
           },
@@ -522,7 +522,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 session,
                 params['volunteerDeviceId'],
                 params['volunteerName'],
-                params['sosId'],
+                params['clientAlertId'],
               ),
         ),
         'completeRescue': _i1.MethodConnector(
@@ -533,9 +533,9 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
-            'sosId': _i1.ParameterDescription(
-              name: 'sosId',
-              type: _i1.getType<int>(),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
           },
@@ -546,15 +546,15 @@ class Endpoints extends _i1.EndpointDispatch {
               ) async => (endpoints['sos'] as _i5.SosEndpoint).completeRescue(
                 session,
                 params['volunteerDeviceId'],
-                params['sosId'],
+                params['clientAlertId'],
               ),
         ),
         'verifyHelperPin': _i1.MethodConnector(
           name: 'verifyHelperPin',
           params: {
-            'sosId': _i1.ParameterDescription(
-              name: 'sosId',
-              type: _i1.getType<int>(),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
             'pin': _i1.ParameterDescription(
@@ -569,16 +569,16 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).verifyHelperPin(
                 session,
-                params['sosId'],
+                params['clientAlertId'],
                 params['pin'],
               ),
         ),
         'verifySOS': _i1.MethodConnector(
           name: 'verifySOS',
           params: {
-            'sosId': _i1.ParameterDescription(
-              name: 'sosId',
-              type: _i1.getType<int>(),
+            'clientAlertId': _i1.ParameterDescription(
+              name: 'clientAlertId',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
             'deviceId': _i1.ParameterDescription(
@@ -593,7 +593,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async => (endpoints['sos'] as _i5.SosEndpoint).verifySOS(
                 session,
-                params['sosId'],
+                params['clientAlertId'],
                 params['deviceId'],
               ),
         ),

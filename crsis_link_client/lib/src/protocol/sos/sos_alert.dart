@@ -32,7 +32,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     required this.victimPhone,
     this.photoBase64,
     this.approximateLocationText,
-    this.clientAlertId,
+    required this.clientAlertId,
   }) : isRescuerVerified = isRescuerVerified ?? false,
        isVisuallyVerified = isVisuallyVerified ?? false;
 
@@ -54,7 +54,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     required String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
-    String? clientAlertId,
+    required String clientAlertId,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -87,7 +87,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       photoBase64: jsonSerialization['photoBase64'] as String?,
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
-      clientAlertId: jsonSerialization['clientAlertId'] as String?,
+      clientAlertId: jsonSerialization['clientAlertId'] as String,
     );
   }
 
@@ -128,7 +128,7 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String? approximateLocationText;
 
-  String? clientAlertId;
+  String clientAlertId;
 
   /// Returns a shallow copy of this [SosAlert]
   /// with some or all fields replaced by the given arguments.
@@ -175,7 +175,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       if (photoBase64 != null) 'photoBase64': photoBase64,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
-      if (clientAlertId != null) 'clientAlertId': clientAlertId,
+      'clientAlertId': clientAlertId,
     };
   }
 
@@ -206,7 +206,7 @@ class _SosAlertImpl extends SosAlert {
     required String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
-    String? clientAlertId,
+    required String clientAlertId,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -250,7 +250,7 @@ class _SosAlertImpl extends SosAlert {
     String? victimPhone,
     Object? photoBase64 = _Undefined,
     Object? approximateLocationText = _Undefined,
-    Object? clientAlertId = _Undefined,
+    String? clientAlertId,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -276,9 +276,7 @@ class _SosAlertImpl extends SosAlert {
       approximateLocationText: approximateLocationText is String?
           ? approximateLocationText
           : this.approximateLocationText,
-      clientAlertId: clientAlertId is String?
-          ? clientAlertId
-          : this.clientAlertId,
+      clientAlertId: clientAlertId ?? this.clientAlertId,
     );
   }
 }

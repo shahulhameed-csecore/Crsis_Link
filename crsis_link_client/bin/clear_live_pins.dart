@@ -10,10 +10,8 @@ void main() async {
     print('Found ${alerts.length} active pins.');
     
     for (var alert in alerts) {
-      if (alert.id != null) {
-        print('Resolving pin ID: ${alert.id} from device: ${alert.deviceId}');
-        await client.sos.resolveSOS(alert.id!, alert.deviceId);
-      }
+      print('Resolving pin ID: ${alert.clientAlertId} from device: ${alert.deviceId}');
+      await client.sos.resolveSOS(alert.clientAlertId, alert.deviceId);
     }
     
     print('All stale pins have been successfully cleared from the live server!');

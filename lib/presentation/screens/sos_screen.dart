@@ -161,6 +161,7 @@ class _SosScreenState extends State<SosScreen>
 
             final localUiAlert = SosAlert(
               id: alert.id.hashCode, // Unique temporary ID
+              clientAlertId: alert.id,
               deviceId: AuthManager.deviceId,
               senderName: AuthManager.displayName,
               latitude: alert.lat,
@@ -237,6 +238,7 @@ class _SosScreenState extends State<SosScreen>
             // Fallback: update local UI and rely on NetworkSyncManager
             final localUiAlert = SosAlert(
               id: alert.id.hashCode,
+              clientAlertId: alert.id,
               deviceId: AuthManager.deviceId,
               senderName: AuthManager.displayName,
               latitude: alert.lat,

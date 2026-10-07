@@ -140,7 +140,7 @@ class NetworkSyncManager {
         
         // Merge into AlertsManager ledger
         for (var alert in alerts) {
-           if (!AlertsManager().notifications.any((a) => a.sosId == alert.id)) {
+           if (!AlertsManager().notifications.any((a) => a.clientAlertId == alert.clientAlertId)) {
                AlertsManager().addSosAlert(alert);
            }
         }

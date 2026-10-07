@@ -152,8 +152,8 @@ class Protocol extends _i1.SerializationManagerServer {
         _i2.ColumnDefinition(
           name: 'clientAlertId',
           columnType: _i2.ColumnType.text,
-          isNullable: true,
-          dartType: 'String?',
+          isNullable: false,
+          dartType: 'String',
         ),
       ],
       foreignKeys: [],
@@ -170,6 +170,19 @@ class Protocol extends _i1.SerializationManagerServer {
           type: 'btree',
           isUnique: true,
           isPrimary: true,
+        ),
+        _i2.IndexDefinition(
+          indexName: 'sos_client_alert_id_idx',
+          tableSpace: null,
+          elements: [
+            _i2.IndexElementDefinition(
+              type: _i2.IndexElementDefinitionType.column,
+              definition: 'clientAlertId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
         ),
       ],
       managed: true,
