@@ -24,11 +24,12 @@ class OfflineMeshService {
   final Strategy _strategy = Strategy.P2P_CLUSTER;
   final String _serviceId = "com.crsis_link.mesh";
   final List<String> _connectedEndpoints = [];
+  final Set<String> _connectingEndpoints = <String>{};
   bool _isOfflineModeEnabled = false;
   Timer? _telemetryTimer;
   Timer? _dutyCycleTimer;
   bool _isDiscovering = false;
-  
+
   int _telemetrySequence = 0;
   final Set<String> _processedPacketIds = <String>{};
   bool get isOfflineModeEnabled => _isOfflineModeEnabled;
@@ -48,7 +49,7 @@ class OfflineMeshService {
   Future<void> toggleOfflineMode(bool enable) async {
     if (_isToggling) return;
     _isToggling = true;
-    
+
     try {
       if (enable) {
         bool success = await startMesh();
@@ -87,13 +88,19 @@ class OfflineMeshService {
 
     bool isLocationGranted = statuses[Permission.location]?.isGranted ?? false;
     bool bluetoothGranted = statuses[Permission.bluetooth]?.isGranted ?? false;
-    
-    // For newer SDKs these are specific, for older SDKs fallback to general bluetooth.
-    bool bleScanGranted = statuses[Permission.bluetoothScan]?.isGranted ?? bluetoothGranted;
-    bool bleAdvGranted = statuses[Permission.bluetoothAdvertise]?.isGranted ?? bluetoothGranted;
-    bool bleConnGranted = statuses[Permission.bluetoothConnect]?.isGranted ?? bluetoothGranted;
 
-    return isLocationGranted && bleScanGranted && bleAdvGranted && bleConnGranted;
+    // For newer SDKs these are specific, for older SDKs fallback to general bluetooth.
+    bool bleScanGranted =
+        statuses[Permission.bluetoothScan]?.isGranted ?? bluetoothGranted;
+    bool bleAdvGranted =
+        statuses[Permission.bluetoothAdvertise]?.isGranted ?? bluetoothGranted;
+    bool bleConnGranted =
+        statuses[Permission.bluetoothConnect]?.isGranted ?? bluetoothGranted;
+
+    return isLocationGranted &&
+        bleScanGranted &&
+        bleAdvGranted &&
+        bleConnGranted;
   }
 
   Future<bool> startMesh({bool isBackground = false}) async {
@@ -110,14 +117,16 @@ class OfflineMeshService {
         bool locationEnabled = await Geolocator.isLocationServiceEnabled();
         if (!locationEnabled) {
           debugPrint('[P2P_DEBUG] Mesh Start Failed: Location Services OFF');
-          _showDebugToast('Mesh Start Failed: Location Services OFF (Turn on GPS)');
+          _showDebugToast(
+            'Mesh Start Failed: Location Services OFF (Turn on GPS)',
+          );
           return false;
         }
       }
 
       String shortId = AuthManager.deviceId;
       if (shortId.length > 31) shortId = shortId.substring(0, 31);
-      
+
       debugPrint('[P2P_DEBUG] Starting Mesh Network Logic...');
       _showDebugToast('Starting Mesh Network...');
 
@@ -147,22 +156,31 @@ class OfflineMeshService {
         _strategy,
         onConnectionInitiated: (id, info) async {
           _showDebugToast('Connection Initiated with $id');
-          debugPrint('[P2P_DEBUG] startAdvertising: Connection Initiated with $id (name: ${info.endpointName})');
+          debugPrint(
+            '[P2P_DEBUG] startAdvertising: Connection Initiated with $id (name: ${info.endpointName})',
+          );
           try {
             await Nearby().acceptConnection(
-              id, 
+              id,
               onPayLoadRecieved: (endpointId, payload) {
                 _handleIncomingPayload(endpointId, payload);
               },
               onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
-                debugPrint('[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}');
-              }
+                debugPrint(
+                  '[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}',
+                );
+              },
             );
           } catch (e) {
-            debugPrint('[P2P_DEBUG] Hardware fault or security rejection during accept: $e');
+            debugPrint(
+              '[P2P_DEBUG] Hardware fault or security rejection during accept: $e',
+            );
           }
         },
         onConnectionResult: (id, status) {
+          debugPrint(
+            '[P2P_DEBUG] Advertising connection result with $id: $status',
+          );
           if (status == Status.CONNECTED) {
             _showDebugToast('Connected to $id');
             if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
@@ -172,6 +190,7 @@ class OfflineMeshService {
           }
         },
         onDisconnected: (id) {
+          debugPrint('[P2P_DEBUG] Advertising onDisconnected from $id');
           _connectedEndpoints.remove(id);
         },
         serviceId: _serviceId,
@@ -185,7 +204,9 @@ class OfflineMeshService {
   bool get _isRunning => !_isPaused;
 
   void pauseDutyCycle() {
-    debugPrint('[P2P_DEBUG] Pausing Mesh Duty Cycle for Compass (Keeping connections alive)');
+    debugPrint(
+      '[P2P_DEBUG] Pausing Mesh Duty Cycle for Compass (Keeping connections alive)',
+    );
     _isPaused = true;
     _dutyCycleTimer?.cancel();
     if (_isDiscovering) {
@@ -200,7 +221,7 @@ class OfflineMeshService {
     _isPaused = false;
     String shortId = AuthManager.deviceId;
     if (shortId.length > 31) shortId = shortId.substring(0, 31);
-    
+
     _startAdvertisingLogic(shortId);
     _startDutyCycle(shortId);
   }
@@ -208,21 +229,25 @@ class OfflineMeshService {
   void _startDutyCycle(String shortId) {
     _dutyCycleTimer?.cancel();
     if (_isPaused) return;
-    
+
     // Start initial discovery immediately
     _executeDiscoveryCycle(shortId);
-    
+
     // Toggle every 15 seconds: 15s scan, 15s sleep (unless active SOS)
-    _dutyCycleTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+    _dutyCycleTimer = Timer.periodic(const Duration(seconds: 15), (
+      timer,
+    ) async {
       if (_isPaused) {
         timer.cancel();
         return;
       }
       print('[MESH_RADIO] Adv/Disc active: $_isRunning');
-      
+
       final alerts = OfflineCacheManager.getUnsyncedAlerts();
-      final ownActiveAlert = alerts.where((a) => a.originalDeviceId == AuthManager.deviceId).firstOrNull;
-      
+      final ownActiveAlert = alerts
+          .where((a) => a.originalDeviceId == AuthManager.deviceId)
+          .firstOrNull;
+
       if (ownActiveAlert != null) {
         // Active Broadcast Mode: Continuous listening and broadcasting
         if (!_isDiscovering) await _executeDiscoveryCycle(shortId);
@@ -249,39 +274,76 @@ class OfflineMeshService {
         onEndpointFound: (id, name, serviceId) async {
           _showDebugToast('Discovered peer $name ($id)');
           debugPrint('[P2P_DEBUG] Discovered peer $name ($id)');
-          if (shortId.compareTo(name) >= 0) return;
-          if (_connectedEndpoints.contains(id)) return;
-          
+
+          // Guard: don't request if already connected or already negotiating
+          if (_connectedEndpoints.contains(id) ||
+              _connectingEndpoints.contains(id))
+            return;
+          _connectingEndpoints.add(id);
+
           try {
+            // Gentle jitter so both phones don't collide at the exact same millisecond
+            if (shortId.compareTo(name) > 0) {
+              await Future.delayed(const Duration(milliseconds: 350));
+              if (_connectedEndpoints.contains(id)) {
+                _connectingEndpoints.remove(id);
+                return;
+              }
+            }
+
+            debugPrint('[P2P_DEBUG] Requesting connection to $name ($id)...');
             await Nearby().requestConnection(
               shortId,
               id,
               onConnectionInitiated: (id, info) async {
+                debugPrint(
+                  '[P2P_DEBUG] Connection Initiated from discovery with $id (name: ${info.endpointName})',
+                );
                 try {
                   await Nearby().acceptConnection(
-                    id, 
-                    onPayLoadRecieved: (endpointId, payload) => _handleIncomingPayload(endpointId, payload),
-                    onPayloadTransferUpdate: (e, p) {}
+                    id,
+                    onPayLoadRecieved: (endpointId, payload) =>
+                        _handleIncomingPayload(endpointId, payload),
+                    onPayloadTransferUpdate: (e, p) {},
                   );
                 } catch (e) {
                   debugPrint('[P2P_DEBUG] Hardware fault during accept: $e');
                 }
               },
               onConnectionResult: (id, status) {
+                debugPrint(
+                  '[P2P_DEBUG] Discovery connection result with $id: $status',
+                );
+                _connectingEndpoints.remove(id);
                 if (status == Status.CONNECTED) {
-                  if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
+                  _showDebugToast('Connected to $id');
+                  if (!_connectedEndpoints.contains(id))
+                    _connectedEndpoints.add(id);
                   _syncLocalDatabaseWithPeer(id);
                 } else {
                   _connectedEndpoints.remove(id);
                 }
               },
-              onDisconnected: (id) => _connectedEndpoints.remove(id),
+              onDisconnected: (id) {
+                debugPrint('[P2P_DEBUG] Disconnected from $id');
+                _connectingEndpoints.remove(id);
+                _connectedEndpoints.remove(id);
+              },
+            );
+          } on PlatformException catch (e) {
+            _connectingEndpoints.remove(id);
+            debugPrint(
+              '[P2P_DEBUG] PlatformException during requestConnection: ${e.message}',
             );
           } catch (e) {
-            debugPrint('Hardware fault during request: $e');
+            _connectingEndpoints.remove(id);
+            debugPrint('[P2P_DEBUG] Hardware fault during request: $e');
           }
         },
-        onEndpointLost: (id) => debugPrint('[P2P_DEBUG] Endpoint lost: $id'),
+        onEndpointLost: (id) {
+          debugPrint('[P2P_DEBUG] Endpoint lost: $id');
+          _connectingEndpoints.remove(id);
+        },
         serviceId: _serviceId,
       );
     } catch (e) {
@@ -298,38 +360,44 @@ class OfflineMeshService {
       try {
         final payloadData = jsonEncode({
           "deviceId": AuthManager.deviceId,
-          "alerts": [{
-            "t": "SOS",
-            "i": alert.id,
-            "l": alert.lat,
-            "g": alert.lng,
-            "m": alert.message,
-            "a": alert.approximateLocationText,
-            "d": alert.originalDeviceId,
-            "n": alert.originalSenderName,
-            "ts": alert.timestamp
-          }]
+          "alerts": [
+            {
+              "t": "SOS",
+              "i": alert.id,
+              "l": alert.lat,
+              "g": alert.lng,
+              "m": alert.message,
+              "a": alert.approximateLocationText,
+              "d": alert.originalDeviceId,
+              "n": alert.originalSenderName,
+              "ts": alert.timestamp,
+            },
+          ],
         });
-        
+
         final signature = await P2pCryptoService().signPayload(payloadData);
         final envelope = jsonEncode({
           "p": payloadData,
           "k": P2pCryptoService().publicKey,
           "s": signature,
         });
-        
+
         final bytes = Uint8List.fromList(utf8.encode(envelope));
-        
+
         if (bytes.lengthInBytes <= 32768) {
           _showDebugToast('Syncing DB to $endpointId');
           await Nearby().sendBytesPayload(endpointId, bytes);
         } else {
-          debugPrint('Alert payload too large, skipping sync for peer $endpointId.');
+          debugPrint(
+            'Alert payload too large, skipping sync for peer $endpointId.',
+          );
         }
       } on PlatformException catch (e) {
         debugPrint('Platform fault syncing mesh alert: $e');
       } catch (e) {
-        debugPrint('Failed to sync mesh database alert with peer $endpointId: $e');
+        debugPrint(
+          'Failed to sync mesh database alert with peer $endpointId: $e',
+        );
       }
     }
   }
@@ -343,35 +411,37 @@ class OfflineMeshService {
       "m": alert.message,
       "d": alert.originalDeviceId,
       "n": alert.originalSenderName,
-      "ts": alert.timestamp
+      "ts": alert.timestamp,
     };
-    
+
     if (alert.approximateLocationText != null) {
       alertMap["a"] = alert.approximateLocationText;
     }
 
     final payloadData = jsonEncode({
       "deviceId": AuthManager.deviceId,
-      "alerts": [alertMap]
+      "alerts": [alertMap],
     });
-    
+
     final signature = await P2pCryptoService().signPayload(payloadData);
     final envelope = jsonEncode({
       "p": payloadData,
       "k": P2pCryptoService().publicKey,
       "s": signature,
     });
-    
+
     final bytes = Uint8List.fromList(utf8.encode(envelope));
     print('[MESH_SEND] Packet encoded successfully: ${bytes.length} bytes');
-    
+
     for (final peerId in _connectedEndpoints) {
       try {
         _showDebugToast('Transmitting SOS to $peerId');
         debugPrint('[P2P_DEBUG] Transmitting SOS to $peerId');
         await Nearby().sendBytesPayload(peerId, bytes);
       } on PlatformException catch (e) {
-        debugPrint('[P2P_DEBUG] Platform fault broadcasting alert to $peerId: $e');
+        debugPrint(
+          '[P2P_DEBUG] Platform fault broadcasting alert to $peerId: $e',
+        );
       } catch (e) {
         debugPrint('[P2P_DEBUG] Failed to broadcast alert to peer $peerId: $e');
       }
@@ -385,14 +455,14 @@ class OfflineMeshService {
       "i": alertId,
       "ts": DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     final signature = await P2pCryptoService().signPayload(payloadData);
     final envelope = jsonEncode({
       "p": payloadData,
       "k": P2pCryptoService().publicKey,
       "s": signature,
     });
-    
+
     final bytes = Uint8List.fromList(utf8.encode(envelope));
     for (final peerId in _connectedEndpoints) {
       try {
@@ -403,7 +473,11 @@ class OfflineMeshService {
     }
   }
 
-  Future<void> broadcastChatMessage(String alertId, String encryptedText, String recipientPubKey) async {
+  Future<void> broadcastChatMessage(
+    String alertId,
+    String encryptedText,
+    String recipientPubKey,
+  ) async {
     final payloadData = jsonEncode({
       "deviceId": AuthManager.deviceId,
       "t": "MSG",
@@ -411,14 +485,14 @@ class OfflineMeshService {
       "m": encryptedText,
       "ts": DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     final signature = await P2pCryptoService().signPayload(payloadData);
     final envelope = jsonEncode({
       "p": payloadData,
       "k": P2pCryptoService().publicKey,
       "s": signature,
     });
-    
+
     final bytes = Uint8List.fromList(utf8.encode(envelope));
     for (final peerId in _connectedEndpoints) {
       try {
@@ -431,16 +505,26 @@ class OfflineMeshService {
 
   void _startTelemetryBroadcast() {
     _telemetryTimer?.cancel();
-    _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (timer) async {
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (
+      timer,
+    ) async {
       try {
         final alerts = OfflineCacheManager.getUnsyncedAlerts();
-        final ownActiveAlert = alerts.where((a) => a.originalDeviceId == AuthManager.deviceId).firstOrNull;
+        final ownActiveAlert = alerts
+            .where((a) => a.originalDeviceId == AuthManager.deviceId)
+            .firstOrNull;
         if (ownActiveAlert != null && _connectedEndpoints.isNotEmpty) {
           if (!await Permission.location.isGranted) {
-            debugPrint('[P2P_DEBUG] Telemetry paused: Location permission missing in background');
+            debugPrint(
+              '[P2P_DEBUG] Telemetry paused: Location permission missing in background',
+            );
             return;
           }
-          final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+          final position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+            ),
+          );
           _telemetrySequence++;
           final payloadData = jsonEncode({
             "deviceId": AuthManager.deviceId,
@@ -475,32 +559,47 @@ class OfflineMeshService {
   }
 
   // 5. Receiving and Processing
-  Future<void> _handleIncomingPayload(String endpointId, Payload payload) async {
+  Future<void> _handleIncomingPayload(
+    String endpointId,
+    Payload payload,
+  ) async {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
       try {
         final str = utf8.decode(payload.bytes!);
         final dynamic envelopeData = jsonDecode(str);
-        
-        final bool isValid = envelopeData is Map && envelopeData.containsKey('p') && envelopeData.containsKey('k') && envelopeData.containsKey('s');
+
+        final bool isValid =
+            envelopeData is Map &&
+            envelopeData.containsKey('p') &&
+            envelopeData.containsKey('k') &&
+            envelopeData.containsKey('s');
         print('[MESH_RECV] Envelope keys valid: $isValid');
 
         if (!isValid) {
-          debugPrint('[P2P_SECURITY] Dropping unauthenticated or legacy non-signed packet.');
+          debugPrint(
+            '[P2P_SECURITY] Dropping unauthenticated or legacy non-signed packet.',
+          );
           return;
         }
 
         final String payloadStr = envelopeData['p'].toString();
         final String pubKey = envelopeData['k'].toString();
         final String signature = envelopeData['s'].toString();
-        
-        final isVerified = await P2pCryptoService().verifyPayload(payloadStr, pubKey, signature);
+
+        final isVerified = await P2pCryptoService().verifyPayload(
+          payloadStr,
+          pubKey,
+          signature,
+        );
         print('[MESH_RECV] Signature matched: $isVerified');
 
         if (!isVerified) {
-          debugPrint('[P2P_DEBUG] CRITICAL: Signature verification failed! Packet dropped (Potential spoofing/tampering).');
+          debugPrint(
+            '[P2P_DEBUG] CRITICAL: Signature verification failed! Packet dropped (Potential spoofing/tampering).',
+          );
           return;
         }
-        
+
         final decodedData = jsonDecode(payloadStr);
         if (decodedData is! Map || !decodedData.containsKey('deviceId')) {
           debugPrint('[P2P_DEBUG] CRITICAL: Missing deviceId in payload!');
@@ -509,31 +608,38 @@ class OfflineMeshService {
 
         final expectedDeviceId = P2pCryptoService.deriveDeviceIdFromKey(pubKey);
         if (decodedData['deviceId'] != expectedDeviceId) {
-          debugPrint('[P2P_DEBUG] CRITICAL: Identity Spoofing Detected! Payload deviceId does not match derived public key.');
+          debugPrint(
+            '[P2P_DEBUG] CRITICAL: Identity Spoofing Detected! Payload deviceId does not match derived public key.',
+          );
           return;
         }
 
-        if (decodedData['type'] == 'LOCATION_UPDATE' || decodedData['t'] == 'LOC') {
+        if (decodedData['type'] == 'LOCATION_UPDATE' ||
+            decodedData['t'] == 'LOC') {
           final String alertId = decodedData['id'] ?? decodedData['i'];
           final double lat = decodedData['lat'] ?? decodedData['l'];
           final double lng = decodedData['lng'] ?? decodedData['g'];
-          final int ts = decodedData['timestamp'] ?? decodedData['ts'] ?? DateTime.now().millisecondsSinceEpoch;
+          final int ts =
+              decodedData['timestamp'] ??
+              decodedData['ts'] ??
+              DateTime.now().millisecondsSinceEpoch;
           final int incomingSeq = decodedData['seq'] ?? 0;
           final int hops = decodedData['hop'] ?? 0;
-          
+
           final String packetKey = "${alertId}_$incomingSeq";
           if (_processedPacketIds.contains(packetKey)) return;
-          
+
           _processedPacketIds.add(packetKey);
           if (_processedPacketIds.length > 500) {
             _processedPacketIds.remove(_processedPacketIds.first);
           }
-          
+
           if (hops <= 0) return;
-          
+
           final existing = OfflineCacheManager.getAlert(alertId);
           if (existing != null) {
-            if (ts <= existing.timestamp && incomingSeq <= existing.sequenceNumber) {
+            if (ts <= existing.timestamp &&
+                incomingSeq <= existing.sequenceNumber) {
               return; // Ignore stale or delayed packet
             }
             existing.lat = lat;
@@ -541,23 +647,28 @@ class OfflineMeshService {
             existing.timestamp = ts;
             existing.sequenceNumber = incomingSeq;
             await OfflineCacheManager.saveAlert(existing);
-            
+
             // Relay to other peers with decremented hop count
             final relayedData = Map<String, dynamic>.from(decodedData);
             relayedData['hop'] = hops - 1;
             relayedData['deviceId'] = AuthManager.deviceId;
-            
+
             final relayedPayloadStr = jsonEncode(relayedData);
-            final relayedSignature = await P2pCryptoService().signPayload(relayedPayloadStr);
+            final relayedSignature = await P2pCryptoService().signPayload(
+              relayedPayloadStr,
+            );
             final relayedEnvelope = jsonEncode({
               "p": relayedPayloadStr,
               "k": P2pCryptoService().publicKey,
               "s": relayedSignature,
             });
-            final relayedBytes = Uint8List.fromList(utf8.encode(relayedEnvelope));
-            
+            final relayedBytes = Uint8List.fromList(
+              utf8.encode(relayedEnvelope),
+            );
+
             for (final peerId in _connectedEndpoints) {
-              if (peerId != endpointId) await Nearby().sendBytesPayload(peerId, relayedBytes);
+              if (peerId != endpointId)
+                await Nearby().sendBytesPayload(peerId, relayedBytes);
             }
           }
           return;
@@ -569,13 +680,26 @@ class OfflineMeshService {
           final existing = OfflineCacheManager.getAlert(alertId);
           if (existing != null) {
             // Only victim updates their own alert or peers relay
-            final alertNotification = AlertsManager().notifications.firstWhere((a) => a.clientAlertId == alertId, orElse: () => AlertNotification(clientAlertId: alertId, title: '', description: '', timestamp: DateTime.now(), type: AlertType.sos, latitude: 0, longitude: 0));
+            final alertNotification = AlertsManager().notifications.firstWhere(
+              (a) => a.clientAlertId == alertId,
+              orElse: () => AlertNotification(
+                clientAlertId: alertId,
+                title: '',
+                description: '',
+                timestamp: DateTime.now(),
+                type: AlertType.sos,
+                latitude: 0,
+                longitude: 0,
+              ),
+            );
             if (alertNotification.type != AlertType.resolved) {
-              AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
-                victimDeviceId: existing.originalDeviceId,
-                volunteerName: "Mesh Volunteer",
-                volunteerDeviceId: volunteerId,
-              ));
+              AlertsManager().addSelfRescueEvent(
+                RescueAcceptedEvent(
+                  victimDeviceId: existing.originalDeviceId,
+                  volunteerName: "Mesh Volunteer",
+                  volunteerDeviceId: volunteerId,
+                ),
+              );
             }
           }
           return;
@@ -584,42 +708,58 @@ class OfflineMeshService {
         if (decodedData['t'] == 'MSG') {
           final String alertId = decodedData['i'];
           final String encryptedText = decodedData['m'];
-          RescueChatSession().receiveMessagePayload(alertId, expectedDeviceId, encryptedText);
+          RescueChatSession().receiveMessagePayload(
+            alertId,
+            expectedDeviceId,
+            encryptedText,
+          );
           return;
         }
 
         if (!decodedData.containsKey('alerts')) return;
-        
+
         final List<dynamic> dataList = decodedData['alerts'];
         bool hasNewData = false;
 
         for (var item in dataList) {
           if (item is! Map) continue;
-          
+
           final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item);
           final bool isMinified = jsonMap['t'] == 'SOS';
-          
+
           final String? id = jsonMap['id'] ?? jsonMap['i'];
           final timestamp = jsonMap['timestamp'] ?? jsonMap['ts'];
           if (id == null || timestamp == null) continue;
-          
-          final double? lat = isMinified ? (jsonMap['l'] as num?)?.toDouble() : (jsonMap['lat'] as num?)?.toDouble();
-          final double? lng = isMinified ? (jsonMap['g'] as num?)?.toDouble() : (jsonMap['lng'] as num?)?.toDouble();
-          
-          if (lat == null || lng == null || lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
+
+          final double? lat = isMinified
+              ? (jsonMap['l'] as num?)?.toDouble()
+              : (jsonMap['lat'] as num?)?.toDouble();
+          final double? lng = isMinified
+              ? (jsonMap['g'] as num?)?.toDouble()
+              : (jsonMap['lng'] as num?)?.toDouble();
+
+          if (lat == null ||
+              lng == null ||
+              lat.isNaN ||
+              lat.isInfinite ||
+              lng.isNaN ||
+              lng.isInfinite) {
             continue;
           }
-          
+
           final clampedLat = lat.clamp(-90.0, 90.0);
           final clampedLng = lng.clamp(-180.0, 180.0);
-          
-          final msg = (jsonMap['message'] ?? jsonMap['m'] ?? 'Emergency').toString();
+
+          final msg = (jsonMap['message'] ?? jsonMap['m'] ?? 'Emergency')
+              .toString();
           final String message = msg.length > 500 ? msg.substring(0, 500) : msg;
 
           final approxLoc = jsonMap['approximateLocationText'] ?? jsonMap['a'];
-          final origDevId = jsonMap['originalDeviceId'] ?? jsonMap['d'] ?? 'unknown_device';
-          final origSender = jsonMap['originalSenderName'] ?? jsonMap['n'] ?? 'Unknown Sender';
-          
+          final origDevId =
+              jsonMap['originalDeviceId'] ?? jsonMap['d'] ?? 'unknown_device';
+          final origSender =
+              jsonMap['originalSenderName'] ?? jsonMap['n'] ?? 'Unknown Sender';
+
           final alert = LocalSosAlert(
             id: id,
             lat: clampedLat,
@@ -650,7 +790,7 @@ class OfflineMeshService {
               senderName: alert.originalSenderName,
               isActive: true,
             );
-            
+
             MapPinsManager().addOrUpdatePin(sosAlert);
             AlertsManager().addSosAlert(sosAlert);
           }
