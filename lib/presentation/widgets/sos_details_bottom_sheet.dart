@@ -1,5 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../core/services/p2p_crypto_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/auth/auth_manager.dart';
@@ -163,7 +163,9 @@ Row(
                               if (alertId == null || alert.clientAlertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                final success = await AuthManager.client.sos.resolveSOS(alert.clientAlertId!, AuthManager.deviceId);
+                                final expectedPayload = "resolveSOS_${alert.clientAlertId!}";
+                                final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                final success = await AuthManager.client.sos.resolveSOS(alert.clientAlertId!, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
                                 if (!success) {
                                   if (ctx.mounted) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
@@ -231,7 +233,9 @@ Row(
                               if (alertId == null || alert.clientAlertId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!).timeout(const Duration(seconds: 10));
+                                final expectedPayload = "claimRescue_${alert.clientAlertId!}";
+                                final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!, signature, P2pCryptoService().publicKey).timeout(const Duration(seconds: 10));
                                 if (ctx.mounted) {
                                   final updatedAlert = alert.copyWith(
                                     status: 'CLAIMED',

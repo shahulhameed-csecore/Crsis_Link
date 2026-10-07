@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../core/services/p2p_crypto_service.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -514,7 +516,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                 if (alertId == null) return;
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                  final expectedPayload = "claimRescue_$alertId";
+                                  final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                  await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId, signature, P2pCryptoService().publicKey);
                                   if (ctx.mounted) {
                                     final updatedAlert = alert.copyWith(
                                       status: 'CLAIMED',
@@ -1598,7 +1602,9 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                                   if (alertId == null) return;
                                   setModalState(() => isSubmitting = true);
                                   try {
-                                    final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId);
+                                    final expectedPayload = "resolveSOS_$alertId";
+                                    final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                    final success = await AuthManager.client.sos.resolveSOS(alertId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
                                     if (!success) {
                                       if (ctx.mounted) {
                                         ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
@@ -1666,7 +1672,9 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                                   if (alertId == null) return;
                                   setModalState(() => isSubmitting = true);
                                   try {
-                                    await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId);
+                                    final expectedPayload = "claimRescue_$alertId";
+                                    final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                    await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alertId, signature, P2pCryptoService().publicKey);
                                     if (ctx.mounted) {
                                       final updatedAlert = alert.copyWith(
                                         status: 'CLAIMED',

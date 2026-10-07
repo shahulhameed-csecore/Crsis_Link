@@ -765,6 +765,8 @@ class _SosEndpoint {
     _i1.TestSessionBuilder sessionBuilder,
     String clientAlertId,
     String deviceId,
+    String signatureBase64,
+    String publicKeyBase64,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -780,6 +782,8 @@ class _SosEndpoint {
           parameters: _i1.testObjectToJson({
             'clientAlertId': clientAlertId,
             'deviceId': deviceId,
+            'signatureBase64': signatureBase64,
+            'publicKeyBase64': publicKeyBase64,
           }),
           serializationManager: _serializationManager,
         );
@@ -801,6 +805,8 @@ class _SosEndpoint {
     String volunteerDeviceId,
     String volunteerName,
     String clientAlertId,
+    String signatureBase64,
+    String publicKeyBase64,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -817,6 +823,8 @@ class _SosEndpoint {
             'volunteerDeviceId': volunteerDeviceId,
             'volunteerName': volunteerName,
             'clientAlertId': clientAlertId,
+            'signatureBase64': signatureBase64,
+            'publicKeyBase64': publicKeyBase64,
           }),
           serializationManager: _serializationManager,
         );

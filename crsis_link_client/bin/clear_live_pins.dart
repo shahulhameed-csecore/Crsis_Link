@@ -6,12 +6,13 @@ void main() async {
   print('Connecting to live server to fetch active alerts...');
   
   try {
-    final alerts = await client.sos.getActiveAlerts(0.0, 0.0);
-    print('Found ${alerts.length} active pins.');
-    
-    for (var alert in alerts) {
-      print('Resolving pin ID: ${alert.clientAlertId} from device: ${alert.deviceId}');
-      await client.sos.resolveSOS(alert.clientAlertId, alert.deviceId);
+    print('Attempting to nuke all test data...');
+    // Replace DEV_ADMIN_SECRET with the actual secret from your config if needed
+    final success = await client.sos.nukeAllTestData(devSecret: 'DEV_ADMIN_SECRET');
+    if (success) {
+      print('All stale pins have been successfully cleared from the live server!');
+    } else {
+      print('Failed to clear pins. Unauthorized.');
     }
     
     print('All stale pins have been successfully cleared from the live server!');

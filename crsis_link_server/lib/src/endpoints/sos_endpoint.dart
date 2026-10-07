@@ -1,5 +1,8 @@
 import 'dart:math';
 import 'package:serverpod/serverpod.dart';
+import 'package:cryptography/cryptography.dart' as cryptography;
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 import 'dart:async';
 import '../generated/protocol.dart';
 
@@ -316,17 +319,52 @@ class SosEndpoint extends Endpoint {
   }
 
   
+  Future<bool> _verifySignature(String payloadString, String publicKeyBase64, String signatureBase64) async {
+    try {
+      final ed25519 = cryptography.Ed25519();
+      final message = utf8.encode(payloadString);
+      final pubKeyBytes = base64Decode(publicKeyBase64);
+      final sigBytes = base64Decode(signatureBase64);
+      
+      final pubKey = cryptography.SimplePublicKey(pubKeyBytes, type: cryptography.KeyPairType.ed25519);
+      final signature = cryptography.Signature(sigBytes, publicKey: pubKey);
+      
+      return await ed25519.verify(message, signature: signature);
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Resolves an active SOS alert
-  Future<bool> resolveSOS(Session session, String clientAlertId, String deviceId) async {
+  Future<bool> resolveSOS(Session session, String clientAlertId, String deviceId, String signatureBase64, String publicKeyBase64) async {
+    final expectedPayload = "resolveSOS_$clientAlertId";
+    final isValid = await _verifySignature(expectedPayload, publicKeyBase64, signatureBase64);
+    if (!isValid) throw Exception("Invalid signature");
+
+    final hash = sha256.convert(base64Decode(publicKeyBase64)).bytes;
+    final hexString = hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    final callerDeviceId = 'dev_${hexString.substring(0, 16)}';
+
+    final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
+    if (alert == null) return false;
+
+    if (callerDeviceId != alert.deviceId && callerDeviceId != alert.volunteerDeviceId) {
+      throw Exception("Unauthorized: You must be the victim or assigned rescuer.");
+    }
+    if (callerDeviceId == alert.volunteerDeviceId && alert.isRescuerVerified != true) {
+      throw Exception("Unauthorized: Rescuer not verified.");
+    }
+
     // Atomic State Transition: Guarantees only one request can mark it resolved
     final query = '''
       UPDATE "sos_alert" 
       SET "status" = 'RESOLVED', "isActive" = false 
-      WHERE "clientAlertId" = \$1 AND "deviceId" = \$2 AND "isActive" = true 
+      WHERE "clientAlertId" = \$1 AND "isActive" = true 
+
       RETURNING *;
     ''';
     
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, deviceId]));
+    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId]));
     if (result.isEmpty) {
       return false; // Already resolved or wrong owner
     }
@@ -338,7 +376,19 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Claims an active SOS alert
-  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, String clientAlertId) async {
+  Future<SosAlert> claimRescue(Session session, String volunteerDeviceId, String volunteerName, String clientAlertId, String signatureBase64, String publicKeyBase64) async {
+    final expectedPayload = "claimRescue_$clientAlertId";
+    final isValid = await _verifySignature(expectedPayload, publicKeyBase64, signatureBase64);
+    if (!isValid) throw Exception("Invalid signature");
+
+    final hash = sha256.convert(base64Decode(publicKeyBase64)).bytes;
+    final hexString = hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    final callerDeviceId = 'dev_${hexString.substring(0, 16)}';
+    
+    if (callerDeviceId != volunteerDeviceId) {
+       throw Exception("Spoofing detected");
+    }
+
     final pin = (1000 + Random().nextInt(9000)).toString();
     
     // Atomic State Transition: The WHERE clause guarantees only ONE update can succeed

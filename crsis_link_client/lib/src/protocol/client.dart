@@ -356,12 +356,16 @@ class EndpointSos extends _i2.EndpointRef {
   _i3.Future<bool> resolveSOS(
     String clientAlertId,
     String deviceId,
+    String signatureBase64,
+    String publicKeyBase64,
   ) => caller.callServerEndpoint<bool>(
     'sos',
     'resolveSOS',
     {
       'clientAlertId': clientAlertId,
       'deviceId': deviceId,
+      'signatureBase64': signatureBase64,
+      'publicKeyBase64': publicKeyBase64,
     },
   );
 
@@ -370,6 +374,8 @@ class EndpointSos extends _i2.EndpointRef {
     String volunteerDeviceId,
     String volunteerName,
     String clientAlertId,
+    String signatureBase64,
+    String publicKeyBase64,
   ) => caller.callServerEndpoint<_i6.SosAlert>(
     'sos',
     'claimRescue',
@@ -377,6 +383,8 @@ class EndpointSos extends _i2.EndpointRef {
       'volunteerDeviceId': volunteerDeviceId,
       'volunteerName': volunteerName,
       'clientAlertId': clientAlertId,
+      'signatureBase64': signatureBase64,
+      'publicKeyBase64': publicKeyBase64,
     },
   );
 

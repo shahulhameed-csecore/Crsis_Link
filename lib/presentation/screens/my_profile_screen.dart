@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/auth/auth_manager.dart';
 import '../widgets/capsule_button.dart';
@@ -62,6 +63,28 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   void _hardResetData() async {
     HapticFeedback.heavyImpact();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Wipe All Disaster Data?'),
+        content: const Text('This will purge local keys, encrypted caches, and mesh state. This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.emergencyRed),
+            child: const Text('Confirm Wipe', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     await OfflineCacheManager.clearEntireCache();
     await AlertsManager().clearAll();
     
@@ -114,21 +137,23 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             const SizedBox(height: 32),
 
             // Debug Nuke Button
-            ElevatedButton.icon(
-              onPressed: _hardResetData,
-              icon: const Icon(Icons.warning, color: Colors.white),
-              label: const Text(
-                'DEBUG: Hard Reset Data',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            if (kDebugMode) ...[
+              ElevatedButton.icon(
+                onPressed: _hardResetData,
+                icon: const Icon(Icons.warning, color: Colors.white),
+                label: const Text(
+                  'DEBUG: Hard Reset Data',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.emergencyRed,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.emergencyRed,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 56),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            ],
           ],
         ),
       ),

@@ -484,6 +484,16 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
+            'signatureBase64': _i1.ParameterDescription(
+              name: 'signatureBase64',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'publicKeyBase64': _i1.ParameterDescription(
+              name: 'publicKeyBase64',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
           },
           call:
               (
@@ -493,6 +503,8 @@ class Endpoints extends _i1.EndpointDispatch {
                 session,
                 params['clientAlertId'],
                 params['deviceId'],
+                params['signatureBase64'],
+                params['publicKeyBase64'],
               ),
         ),
         'claimRescue': _i1.MethodConnector(
@@ -513,6 +525,16 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
+            'signatureBase64': _i1.ParameterDescription(
+              name: 'signatureBase64',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'publicKeyBase64': _i1.ParameterDescription(
+              name: 'publicKeyBase64',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
           },
           call:
               (
@@ -523,6 +545,8 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['volunteerDeviceId'],
                 params['volunteerName'],
                 params['clientAlertId'],
+                params['signatureBase64'],
+                params['publicKeyBase64'],
               ),
         ),
         'completeRescue': _i1.MethodConnector(
