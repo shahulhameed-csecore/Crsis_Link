@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:crsis_link/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crsis_link/core/auth/auth_manager.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 

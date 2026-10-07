@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/services/p2p_crypto_service.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -14,7 +13,6 @@ import '../../core/auth/auth_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import '../widgets/voice_note_recorder.dart';
 import '../widgets/capsule_button.dart';
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,7 +25,6 @@ import '../../core/models/local_sos_alert.dart';
 import '../widgets/disaster_radar_view.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_mesh_service.dart';
-import 'package:uuid/uuid.dart';
 import '../widgets/sos_details_bottom_sheet.dart';
 
 class HomeMapScreen extends StatefulWidget {
@@ -514,7 +511,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                             child: ElevatedButton(
                               onPressed: isSubmitting ? null : () async {
                                 final alertId = alert.clientAlertId;
-                                if (alertId == null) return;
                                 setModalState(() => isSubmitting = true);
                                 try {
                                   final expectedPayload = "claimRescue_$alertId";
@@ -567,7 +563,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                       TextButton(
                         onPressed: () {
                           final alertId = alert.clientAlertId;
-                          if (alertId == null) return;
                           showDialog(
                             context: ctx,
                             builder: (dialogCtx) => AlertDialog(
@@ -1292,10 +1287,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                                           Navigator.pop(ctx);
                                           setState(() {
                                             for (final pin in MapPinsManager().pins) {
-                                              if (pin.clientAlertId != null) {
-                                                _ignoredSosIds.add(pin.clientAlertId!);
-                                                AlertsManager().addIgnoredAlert(pin.clientAlertId!, pin.senderName);
-                                              }
+                                              _ignoredSosIds.add(pin.clientAlertId);
+                                              AlertsManager().addIgnoredAlert(pin.clientAlertId, pin.senderName);
                                             }
                                             _saveIgnoredIds();
                                             MapPinsManager().setPins([]);
@@ -1460,14 +1453,12 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
               isOwnPin: isOwnPin,
               onIgnore: () {
                 final id = widget.alert.clientAlertId;
-                if (id != null) {
-                  MapPinsManager().removePin(id);
-                  AlertsManager().addIgnoredAlert(id, widget.alert.senderName);
-                }
+                MapPinsManager().removePin(id);
+                AlertsManager().addIgnoredAlert(id, widget.alert.senderName);
               },
               onResolve: () {
                 final id = widget.alert.clientAlertId;
-                if (id != null) MapPinsManager().removePin(id);
+                MapPinsManager().removePin(id);
               },
             ),
           );
