@@ -17,6 +17,7 @@ class NetworkSyncManager {
   NetworkSyncManager._internal();
 
   bool _isSyncing = false;
+  bool _isRetryScheduled = false;
   int _retryBackoffSeconds = 2;
   
   final ValueNotifier<SyncState> state = ValueNotifier(SyncState.offline);
@@ -52,7 +53,7 @@ class NetworkSyncManager {
   }
 
   Future<void> uploadPendingAlerts() async {
-    if (_isSyncing) return;
+    if (_isSyncing || _isRetryScheduled) return;
     _isSyncing = true;
     state.value = SyncState.onlineSyncing;
 
@@ -115,13 +116,13 @@ class NetworkSyncManager {
       final jitter = Random().nextInt(1000); 
       debugPrint('[SYNC] Sync aborted. Retrying in $_retryBackoffSeconds seconds (+$jitter ms jitter)...');
       
+      _isRetryScheduled = true;
       Future.delayed(Duration(seconds: _retryBackoffSeconds, milliseconds: jitter), () {
-        _isSyncing = false;
+        _isRetryScheduled = false;
         if (state.value != SyncState.offline) {
            uploadPendingAlerts();
         }
       });
-      return; 
     } finally {
       _isSyncing = false;
     }

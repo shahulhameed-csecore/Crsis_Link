@@ -6,6 +6,12 @@ class AudioEndpoint extends Endpoint {
   /// Generates a pre-signed upload URL for an SOS audio file.
   /// Returns a JSON-encoded upload description string.
   Future<String> getUploadDescription(Session session, String fileName) async {
+    final safeRegex = RegExp(r'^[a-zA-Z0-9_-]+\.(m4a|aac|mp3)$');
+    if (!safeRegex.hasMatch(fileName)) {
+      session.log('Path traversal attempt blocked: $fileName', level: LogLevel.warning);
+      throw Exception('Invalid filename format.');
+    }
+    
     session.log('Generating upload URL for audio file: $fileName', level: LogLevel.info);
 
     try {
@@ -22,6 +28,12 @@ class AudioEndpoint extends Endpoint {
 
   /// Verifies the upload completed and returns the public URL of the audio file.
   Future<String> verifyUpload(Session session, String fileName) async {
+    final safeRegex = RegExp(r'^[a-zA-Z0-9_-]+\.(m4a|aac|mp3)$');
+    if (!safeRegex.hasMatch(fileName)) {
+      session.log('Path traversal attempt blocked: $fileName', level: LogLevel.warning);
+      throw Exception('Invalid filename format.');
+    }
+    
     session.log('Verifying upload for: $fileName', level: LogLevel.info);
 
     try {

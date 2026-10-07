@@ -66,8 +66,10 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   Future<void> _loadFromPrefs() async {
     try {
       final box = OfflineCacheManager.getNotificationsBox();
-      final List<String>? jsonList = box.get(_prefsKey)?.cast<String>();
-      if (jsonList != null) {
+      final String? jsonListStr = box.get(_prefsKey);
+      if (jsonListStr != null) {
+        final List<dynamic> rawList = jsonDecode(jsonListStr);
+        final List<String> jsonList = rawList.cast<String>();
         value = jsonList.map((str) => AlertNotification.fromJson(jsonDecode(str))).toList();
       } else {
         // Migration: check if legacy unencrypted prefs exist and migrate
@@ -75,7 +77,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
         final List<String>? legacyList = prefs.getStringList(_prefsKey);
         if (legacyList != null) {
           value = legacyList.map((str) => AlertNotification.fromJson(jsonDecode(str))).toList();
-          await box.put(_prefsKey, legacyList);
+          await box.put(_prefsKey, jsonEncode(legacyList));
           await prefs.remove(_prefsKey);
         }
       }
@@ -88,7 +90,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     try {
       final box = OfflineCacheManager.getNotificationsBox();
       final jsonList = list.map((n) => jsonEncode(n.toJson())).toList();
-      await box.put(_prefsKey, jsonList);
+      await box.put(_prefsKey, jsonEncode(jsonList));
     } catch (e) {
       debugPrint('Failed to save alerts history: $e');
     }
