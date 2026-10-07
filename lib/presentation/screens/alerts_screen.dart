@@ -136,18 +136,37 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           decoration: BoxDecoration(
                             color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                            border: Border.all(color: const Color(0xFF198754), width: 1.5),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const Icon(Icons.verified_user, color: Colors.green, size: 40),
+                              const Icon(Icons.verified_user, color: Color(0xFF0F5132), size: 40),
                               const SizedBox(height: 8),
-                              const Text('Rescuer Assigned!', style: TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('RESCUER ASSIGNED!', style: TextStyle(color: Color(0xFF0F5132), fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F5132),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _myLatestSos!.verificationPin ?? '----',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 4.0,
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 12),
-                              Text('Your Safety PIN is: ${_myLatestSos!.verificationPin ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                              const SizedBox(height: 8),
-                              const Text('Give this PIN to your rescuer when they call or arrive.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                              const Text(
+                                'Give this PIN to your rescuer when they call or arrive.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
+                              ),
                             ],
                           ),
                         ),
