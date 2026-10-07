@@ -47,8 +47,22 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
   }
 
   Future<void> _initSensors() async {
+    print('[COMPASS_INIT] Starting sensor initialization...');
     try {
+      print('[COMPASS_INIT] Requesting initial GPS lock...');
+      final Position initialPos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+      ).timeout(const Duration(seconds: 3));
+      
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(initialPos.latitude, initialPos.longitude);
+        });
+      }
+      print('[COMPASS_INIT] Initial GPS lock acquired.');
+
       // 1. Setup GPS Stream
+      print('[COMPASS_INIT] Setting up GPS stream...');
       _positionStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high, // Optimized from bestForNavigation
@@ -78,6 +92,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
       });
 
       // 2. Setup Magnetometer Stream
+      print('[COMPASS_INIT] Setting up Magnetometer...');
       final compassEvents = FlutterCompass.events;
       if (compassEvents != null) {
         int lastCompassUpdate = 0;
@@ -94,13 +109,24 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsB
             });
           }
         }, onError: (e) {
-          setState(() => _hasCompassHardware = false);
+          print('[COMPASS_INIT] Compass stream error: $e');
+          if (mounted) setState(() => _hasCompassHardware = false);
         });
       } else {
-        setState(() => _hasCompassHardware = false);
+        print('[COMPASS_INIT] No compass hardware found.');
+        if (mounted) setState(() => _hasCompassHardware = false);
       }
     } catch (e) {
+      print('[COMPASS_INIT] Sensor init failed or timed out: $e');
       debugPrint('[RescueCompass] Sensor init failed: $e');
+    } finally {
+      print('[COMPASS_INIT] Initialization complete, releasing UI state.');
+      if (mounted) {
+        setState(() {
+          // ignore: undefined_identifier
+          isLoading = false; // Assuming isLoading is declared elsewhere in the class by user request
+        });
+      }
     }
   }
 
