@@ -30,7 +30,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required this.victimPhone,
-    this.photoBase64,
+    this.photoUrl,
     this.approximateLocationText,
     required this.clientAlertId,
     this.pinAttempts,
@@ -54,7 +54,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
     int? pinAttempts,
@@ -88,7 +88,7 @@ abstract class SosAlert implements _i1.SerializableModel {
               jsonSerialization['isVisuallyVerified'],
             ),
       victimPhone: jsonSerialization['victimPhone'] as String,
-      photoBase64: jsonSerialization['photoBase64'] as String?,
+      photoUrl: jsonSerialization['photoUrl'] as String?,
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
       clientAlertId: jsonSerialization['clientAlertId'] as String,
@@ -134,7 +134,7 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String victimPhone;
 
-  String? photoBase64;
+  String? photoUrl;
 
   String? approximateLocationText;
 
@@ -163,7 +163,7 @@ abstract class SosAlert implements _i1.SerializableModel {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     String? victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     String? clientAlertId,
     int? pinAttempts,
@@ -188,7 +188,7 @@ abstract class SosAlert implements _i1.SerializableModel {
       'isRescuerVerified': isRescuerVerified,
       'isVisuallyVerified': isVisuallyVerified,
       'victimPhone': victimPhone,
-      if (photoBase64 != null) 'photoBase64': photoBase64,
+      if (photoUrl != null) 'photoUrl': photoUrl,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
@@ -222,7 +222,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
     int? pinAttempts,
@@ -243,7 +243,7 @@ class _SosAlertImpl extends SosAlert {
          isRescuerVerified: isRescuerVerified,
          isVisuallyVerified: isVisuallyVerified,
          victimPhone: victimPhone,
-         photoBase64: photoBase64,
+         photoUrl: photoUrl,
          approximateLocationText: approximateLocationText,
          clientAlertId: clientAlertId,
          pinAttempts: pinAttempts,
@@ -270,7 +270,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     String? victimPhone,
-    Object? photoBase64 = _Undefined,
+    Object? photoUrl = _Undefined,
     Object? approximateLocationText = _Undefined,
     String? clientAlertId,
     Object? pinAttempts = _Undefined,
@@ -296,7 +296,7 @@ class _SosAlertImpl extends SosAlert {
       isRescuerVerified: isRescuerVerified ?? this.isRescuerVerified,
       isVisuallyVerified: isVisuallyVerified ?? this.isVisuallyVerified,
       victimPhone: victimPhone ?? this.victimPhone,
-      photoBase64: photoBase64 is String? ? photoBase64 : this.photoBase64,
+      photoUrl: photoUrl is String? ? photoUrl : this.photoUrl,
       approximateLocationText: approximateLocationText is String?
           ? approximateLocationText
           : this.approximateLocationText,

@@ -111,7 +111,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoBase64, String? approximateLocationText, String clientAlertId) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoUrl, String? approximateLocationText, String clientAlertId) async {
     if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw ArgumentError('Invalid coordinates');
     }
@@ -122,8 +122,8 @@ class SosEndpoint extends Endpoint {
     }
     if (message != null && message.length > 1000) message = message.substring(0, 1000);
     if (victimPhone.length > 20) victimPhone = victimPhone.substring(0, 20);
-    if (photoBase64 != null && photoBase64.length > 5000000) { // Limit to ~5MB max base64
-      throw ArgumentError('Photo payload exceeds maximum size limit (5MB)');
+    if (photoUrl != null && photoUrl.length > 500) { 
+      throw ArgumentError('Photo URL exceeds maximum length');
     }
     if (approximateLocationText != null && approximateLocationText.length > 200) {
       approximateLocationText = approximateLocationText.substring(0, 200);
@@ -178,7 +178,7 @@ class SosEndpoint extends Endpoint {
         senderName: senderName,
         audioUrl: audioUrl,
         victimPhone: victimPhone,
-        photoBase64: photoBase64,
+        photoUrl: photoUrl,
         approximateLocationText: approximateLocationText,
         clientAlertId: clientAlertId,
       );
@@ -284,7 +284,7 @@ class SosEndpoint extends Endpoint {
               victimPhone: '',
               verificationPin: null,
               audioUrl: alert.audioUrl,
-              photoBase64: alert.photoBase64,
+              photoUrl: alert.photoUrl,
               volunteerDeviceId: alert.volunteerDeviceId,
               isRescuerVerified: alert.isRescuerVerified,
             ))
@@ -454,6 +454,56 @@ class SosEndpoint extends Endpoint {
     unawaited(session.messages.postMessage('sos_broadcasts', alert!));
     
     return true;
+  }
+
+  /// Generates a pre-signed upload URL for an SOS photo.
+  Future<String> getPhotoUploadDescription(Session session, String fileName) async {
+    final safeRegex = RegExp(r'^[a-zA-Z0-9_-]+\.(jpg|jpeg|png)$');
+    if (!safeRegex.hasMatch(fileName)) {
+      session.log('Path traversal attempt blocked: $fileName', level: LogLevel.warning);
+      throw Exception('Invalid filename format.');
+    }
+    session.log('Generating upload URL for photo: $fileName', level: LogLevel.info);
+    try {
+      final uploadDescription = await session.storage.createDirectFileUploadDescription(
+        storageId: 'public',
+        path: 'sos_photo/$fileName',
+      );
+      return uploadDescription ?? '';
+    } catch (e) {
+      session.log('Operation failed: $e', level: LogLevel.error);
+      throw Exception('Operation failed: $e');
+    }
+  }
+
+  /// Verifies the upload completed and returns the public URL of the photo.
+  Future<String> verifyPhotoUpload(Session session, String fileName) async {
+    final safeRegex = RegExp(r'^[a-zA-Z0-9_-]+\.(jpg|jpeg|png)$');
+    if (!safeRegex.hasMatch(fileName)) {
+      session.log('Path traversal attempt blocked: $fileName', level: LogLevel.warning);
+      throw Exception('Invalid filename format.');
+    }
+    session.log('Verifying photo upload for: $fileName', level: LogLevel.info);
+    try {
+      final verified = await session.storage.verifyDirectFileUpload(
+        storageId: 'public',
+        path: 'sos_photo/$fileName',
+      );
+      if (!verified) {
+        throw Exception('Upload verification failed - file not found in storage.');
+      }
+      final publicUrl = await session.storage.getPublicUrl(
+        storageId: 'public',
+        path: 'sos_photo/$fileName',
+      );
+      if (publicUrl == null) {
+        throw Exception('Failed to get public URL after upload.');
+      }
+      return publicUrl.toString();
+    } catch (e) {
+      session.log('Operation failed: $e', level: LogLevel.error);
+      throw Exception('Operation failed: $e');
+    }
   }
 }
 

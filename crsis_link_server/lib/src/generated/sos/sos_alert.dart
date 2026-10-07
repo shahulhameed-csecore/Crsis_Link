@@ -31,7 +31,7 @@ abstract class SosAlert
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required this.victimPhone,
-    this.photoBase64,
+    this.photoUrl,
     this.approximateLocationText,
     required this.clientAlertId,
     this.pinAttempts,
@@ -55,7 +55,7 @@ abstract class SosAlert
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
     int? pinAttempts,
@@ -89,7 +89,7 @@ abstract class SosAlert
               jsonSerialization['isVisuallyVerified'],
             ),
       victimPhone: jsonSerialization['victimPhone'] as String,
-      photoBase64: jsonSerialization['photoBase64'] as String?,
+      photoUrl: jsonSerialization['photoUrl'] as String?,
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
       clientAlertId: jsonSerialization['clientAlertId'] as String,
@@ -137,7 +137,7 @@ abstract class SosAlert
 
   String victimPhone;
 
-  String? photoBase64;
+  String? photoUrl;
 
   String? approximateLocationText;
 
@@ -169,7 +169,7 @@ abstract class SosAlert
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     String? victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     String? clientAlertId,
     int? pinAttempts,
@@ -194,7 +194,7 @@ abstract class SosAlert
       'isRescuerVerified': isRescuerVerified,
       'isVisuallyVerified': isVisuallyVerified,
       'victimPhone': victimPhone,
-      if (photoBase64 != null) 'photoBase64': photoBase64,
+      if (photoUrl != null) 'photoUrl': photoUrl,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
@@ -222,7 +222,7 @@ abstract class SosAlert
       'isRescuerVerified': isRescuerVerified,
       'isVisuallyVerified': isVisuallyVerified,
       'victimPhone': victimPhone,
-      if (photoBase64 != null) 'photoBase64': photoBase64,
+      if (photoUrl != null) 'photoUrl': photoUrl,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
@@ -280,7 +280,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     required String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
     int? pinAttempts,
@@ -301,7 +301,7 @@ class _SosAlertImpl extends SosAlert {
          isRescuerVerified: isRescuerVerified,
          isVisuallyVerified: isVisuallyVerified,
          victimPhone: victimPhone,
-         photoBase64: photoBase64,
+         photoUrl: photoUrl,
          approximateLocationText: approximateLocationText,
          clientAlertId: clientAlertId,
          pinAttempts: pinAttempts,
@@ -328,7 +328,7 @@ class _SosAlertImpl extends SosAlert {
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
     String? victimPhone,
-    Object? photoBase64 = _Undefined,
+    Object? photoUrl = _Undefined,
     Object? approximateLocationText = _Undefined,
     String? clientAlertId,
     Object? pinAttempts = _Undefined,
@@ -354,7 +354,7 @@ class _SosAlertImpl extends SosAlert {
       isRescuerVerified: isRescuerVerified ?? this.isRescuerVerified,
       isVisuallyVerified: isVisuallyVerified ?? this.isVisuallyVerified,
       victimPhone: victimPhone ?? this.victimPhone,
-      photoBase64: photoBase64 is String? ? photoBase64 : this.photoBase64,
+      photoUrl: photoUrl is String? ? photoUrl : this.photoUrl,
       approximateLocationText: approximateLocationText is String?
           ? approximateLocationText
           : this.approximateLocationText,
@@ -443,8 +443,8 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
     value,
   );
 
-  _i1.ColumnValue<String, String> photoBase64(String? value) => _i1.ColumnValue(
-    table.photoBase64,
+  _i1.ColumnValue<String, String> photoUrl(String? value) => _i1.ColumnValue(
+    table.photoUrl,
     value,
   );
 
@@ -533,8 +533,8 @@ class SosAlertTable extends _i1.Table<int?> {
       'victimPhone',
       this,
     );
-    photoBase64 = _i1.ColumnString(
-      'photoBase64',
+    photoUrl = _i1.ColumnString(
+      'photoUrl',
       this,
     );
     approximateLocationText = _i1.ColumnString(
@@ -585,7 +585,7 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString victimPhone;
 
-  late final _i1.ColumnString photoBase64;
+  late final _i1.ColumnString photoUrl;
 
   late final _i1.ColumnString approximateLocationText;
 
@@ -612,7 +612,7 @@ class SosAlertTable extends _i1.Table<int?> {
     isRescuerVerified,
     isVisuallyVerified,
     victimPhone,
-    photoBase64,
+    photoUrl,
     approximateLocationText,
     clientAlertId,
     pinAttempts,

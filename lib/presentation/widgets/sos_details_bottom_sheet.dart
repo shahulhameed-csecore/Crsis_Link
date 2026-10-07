@@ -92,16 +92,17 @@ Row(
                 alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
                 style: const TextStyle(color: Colors.grey, fontSize: 14),
               ),
-              if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
+              if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
                     height: 220,
                     width: double.infinity,
-                    child: Image.memory(
-                      base64Decode(alert.photoBase64!),
+                    child: Image.network(
+                      alert.photoUrl!,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 48),
                     ),
                   ),
                 ),

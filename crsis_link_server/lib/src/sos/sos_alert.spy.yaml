@@ -15,7 +15,7 @@ fields:
   isRescuerVerified: bool, default=false
   isVisuallyVerified: bool, default=false
   victimPhone: String
-  photoBase64: String?
+  photoUrl: String?
   approximateLocationText: String?
   clientAlertId: String
   pinAttempts: int?
@@ -24,3 +24,9 @@ indexes:
   sos_client_alert_id_idx:
     fields: clientAlertId
     unique: true
+  sos_active_status_idx:
+    fields: isActive, status
+  sos_device_idx:
+    fields: deviceId
+  sos_geo_idx:
+    fields: latitude, longitude

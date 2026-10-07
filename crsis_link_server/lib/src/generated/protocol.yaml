@@ -23,5 +23,7 @@ sos:
   - completeRescue:
   - verifyHelperPin:
   - verifySOS:
+  - getPhotoUploadDescription:
+  - verifyPhotoUpload:
 greeting:
   - hello:

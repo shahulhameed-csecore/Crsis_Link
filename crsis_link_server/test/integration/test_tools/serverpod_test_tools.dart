@@ -622,7 +622,7 @@ class _SosEndpoint {
     String? message,
     String? audioUrl,
     String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     String clientAlertId,
   ) async {
@@ -645,7 +645,7 @@ class _SosEndpoint {
             'message': message,
             'audioUrl': audioUrl,
             'victimPhone': victimPhone,
-            'photoBase64': photoBase64,
+            'photoUrl': photoUrl,
             'approximateLocationText': approximateLocationText,
             'clientAlertId': clientAlertId,
           }),
@@ -931,6 +931,68 @@ class _SosEndpoint {
                   _localCallContext.arguments,
                 )
                 as _i3.Future<bool>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<String> getPhotoUploadDescription(
+    _i1.TestSessionBuilder sessionBuilder,
+    String fileName,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'getPhotoUploadDescription',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'getPhotoUploadDescription',
+          parameters: _i1.testObjectToJson({'fileName': fileName}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<String>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<String> verifyPhotoUpload(
+    _i1.TestSessionBuilder sessionBuilder,
+    String fileName,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'sos',
+            method: 'verifyPhotoUpload',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'sos',
+          methodName: 'verifyPhotoUpload',
+          parameters: _i1.testObjectToJson({'fileName': fileName}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<String>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

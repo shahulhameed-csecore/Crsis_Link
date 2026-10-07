@@ -79,7 +79,7 @@ class NetworkSyncManager {
               alert.message,
               null, // audioUrl
               alert.victimPhone, 
-              null, // photoBase64
+              null, // photoUrl
               alert.approximateLocationText,
               alert.id, // clientAlertId
             );

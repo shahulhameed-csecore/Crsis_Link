@@ -377,8 +377,8 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String>(),
               nullable: false,
             ),
-            'photoBase64': _i1.ParameterDescription(
-              name: 'photoBase64',
+            'photoUrl': _i1.ParameterDescription(
+              name: 'photoUrl',
               type: _i1.getType<String?>(),
               nullable: true,
             ),
@@ -406,7 +406,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['message'],
                 params['audioUrl'],
                 params['victimPhone'],
-                params['photoBase64'],
+                params['photoUrl'],
                 params['approximateLocationText'],
                 params['clientAlertId'],
               ),
@@ -596,6 +596,44 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['clientAlertId'],
                 params['deviceId'],
               ),
+        ),
+        'getPhotoUploadDescription': _i1.MethodConnector(
+          name: 'getPhotoUploadDescription',
+          params: {
+            'fileName': _i1.ParameterDescription(
+              name: 'fileName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['sos'] as _i5.SosEndpoint)
+                  .getPhotoUploadDescription(
+                    session,
+                    params['fileName'],
+                  ),
+        ),
+        'verifyPhotoUpload': _i1.MethodConnector(
+          name: 'verifyPhotoUpload',
+          params: {
+            'fileName': _i1.ParameterDescription(
+              name: 'fileName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['sos'] as _i5.SosEndpoint).verifyPhotoUpload(
+                    session,
+                    params['fileName'],
+                  ),
         ),
       },
     );

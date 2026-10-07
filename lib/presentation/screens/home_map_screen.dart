@@ -463,14 +463,14 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           style: const TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                       ),
-                      if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
+                      if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         const Text('ATTACHED PHOTO', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            base64Decode(alert.photoBase64!),
+                          child: Image.network(
+                            alert.photoUrl!,
                             height: 200,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -611,26 +611,16 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     final TextEditingController phoneController = TextEditingController();
     bool isSubmitting = false;
     String? pendingAudioUrl;
-    String? pendingPhotoBase64;
+    String? pendingPhotoUrl;
+    File? pendingPhotoFile;
 
     Future<void> pickImage(StateSetter setModalState) async {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.camera);
       if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        final compressed = await FlutterImageCompress.compressWithList(
-          bytes,
-          minWidth: 400,
-          minHeight: 400,
-          quality: 50,
-        );
-        
-        // Offload heavy encoding to background isolate
-        final encoded = await compute(base64Encode, compressed);
-        
         if (!mounted) return;
         setModalState(() {
-          pendingPhotoBase64 = encoded;
+          pendingPhotoFile = File(pickedFile.path);
         });
       }
     }
@@ -722,7 +712,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         icon: const Icon(Icons.camera_alt, color: Colors.blue),
                         onPressed: () => pickImage(setModalState),
                       ),
-                      if (pendingPhotoBase64 != null)
+                      if (pendingPhotoFile != null)
                         const Text('Photo attached', style: TextStyle(color: Colors.green)),
                     ],
                   ),
@@ -755,6 +745,37 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           debugPrint('Geocoding failed: $e');
                         }
 
+                        if (pendingPhotoFile != null) {
+                          try {
+                            final fileName = 'sos_photo_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                            String uploadDesc = await AuthManager.client.sos.getPhotoUploadDescription(fileName).timeout(const Duration(seconds: 5));
+                            uploadDesc = uploadDesc
+                                .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
+                                .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+
+                            final bytes = await pendingPhotoFile!.readAsBytes();
+                            final compressed = await FlutterImageCompress.compressWithList(
+                              bytes,
+                              minWidth: 600,
+                              minHeight: 600,
+                              quality: 70,
+                            );
+
+                            final byteData = ByteData.view(compressed.buffer);
+                            final uploader = FileUploader(uploadDesc);
+                            final success = await uploader.uploadByteData(byteData);
+                            
+                            if (success) {
+                              String publicUrl = await AuthManager.client.sos.verifyPhotoUpload(fileName);
+                              pendingPhotoUrl = publicUrl
+                                  .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
+                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+                            }
+                          } catch (e) {
+                            debugPrint('Photo upload failed: $e');
+                          }
+                        }
+
                         final response = await AuthManager.client.sos.broadcastSos(
                           AuthManager.deviceId,
                           AuthManager.displayName,
@@ -763,7 +784,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           messageController.text.trim().isEmpty ? null : messageController.text.trim(),
                           pendingAudioUrl,
                           phoneController.text.trim(),
-                          pendingPhotoBase64,
+                          pendingPhotoUrl,
                           approxLocation,
                           const Uuid().v4(),
                         ).timeout(const Duration(seconds: 10));
@@ -1506,16 +1527,17 @@ class _AnimatedSosMarkerState extends State<_AnimatedSosMarker> with SingleTicke
                     alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
-                  if (alert.photoBase64 != null && alert.photoBase64!.isNotEmpty) ...[
+                  if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: SizedBox(
                         height: 220,
                         width: double.infinity,
-                        child: Image.memory(
-                          base64Decode(alert.photoBase64!),
+                        child: Image.network(
+                          alert.photoUrl!,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 48),
                         ),
                       ),
                     ),

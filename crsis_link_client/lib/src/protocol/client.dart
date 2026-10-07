@@ -303,7 +303,7 @@ class EndpointSos extends _i2.EndpointRef {
     String? message,
     String? audioUrl,
     String victimPhone,
-    String? photoBase64,
+    String? photoUrl,
     String? approximateLocationText,
     String clientAlertId,
   ) => caller.callServerEndpoint<_i5.SosBroadcastResponse>(
@@ -317,7 +317,7 @@ class EndpointSos extends _i2.EndpointRef {
       'message': message,
       'audioUrl': audioUrl,
       'victimPhone': victimPhone,
-      'photoBase64': photoBase64,
+      'photoUrl': photoUrl,
       'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
     },
@@ -419,6 +419,22 @@ class EndpointSos extends _i2.EndpointRef {
       'deviceId': deviceId,
     },
   );
+
+  /// Generates a pre-signed upload URL for an SOS photo.
+  _i3.Future<String> getPhotoUploadDescription(String fileName) =>
+      caller.callServerEndpoint<String>(
+        'sos',
+        'getPhotoUploadDescription',
+        {'fileName': fileName},
+      );
+
+  /// Verifies the upload completed and returns the public URL of the photo.
+  _i3.Future<String> verifyPhotoUpload(String fileName) =>
+      caller.callServerEndpoint<String>(
+        'sos',
+        'verifyPhotoUpload',
+        {'fileName': fileName},
+      );
 }
 
 /// This is an example endpoint that returns a greeting message through
