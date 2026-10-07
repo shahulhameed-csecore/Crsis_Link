@@ -178,7 +178,8 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
               
               // Tactical Compass HUD
               Center(
-                child: Container(
+                child: RepaintBoundary(
+                  child: Container(
                   width: 300,
                   height: 300,
                   decoration: BoxDecoration(
@@ -249,6 +250,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
               

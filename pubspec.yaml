@@ -64,6 +64,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   flutter_background_service: ^5.1.0
   flutter_compass: ^0.8.1
+  crypto: ^3.0.7
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:

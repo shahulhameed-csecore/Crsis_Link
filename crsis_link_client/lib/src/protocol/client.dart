@@ -404,10 +404,17 @@ class EndpointSos extends _i2.EndpointRef {
   );
 
   /// Visually verifies an SOS alert (Hackathon Mocked Upload)
-  _i3.Future<bool> verifySOS(int sosId, String deviceId) => caller.callServerEndpoint<bool>(
+  /// Requires the calling deviceId to match the alert owner — prevents unauthorized verification.
+  _i3.Future<bool> verifySOS(
+    int sosId,
+    String deviceId,
+  ) => caller.callServerEndpoint<bool>(
     'sos',
     'verifySOS',
-    {'sosId': sosId, 'deviceId': deviceId},
+    {
+      'sosId': sosId,
+      'deviceId': deviceId,
+    },
   );
 }
 

@@ -41,6 +41,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   final Set<int> _ignoredSosIds = {};
   StreamSubscription? _sosSubscription;
   StreamSubscription? _connectivitySubscription;
+  StreamSubscription<Position>? _positionStream;
   bool _isConnected = true;
   // Default center (India) shown instantly while GPS resolves
   LatLng _mapCenter = const LatLng(20.5937, 78.9629);
@@ -226,6 +227,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     MapPinsManager().removeListener(_onPinsChanged);
     _sosSubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _positionStream?.cancel();
     // ignore: deprecated_member_use
     AuthManager.client.removeStreamingConnectionStatusListener(_onStreamingConnectionStatusChanged);
     super.dispose();
@@ -331,6 +333,21 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         } catch (e) {
           debugPrint('Failed to update location on server: $e');
         }
+        
+        // Start idle mode (Battery Saver) GPS tracking
+        _positionStream?.cancel();
+        _positionStream = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium, 
+            distanceFilter: 25 // Only wake CPU if user moves >25m
+          ),
+        ).listen((Position p) {
+          if (mounted) {
+            setState(() {
+              _currentLocation = LatLng(p.latitude, p.longitude);
+            });
+          }
+        });
       }
     } catch (e) {
       if (mounted) {

@@ -204,14 +204,16 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                         AnimatedBuilder(
                           animation: _pulseController,
                           builder: (context, child) {
-                            return CustomPaint(
-                              painter: DynamicRadarPainter(
-                                cachedPins: _cachedPins,
-                                pulseValue: _pulseController.value,
-                                hasOwnSos: rawAlerts.length > peerAlerts.length,
-                                youTextPainter: _youTextPainter!,
+                            return RepaintBoundary(
+                              child: CustomPaint(
+                                painter: DynamicRadarPainter(
+                                  cachedPins: _cachedPins,
+                                  pulseValue: _pulseController.value,
+                                  hasOwnSos: rawAlerts.length > peerAlerts.length,
+                                  youTextPainter: _youTextPainter!,
+                                ),
+                                size: size,
                               ),
-                              size: size,
                             );
                           },
                         ),

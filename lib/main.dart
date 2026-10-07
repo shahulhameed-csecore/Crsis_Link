@@ -12,6 +12,7 @@ import 'dart:ui';
 import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'core/services/offline_mesh_service.dart';
+import 'core/services/p2p_crypto_service.dart';
 
 final GlobalKey<ScaffoldMessengerState> globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -59,6 +60,7 @@ void main() async {
 
   GlobalErrorHandler.initialize();
   await AuthManager.initialize();
+  await P2pCryptoService().init();
   await OfflineCacheManager.init();
   NetworkSyncManager().init();
   NetworkSyncManager().uploadPendingAlerts();

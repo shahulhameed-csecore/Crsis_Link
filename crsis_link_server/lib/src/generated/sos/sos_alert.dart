@@ -33,6 +33,7 @@ abstract class SosAlert
     required this.victimPhone,
     this.photoBase64,
     this.approximateLocationText,
+    this.clientAlertId,
   }) : isRescuerVerified = isRescuerVerified ?? false,
        isVisuallyVerified = isVisuallyVerified ?? false;
 
@@ -54,6 +55,7 @@ abstract class SosAlert
     required String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
+    String? clientAlertId,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -86,6 +88,7 @@ abstract class SosAlert
       photoBase64: jsonSerialization['photoBase64'] as String?,
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
+      clientAlertId: jsonSerialization['clientAlertId'] as String?,
     );
   }
 
@@ -128,6 +131,8 @@ abstract class SosAlert
 
   String? approximateLocationText;
 
+  String? clientAlertId;
+
   @override
   _i1.Table<int?> get table => t;
 
@@ -152,6 +157,7 @@ abstract class SosAlert
     String? victimPhone,
     String? photoBase64,
     String? approximateLocationText,
+    String? clientAlertId,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -175,6 +181,7 @@ abstract class SosAlert
       if (photoBase64 != null) 'photoBase64': photoBase64,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
+      if (clientAlertId != null) 'clientAlertId': clientAlertId,
     };
   }
 
@@ -200,6 +207,7 @@ abstract class SosAlert
       if (photoBase64 != null) 'photoBase64': photoBase64,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
+      if (clientAlertId != null) 'clientAlertId': clientAlertId,
     };
   }
 
@@ -254,6 +262,7 @@ class _SosAlertImpl extends SosAlert {
     required String victimPhone,
     String? photoBase64,
     String? approximateLocationText,
+    String? clientAlertId,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -272,6 +281,7 @@ class _SosAlertImpl extends SosAlert {
          victimPhone: victimPhone,
          photoBase64: photoBase64,
          approximateLocationText: approximateLocationText,
+         clientAlertId: clientAlertId,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -296,6 +306,7 @@ class _SosAlertImpl extends SosAlert {
     String? victimPhone,
     Object? photoBase64 = _Undefined,
     Object? approximateLocationText = _Undefined,
+    Object? clientAlertId = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -321,6 +332,9 @@ class _SosAlertImpl extends SosAlert {
       approximateLocationText: approximateLocationText is String?
           ? approximateLocationText
           : this.approximateLocationText,
+      clientAlertId: clientAlertId is String?
+          ? clientAlertId
+          : this.clientAlertId,
     );
   }
 }
@@ -411,6 +425,12 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
         table.approximateLocationText,
         value,
       );
+
+  _i1.ColumnValue<String, String> clientAlertId(String? value) =>
+      _i1.ColumnValue(
+        table.clientAlertId,
+        value,
+      );
 }
 
 class SosAlertTable extends _i1.Table<int?> {
@@ -482,6 +502,10 @@ class SosAlertTable extends _i1.Table<int?> {
       'approximateLocationText',
       this,
     );
+    clientAlertId = _i1.ColumnString(
+      'clientAlertId',
+      this,
+    );
   }
 
   late final SosAlertUpdateTable updateTable;
@@ -518,6 +542,8 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString approximateLocationText;
 
+  late final _i1.ColumnString clientAlertId;
+
   @override
   List<_i1.Column> get columns => [
     id,
@@ -537,6 +563,7 @@ class SosAlertTable extends _i1.Table<int?> {
     victimPhone,
     photoBase64,
     approximateLocationText,
+    clientAlertId,
   ];
 }
 

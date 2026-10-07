@@ -903,6 +903,7 @@ class _SosEndpoint {
   _i3.Future<bool> verifySOS(
     _i1.TestSessionBuilder sessionBuilder,
     int sosId,
+    String deviceId,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -915,7 +916,10 @@ class _SosEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'sos',
           methodName: 'verifySOS',
-          parameters: _i1.testObjectToJson({'sosId': sosId}),
+          parameters: _i1.testObjectToJson({
+            'sosId': sosId,
+            'deviceId': deviceId,
+          }),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =

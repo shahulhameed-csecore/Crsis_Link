@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/local_sos_alert.dart';
 class OfflineCacheManager {
   static const String _boxName = 'offline_sos_box';
@@ -14,7 +16,24 @@ class OfflineCacheManager {
     } catch (e) {
       // Ignore if already registered
     }
-    await Hive.openBox<LocalSosAlert>(_boxName);
+
+    const secureStorage = FlutterSecureStorage();
+    String? encryptionKeyString = await secureStorage.read(key: 'hive_encryption_key');
+    if (encryptionKeyString == null) {
+      final key = Hive.generateSecureKey();
+      await secureStorage.write(
+        key: 'hive_encryption_key',
+        value: base64UrlEncode(key),
+      );
+      encryptionKeyString = base64UrlEncode(key);
+    }
+    
+    final encryptionKeyUint8List = base64Url.decode(encryptionKeyString);
+    
+    await Hive.openBox<LocalSosAlert>(
+      _boxName,
+      encryptionCipher: HiveAesCipher(encryptionKeyUint8List),
+    );
   }
 
   static Box<LocalSosAlert> get _box {
@@ -63,6 +82,26 @@ class OfflineCacheManager {
 
   static LocalSosAlert? getAlert(String id) {
     return _box.get(id);
+  }
+  
+  static Future<void> clearExpiredAlerts(Duration threshold) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final thresholdMs = threshold.inMilliseconds;
+    final keysToDelete = <dynamic>[];
+    
+    for (var key in _box.keys) {
+      final alert = _box.get(key);
+      if (alert != null) {
+        if (now - alert.timestamp > thresholdMs) {
+          keysToDelete.add(key);
+        }
+      }
+    }
+    
+    if (keysToDelete.isNotEmpty) {
+      await _box.deleteAll(keysToDelete);
+      debugPrint('Reconciliation: Dropped ${keysToDelete.length} expired offline alerts.');
+    }
   }
 
   static Future<void> clearEntireCache() async {
