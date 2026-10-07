@@ -204,6 +204,7 @@ class _SosScreenState extends State<SosScreen>
                 victimPhone,
                 null,
                 approxLocation,
+                null,
               )
               .timeout(const Duration(seconds: 10));
 

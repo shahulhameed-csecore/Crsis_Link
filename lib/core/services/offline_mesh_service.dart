@@ -10,6 +10,7 @@ import '../models/local_sos_alert.dart';
 import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
 import '../state/alerts_manager.dart';
+import '../state/map_pins_manager.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'p2p_crypto_service.dart';
