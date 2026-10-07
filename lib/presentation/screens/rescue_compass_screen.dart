@@ -6,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/models/local_sos_alert.dart';
 import '../../core/services/rescue_navigation_controller.dart';
-import '../../core/theme/design_system.dart';
 import '../../core/services/offline_cache_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -173,11 +172,11 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
                   height: 300,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: hasArrived ? Colors.green : Colors.tealAccent.withOpacity(0.3), width: 2),
-                    color: Colors.black.withOpacity(0.3),
+                    border: Border.all(color: hasArrived ? Colors.green : Colors.tealAccent.withValues(alpha: 0.3), width: 2),
+                    color: Colors.black.withValues(alpha: 0.3),
                     boxShadow: [
                       BoxShadow(
-                        color: (hasArrived ? Colors.green : Colors.tealAccent).withOpacity(0.1),
+                        color: (hasArrived ? Colors.green : Colors.tealAccent).withValues(alpha: 0.1),
                         blurRadius: 50,
                         spreadRadius: 10,
                       )
@@ -249,7 +248,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
                 padding: const EdgeInsets.all(24.0),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: hasArrived ? Colors.green.withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
+                    backgroundColor: hasArrived ? Colors.green.withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
                     foregroundColor: hasArrived ? Colors.green : Colors.redAccent,
                     side: BorderSide(color: hasArrived ? Colors.green : Colors.redAccent),
                     minimumSize: const Size.fromHeight(60),

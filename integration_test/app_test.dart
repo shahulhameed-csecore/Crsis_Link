@@ -12,9 +12,9 @@ void main() {
 
       // 2. Interact with native OS permission dialogs!
       // This accepts the location/bluetooth prompts automatically
-      if (await $.native.isPermissionDialogVisible()) {
-        await $.native.grantPermissionWhenInUse();
-      }
+      // if (await $.platformAutomator.isPermissionDialogVisible()) {
+      //   await $.platformAutomator.grantPermissionWhenInUse();
+      // }
 
       // 3. Find the SOS button and tap it.
       // We assume your SOS button has a Key('sosButton') or text 'SOS'

@@ -35,7 +35,6 @@ class DisasterRadarView extends StatefulWidget {
 
 class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
-  List<LocalSosAlert> _offlineAlerts = [];
   List<CachedRadarPin> _cachedPins = [];
   
   // Cache for static elements
@@ -51,8 +50,6 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     
-    MapPinsManager().addListener(_loadAlerts);
-    _loadAlerts();
     _initStaticTextPainters();
   }
 
@@ -104,16 +101,9 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
     _youTextPainter!.layout();
   }
 
-  void _loadAlerts() {
-    setState(() {
-      _offlineAlerts = OfflineCacheManager.getUnsyncedAlerts();
-    });
-  }
-
   @override
   void dispose() {
     _pulseController.dispose();
-    MapPinsManager().removeListener(_loadAlerts);
     super.dispose();
   }
 

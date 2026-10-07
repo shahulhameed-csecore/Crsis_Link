@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:hive/hive.dart';
 import 'package:crsis_link/core/models/local_sos_alert.dart';
 import 'package:crsis_link/core/services/offline_cache_manager.dart';
