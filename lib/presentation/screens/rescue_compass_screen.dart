@@ -8,6 +8,8 @@ import '../../core/models/local_sos_alert.dart';
 import '../../core/services/rescue_navigation_controller.dart';
 import '../../core/services/offline_cache_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/services/offline_mesh_service.dart';
+
 
 class RescueCompassScreen extends StatefulWidget {
   final LocalSosAlert victimAlert;
@@ -30,6 +32,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
   @override
   void initState() {
     super.initState();
+    OfflineMeshService().pauseDutyCycle();
     _initSensors();
   }
 
@@ -102,6 +105,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
   void dispose() {
     _positionStream?.cancel();
     _compassStream?.cancel();
+    OfflineMeshService().resumeDutyCycle();
     super.dispose();
   }
 

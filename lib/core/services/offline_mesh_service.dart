@@ -118,42 +118,7 @@ class OfflineMeshService {
       _showDebugToast('Starting Mesh Network...');
 
       // 2. The P2P_CLUSTER Strategy
-      await Nearby().startAdvertising(
-        shortId,
-        _strategy,
-        onConnectionInitiated: (id, info) async {
-          _showDebugToast('Connection Initiated with $id');
-          debugPrint('[P2P_DEBUG] startAdvertising: Connection Initiated with $id (name: ${info.endpointName})');
-          // 3. The Two-Way Handshake (Auto-Accept)
-          try {
-            await Nearby().acceptConnection(
-              id, 
-              onPayLoadRecieved: (endpointId, payload) {
-                _handleIncomingPayload(endpointId, payload);
-              },
-              onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
-                debugPrint('[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}');
-              }
-            );
-          } catch (e) {
-            debugPrint('[P2P_DEBUG] Hardware fault or security rejection during accept: $e');
-          }
-        },
-        onConnectionResult: (id, status) {
-          // 4. Triggering the Payload Transfer
-          if (status == Status.CONNECTED) {
-            _showDebugToast('Connected to $id');
-            if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
-            _syncLocalDatabaseWithPeer(id);
-          } else {
-            _connectedEndpoints.remove(id);
-          }
-        },
-        onDisconnected: (id) {
-          _connectedEndpoints.remove(id);
-        },
-        serviceId: _serviceId,
-      );
+      await _startAdvertisingLogic(shortId);
 
       _startDutyCycle(shortId);
 
@@ -169,6 +134,66 @@ class OfflineMeshService {
       debugPrint("[P2P_DEBUG] Mesh start failed: $e");
       return false;
     }
+  }
+
+  Future<void> _startAdvertisingLogic(String shortId) async {
+    try {
+      await Nearby().startAdvertising(
+        shortId,
+        _strategy,
+        onConnectionInitiated: (id, info) async {
+          _showDebugToast('Connection Initiated with $id');
+          debugPrint('[P2P_DEBUG] startAdvertising: Connection Initiated with $id (name: ${info.endpointName})');
+          try {
+            await Nearby().acceptConnection(
+              id, 
+              onPayLoadRecieved: (endpointId, payload) {
+                _handleIncomingPayload(endpointId, payload);
+              },
+              onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
+                debugPrint('[P2P_DEBUG] Transfer from $endpointId: status ${payloadTransferUpdate.status}, bytes: ${payloadTransferUpdate.bytesTransferred}/${payloadTransferUpdate.totalBytes}');
+              }
+            );
+          } catch (e) {
+            debugPrint('[P2P_DEBUG] Hardware fault or security rejection during accept: $e');
+          }
+        },
+        onConnectionResult: (id, status) {
+          if (status == Status.CONNECTED) {
+            _showDebugToast('Connected to $id');
+            if (!_connectedEndpoints.contains(id)) _connectedEndpoints.add(id);
+            _syncLocalDatabaseWithPeer(id);
+          } else {
+            _connectedEndpoints.remove(id);
+          }
+        },
+        onDisconnected: (id) {
+          _connectedEndpoints.remove(id);
+        },
+        serviceId: _serviceId,
+      );
+    } catch (e) {
+      debugPrint('[P2P_DEBUG] Failed to start advertising: $e');
+    }
+  }
+
+  void pauseDutyCycle() {
+    debugPrint('[P2P_DEBUG] Pausing Mesh Duty Cycle for Compass (Keeping connections alive)');
+    _dutyCycleTimer?.cancel();
+    if (_isDiscovering) {
+      Nearby().stopDiscovery();
+      _isDiscovering = false;
+    }
+    Nearby().stopAdvertising();
+  }
+
+  void resumeDutyCycle() {
+    debugPrint('[P2P_DEBUG] Resuming Mesh Duty Cycle');
+    String shortId = AuthManager.deviceId;
+    if (shortId.length > 31) shortId = shortId.substring(0, 31);
+    
+    _startAdvertisingLogic(shortId);
+    _startDutyCycle(shortId);
   }
 
   void _startDutyCycle(String shortId) {
