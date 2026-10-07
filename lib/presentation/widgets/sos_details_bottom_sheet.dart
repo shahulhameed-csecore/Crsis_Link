@@ -11,17 +11,21 @@ import 'audio_player_button.dart'; // We also need to extract AudioPlayerButton?
 // actually AudioPlayerButton is in home_map_screen.dart right now. Let's import it or extract it.
 
 class SosDetailsBottomSheet extends StatefulWidget {
-  final SosAlert alert;
+  final dynamic alert;
   final bool isOwnPin;
-  final Function(int) onIgnore;
-  final Function(int) onResolve;
+  final VoidCallback? onIgnore;
+  final VoidCallback? onResolve;
+  final VoidCallback? onClaimRescue;
+  final VoidCallback? onTrack;
 
   const SosDetailsBottomSheet({
     super.key,
     required this.alert,
-    required this.isOwnPin,
-    required this.onIgnore,
-    required this.onResolve,
+    this.isOwnPin = false,
+    this.onIgnore,
+    this.onResolve,
+    this.onClaimRescue,
+    this.onTrack,
   });
 
   @override
@@ -175,7 +179,7 @@ Row(
                                 }
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx);
-                                  widget.onResolve(alertId);
+                                  if (widget.onResolve != null) widget.onResolve!();
                                   ScaffoldMessenger.of(ctx).showSnackBar(
                                     const SnackBar(content: Text('SOS Resolved / Cleared.')),
                                   );
@@ -214,7 +218,7 @@ Row(
                             onPressed: () {
                               final alertId = alert.id;
                               if (alertId == null) return;
-                              widget.onIgnore(alertId);
+                              if (widget.onIgnore != null) widget.onIgnore!();
                               Navigator.pop(ctx);
                             },
                             style: OutlinedButton.styleFrom(
@@ -255,6 +259,8 @@ Row(
                                       backgroundColor: Colors.green,
                                     ),
                                   );
+                                  if (widget.onClaimRescue != null) widget.onClaimRescue!();
+                                  if (widget.onTrack != null) widget.onTrack!();
                                 }
                               } catch (e) {
                                 if (ctx.mounted) {
@@ -385,7 +391,7 @@ Row(
                             await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.clientAlertId!).timeout(const Duration(seconds: 10));
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
-                              widget.onResolve(alertId);
+                              if (widget.onResolve != null) widget.onResolve!();
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
                                   content: Text('Rescue Completed Successfully!'),
