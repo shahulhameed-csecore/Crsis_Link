@@ -199,21 +199,34 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                   _recalculatePinProjections(size, peerAlerts);
 
                   return SizedBox.expand(
-                    child: AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return CustomPaint(
-                          painter: RadarPainter(
-                            cachedPins: _cachedPins,
-                            pulseValue: _pulseController.value,
-                            hasOwnSos: rawAlerts.length > peerAlerts.length,
-                            ringTextPainters: _ringTextPainters,
-                            cardinalTextPainters: _cardinalTextPainters,
-                            youTextPainter: _youTextPainter!,
+                    child: Stack(
+                      children: [
+                        // STATIC LAYER: Painted once, wrapped in RepaintBoundary to save UI Budget
+                        RepaintBoundary(
+                          child: CustomPaint(
+                            painter: StaticRadarPainter(
+                              ringTextPainters: _ringTextPainters,
+                              cardinalTextPainters: _cardinalTextPainters,
+                            ),
+                            size: size,
                           ),
-                          size: size,
-                        );
-                      },
+                        ),
+                        // DYNAMIC LAYER: Only repaints pins and pulsing elements
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, child) {
+                            return CustomPaint(
+                              painter: DynamicRadarPainter(
+                                cachedPins: _cachedPins,
+                                pulseValue: _pulseController.value,
+                                hasOwnSos: rawAlerts.length > peerAlerts.length,
+                                youTextPainter: _youTextPainter!,
+                              ),
+                              size: size,
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -329,21 +342,13 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
   }
 }
 
-class RadarPainter extends CustomPainter {
-  final List<CachedRadarPin> cachedPins;
-  final double pulseValue;
-  final bool hasOwnSos;
+class StaticRadarPainter extends CustomPainter {
   final List<TextPainter> ringTextPainters;
   final Map<String, TextPainter> cardinalTextPainters;
-  final TextPainter youTextPainter;
 
-  RadarPainter({
-    required this.cachedPins,
-    required this.pulseValue,
-    required this.hasOwnSos,
+  StaticRadarPainter({
     required this.ringTextPainters,
     required this.cardinalTextPainters,
-    required this.youTextPainter,
   });
 
   @override
@@ -385,6 +390,28 @@ class RadarPainter extends CustomPainter {
       cardinalTextPainters['E']!.paint(canvas, Offset(center.dx + maxRadius + 8, center.dy - 7));
       cardinalTextPainters['W']!.paint(canvas, Offset(center.dx - maxRadius - 20, center.dy - 7));
     }
+  }
+
+  @override
+  bool shouldRepaint(StaticRadarPainter oldDelegate) => false; 
+}
+
+class DynamicRadarPainter extends CustomPainter {
+  final List<CachedRadarPin> cachedPins;
+  final double pulseValue;
+  final bool hasOwnSos;
+  final TextPainter youTextPainter;
+
+  DynamicRadarPainter({
+    required this.cachedPins,
+    required this.pulseValue,
+    required this.hasOwnSos,
+    required this.youTextPainter,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
 
     // Volunteer center dot (Blue)
     canvas.drawCircle(center, 6, Paint()..color = Colors.blue);
@@ -425,5 +452,9 @@ class RadarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(RadarPainter oldDelegate) => true; 
+  bool shouldRepaint(DynamicRadarPainter oldDelegate) {
+    return oldDelegate.pulseValue != pulseValue || 
+           oldDelegate.cachedPins.length != cachedPins.length ||
+           oldDelegate.hasOwnSos != hasOwnSos;
+  }
 }

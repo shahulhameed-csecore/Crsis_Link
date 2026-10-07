@@ -211,7 +211,18 @@ class OfflineMeshService {
 
     for (final alert in unsynced) {
       try {
-        final payloadStr = jsonEncode([alert.toJson()]);
+        final payloadStr = jsonEncode([{
+          "t": "SOS",
+          "i": alert.id,
+          "l": alert.lat,
+          "g": alert.lng,
+          "m": alert.message,
+          "v": alert.victimPhone,
+          "a": alert.approximateLocationText,
+          "d": alert.originalDeviceId,
+          "n": alert.originalSenderName,
+          "ts": alert.timestamp
+        }]);
         final bytes = Uint8List.fromList(utf8.encode(payloadStr));
         
         if (bytes.lengthInBytes <= 32768) {
@@ -227,7 +238,18 @@ class OfflineMeshService {
   }
 
   Future<void> broadcastNewAlert(LocalSosAlert alert) async {
-    final payloadStr = jsonEncode([alert.toJson()]);
+    final payloadStr = jsonEncode([{
+      "t": "SOS",
+      "i": alert.id,
+      "l": alert.lat,
+      "g": alert.lng,
+      "m": alert.message,
+      "v": alert.victimPhone,
+      "a": alert.approximateLocationText,
+      "d": alert.originalDeviceId,
+      "n": alert.originalSenderName,
+      "ts": alert.timestamp
+    }]);
     final bytes = Uint8List.fromList(utf8.encode(payloadStr));
     
     for (final peerId in _connectedEndpoints) {
@@ -250,11 +272,11 @@ class OfflineMeshService {
         if (ownActiveAlert != null && _connectedEndpoints.isNotEmpty) {
           final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
           final payloadStr = jsonEncode({
-            "type": "LOCATION_UPDATE",
-            "id": ownActiveAlert.id,
-            "lat": position.latitude,
-            "lng": position.longitude,
-            "timestamp": DateTime.now().millisecondsSinceEpoch,
+            "t": "LOC",
+            "i": ownActiveAlert.id,
+            "l": position.latitude,
+            "g": position.longitude,
+            "ts": DateTime.now().millisecondsSinceEpoch,
           });
           final bytes = Uint8List.fromList(utf8.encode(payloadStr));
           for (final peerId in _connectedEndpoints) {
@@ -292,16 +314,17 @@ class OfflineMeshService {
         final str = utf8.decode(payload.bytes!);
         final dynamic decodedData = jsonDecode(str);
 
-        if (decodedData is Map && decodedData['type'] == 'LOCATION_UPDATE') {
-          final String alertId = decodedData['id'];
-          final double lat = decodedData['lat'];
-          final double lng = decodedData['lng'];
+        if (decodedData is Map && (decodedData['type'] == 'LOCATION_UPDATE' || decodedData['t'] == 'LOC')) {
+          final String alertId = decodedData['id'] ?? decodedData['i'];
+          final double lat = decodedData['lat'] ?? decodedData['l'];
+          final double lng = decodedData['lng'] ?? decodedData['g'];
+          final int ts = decodedData['timestamp'] ?? decodedData['ts'] ?? DateTime.now().millisecondsSinceEpoch;
           
           final existing = OfflineCacheManager.getAlert(alertId);
           if (existing != null) {
             existing.lat = lat;
             existing.lng = lng;
-            existing.timestamp = decodedData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
+            existing.timestamp = ts;
             await OfflineCacheManager.saveAlert(existing);
             // Re-sync with other peers
             for (final peerId in _connectedEndpoints) {
@@ -329,33 +352,44 @@ class OfflineMeshService {
           if (item is! Map) continue;
           
           final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(item);
+          final bool isMinified = jsonMap['t'] == 'SOS';
           
-          if (jsonMap['id'] == null || jsonMap['timestamp'] == null) {
+          final String? id = jsonMap['id'] ?? jsonMap['i'];
+          final timestamp = jsonMap['timestamp'] ?? jsonMap['ts'];
+          if (id == null || timestamp == null) continue;
+          
+          final double? lat = isMinified ? (jsonMap['l'] as num?)?.toDouble() : (jsonMap['lat'] as num?)?.toDouble();
+          final double? lng = isMinified ? (jsonMap['g'] as num?)?.toDouble() : (jsonMap['lng'] as num?)?.toDouble();
+          
+          if (lat == null || lng == null || lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
             continue;
           }
           
-          if (jsonMap['lat'] is! num || jsonMap['lng'] is! num) {
-            continue;
-          }
+          final clampedLat = lat.clamp(-90.0, 90.0);
+          final clampedLng = lng.clamp(-180.0, 180.0);
           
-          double lat = (jsonMap['lat'] as num).toDouble();
-          double lng = (jsonMap['lng'] as num).toDouble();
+          final msg = (jsonMap['message'] ?? jsonMap['m'] ?? 'Emergency').toString();
+          final String message = msg.length > 500 ? msg.substring(0, 500) : msg;
           
-          if (lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
-            continue;
-          }
+          final phone = (jsonMap['victimPhone'] ?? jsonMap['v'] ?? 'URGENT-NO-NUMBER').toString();
+          final String victimPhone = phone.length > 20 ? phone.substring(0, 20) : phone;
+
+          final approxLoc = jsonMap['approximateLocationText'] ?? jsonMap['a'];
+          final origDevId = jsonMap['originalDeviceId'] ?? jsonMap['d'] ?? 'unknown_device';
+          final origSender = jsonMap['originalSenderName'] ?? jsonMap['n'] ?? 'Unknown Sender';
           
-          jsonMap['lat'] = lat.clamp(-90.0, 90.0);
-          jsonMap['lng'] = lng.clamp(-180.0, 180.0);
-          
-          if (jsonMap['message'] != null && jsonMap['message'].toString().length > 500) {
-            jsonMap['message'] = jsonMap['message'].toString().substring(0, 500);
-          }
-          if (jsonMap['victimPhone'] != null && jsonMap['victimPhone'].toString().length > 20) {
-            jsonMap['victimPhone'] = jsonMap['victimPhone'].toString().substring(0, 20);
-          }
-          
-          final alert = LocalSosAlert.fromJson(jsonMap);
+          final alert = LocalSosAlert(
+            id: id,
+            lat: clampedLat,
+            lng: clampedLng,
+            message: message,
+            victimPhone: victimPhone,
+            approximateLocationText: approxLoc,
+            originalDeviceId: origDevId,
+            originalSenderName: origSender,
+            timestamp: timestamp,
+            isSynced: false,
+          );
 
           if (!OfflineCacheManager.alertExists(alert.id)) {
             alert.isSynced = false;

@@ -24,41 +24,53 @@ class NetworkSyncManager {
 
     try {
       final pendingAlerts = OfflineCacheManager.getUnsyncedAlerts();
-      
-      for (var alert in pendingAlerts) {
-        try {
-          // Call Serverpod backend
-          await AuthManager.client.sos.broadcastSos(
-            alert.originalDeviceId,
-            alert.originalSenderName,
-            alert.lat,
-            alert.lng,
-            alert.message,
-            null, // audioUrl
-            alert.victimPhone, // Use the proper phone from alert
-            null, // photoBase64
-            alert.approximateLocationText, // Use approx location
-          );
-          
-          // If successful, mark as synced
-          await OfflineCacheManager.markAsSynced(alert.id);
-          debugPrint('Successfully synced alert ${alert.id} to server');
-        } catch (e) {
-          final errorStr = e.toString();
-          // If Serverpod throws duplicate entry or rate limit, we can assume it was already synced by another peer
-          if (errorStr.contains('duplicate') || errorStr.contains('already exists')) {
-            alert.isSynced = true;
-            await alert.save(); // explicitly save back to Hive box
+      if (pendingAlerts.isEmpty) return;
+
+      final stopwatch = Stopwatch()..start();
+      const int batchSize = 5;
+
+      for (int i = 0; i < pendingAlerts.length; i += batchSize) {
+        final chunk = pendingAlerts.sublist(
+          i, 
+          i + batchSize > pendingAlerts.length ? pendingAlerts.length : i + batchSize
+        );
+        
+        await Future.wait(chunk.map((alert) async {
+          try {
+            await AuthManager.client.sos.broadcastSos(
+              alert.originalDeviceId,
+              alert.originalSenderName,
+              alert.lat,
+              alert.lng,
+              alert.message,
+              null, // audioUrl
+              alert.victimPhone, 
+              null, // photoBase64
+              alert.approximateLocationText, 
+            );
+            
             await OfflineCacheManager.markAsSynced(alert.id);
-            debugPrint('Alert ${alert.id} already exists on server, marking as synced.');
-          } else if (errorStr.contains('Rate limit') || errorStr.contains('500') || errorStr.contains('503')) {
-            debugPrint('Server unavailable or rate limited. Retrying after backoff.');
-            break;
-          } else {
-            debugPrint('Failed to sync alert ${alert.id}: $e');
+            debugPrint('[BENCHMARK] Synced alert ${alert.id}');
+          } catch (e) {
+            final errorStr = e.toString();
+            if (errorStr.contains('duplicate') || errorStr.contains('already exists')) {
+              alert.isSynced = true;
+              await alert.save(); 
+              await OfflineCacheManager.markAsSynced(alert.id);
+            } else if (errorStr.contains('Rate limit') || errorStr.contains('500') || errorStr.contains('503')) {
+              debugPrint('[BENCHMARK] Rate limit hit on ${alert.id}, skipping for backoff.');
+            } else {
+              debugPrint('[BENCHMARK] Failed to sync alert ${alert.id}: $e');
+            }
           }
-        }
+        }));
+        
+        // Minor backoff between batches to prevent overwhelming the Serverpod instances
+        await Future.delayed(const Duration(milliseconds: 250));
       }
+      
+      stopwatch.stop();
+      debugPrint('[BENCHMARK] Uploaded ${pendingAlerts.length} backlog records in ${stopwatch.elapsedMilliseconds}ms via Batch Sync Worker');
     } finally {
       _isSyncing = false;
     }

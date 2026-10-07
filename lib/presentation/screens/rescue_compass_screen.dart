@@ -39,8 +39,8 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
       // 1. Setup GPS Stream
       _positionStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 1, // Update every meter
+          accuracy: LocationAccuracy.high, // Optimized from bestForNavigation
+          distanceFilter: 5, // Optimized from 1m to 5m to save battery
         ),
       ).listen((Position position) {
         if (mounted) {
@@ -57,8 +57,12 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
       // 2. Setup Magnetometer Stream
       final compassEvents = FlutterCompass.events;
       if (compassEvents != null) {
+        int lastCompassUpdate = 0;
         _compassStream = compassEvents.listen((CompassEvent event) {
-          if (mounted && event.heading != null) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          // Throttle updates to ~15 FPS (every 66ms) to save battery and CPU
+          if (now - lastCompassUpdate > 66 && mounted && event.heading != null) {
+            lastCompassUpdate = now;
             setState(() {
               // Apply simple damping/interpolation to avoid jitter
               _currentHeading = _lerpAngle(_lastKnownHeading, event.heading!, 0.2);

@@ -2,14 +2,14 @@ import 'package:hive/hive.dart';
 
 class LocalSosAlert extends HiveObject {
   final String id;
-  final double lat;
-  final double lng;
+  double lat;
+  double lng;
   final String message;
   final String victimPhone;
   final String? approximateLocationText;
   final String originalDeviceId;
   final String originalSenderName;
-  final int timestamp;
+  int timestamp;
   bool isSynced;
 
   LocalSosAlert({
