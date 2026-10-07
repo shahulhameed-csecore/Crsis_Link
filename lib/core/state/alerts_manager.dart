@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
@@ -56,6 +57,8 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
   static const String _prefsKey = 'alertsHistory';
 
   static final AlertsManager _instance = AlertsManager._internal();
+  Timer? _wakelockTimer;
+
   factory AlertsManager() => _instance;
   AlertsManager._internal() : super([]) {
     _loadFromPrefs();
@@ -104,6 +107,15 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     _saveToPrefs(newList);
   }
 
+  void _triggerAlertWakelock() {
+    WakelockPlus.enable();
+    _wakelockTimer?.cancel();
+    // Keep screen awake for 2 minutes to alert user, then release wakelock to save battery
+    _wakelockTimer = Timer(const Duration(minutes: 2), () {
+      WakelockPlus.disable();
+    });
+  }
+
   void addSosAlert(SosAlert alert) {
     final idx = value.indexWhere((n) => n.clientAlertId != null && n.clientAlertId == alert.clientAlertId);
     final notification = AlertNotification(
@@ -123,7 +135,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     } else {
       _applyCapAndNotify([notification, ...value]);
     }
-    WakelockPlus.enable();
+    _triggerAlertWakelock();
   }
 
   void addRescueEvent(RescueAcceptedEvent event) {
@@ -165,6 +177,7 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     _applyCapAndNotify(newList);
 
     if (!newList.any((n) => n.type == AlertType.sos)) {
+      _wakelockTimer?.cancel();
       WakelockPlus.disable();
     }
   }

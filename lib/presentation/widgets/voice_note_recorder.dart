@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:record/record.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -179,11 +181,14 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       // Step 1: Get signed upload URL from Serverpod
       String uploadDescription = await AuthManager.client.audio.getUploadDescription(fileName);
       
+      final baseUri = Uri.parse(dotenv.env['API_URL'] ?? 'http://localhost:8080');
+      final apiHost = baseUri.host;
+
       // Replace Serverpod's placeholder with the actual host
       // Handle both unencoded and URL-encoded versions of ${public_host}
       uploadDescription = uploadDescription
-          .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-          .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+          .replaceAll('\${public_host}', apiHost)
+          .replaceAll('\$%7Bpublic_host%7D', apiHost);
 
       // Step 2: Upload the file
       final bytes = await file.readAsBytes();
@@ -201,8 +206,8 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
       // Step 3: Verify and get public URL
       String publicUrl = await AuthManager.client.audio.verifyUpload(fileName);
       publicUrl = publicUrl
-          .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-          .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+          .replaceAll('\${public_host}', apiHost)
+          .replaceAll('\$%7Bpublic_host%7D', apiHost);
 
       if (!mounted) return;
 
@@ -317,7 +322,18 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
             SizedBox(
               width: double.infinity,
               child: GestureDetector(
-                onLongPressDown: (_) => _startRecording(),
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please hold the button while speaking.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                onLongPressDown: (_) {
+                  HapticFeedback.mediumImpact();
+                  _startRecording();
+                },
                 onLongPressEnd: (_) { 
                   _isPendingStart = false;
                   if (_isRecording) _stopRecording(); 
@@ -352,7 +368,7 @@ class _VoiceNoteRecorderState extends State<VoiceNoteRecorder>
                         Text(
                           _isRecording
                               ? '● REC — $_timerLabel'
-                              : (_isRecorded ? 'Tap to Re-record' : 'Tap to Record'),
+                              : (_isRecorded ? 'Hold to Re-record' : 'Hold to Record, Release to Send'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
