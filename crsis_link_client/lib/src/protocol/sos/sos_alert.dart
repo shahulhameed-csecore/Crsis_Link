@@ -33,6 +33,8 @@ abstract class SosAlert implements _i1.SerializableModel {
     this.photoBase64,
     this.approximateLocationText,
     required this.clientAlertId,
+    this.pinAttempts,
+    this.pinLockedUntil,
   }) : isRescuerVerified = isRescuerVerified ?? false,
        isVisuallyVerified = isVisuallyVerified ?? false;
 
@@ -55,6 +57,8 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? photoBase64,
     String? approximateLocationText,
     required String clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -88,6 +92,12 @@ abstract class SosAlert implements _i1.SerializableModel {
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
       clientAlertId: jsonSerialization['clientAlertId'] as String,
+      pinAttempts: jsonSerialization['pinAttempts'] as int?,
+      pinLockedUntil: jsonSerialization['pinLockedUntil'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['pinLockedUntil'],
+            ),
     );
   }
 
@@ -130,6 +140,10 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   String clientAlertId;
 
+  int? pinAttempts;
+
+  DateTime? pinLockedUntil;
+
   /// Returns a shallow copy of this [SosAlert]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -152,6 +166,8 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? photoBase64,
     String? approximateLocationText,
     String? clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -176,6 +192,8 @@ abstract class SosAlert implements _i1.SerializableModel {
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
+      if (pinAttempts != null) 'pinAttempts': pinAttempts,
+      if (pinLockedUntil != null) 'pinLockedUntil': pinLockedUntil?.toJson(),
     };
   }
 
@@ -207,6 +225,8 @@ class _SosAlertImpl extends SosAlert {
     String? photoBase64,
     String? approximateLocationText,
     required String clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -226,6 +246,8 @@ class _SosAlertImpl extends SosAlert {
          photoBase64: photoBase64,
          approximateLocationText: approximateLocationText,
          clientAlertId: clientAlertId,
+         pinAttempts: pinAttempts,
+         pinLockedUntil: pinLockedUntil,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -251,6 +273,8 @@ class _SosAlertImpl extends SosAlert {
     Object? photoBase64 = _Undefined,
     Object? approximateLocationText = _Undefined,
     String? clientAlertId,
+    Object? pinAttempts = _Undefined,
+    Object? pinLockedUntil = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -277,6 +301,10 @@ class _SosAlertImpl extends SosAlert {
           ? approximateLocationText
           : this.approximateLocationText,
       clientAlertId: clientAlertId ?? this.clientAlertId,
+      pinAttempts: pinAttempts is int? ? pinAttempts : this.pinAttempts,
+      pinLockedUntil: pinLockedUntil is DateTime?
+          ? pinLockedUntil
+          : this.pinLockedUntil,
     );
   }
 }

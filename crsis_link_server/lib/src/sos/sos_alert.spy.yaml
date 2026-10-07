@@ -18,6 +18,8 @@ fields:
   photoBase64: String?
   approximateLocationText: String?
   clientAlertId: String
+  pinAttempts: int?
+  pinLockedUntil: DateTime?
 indexes:
   sos_client_alert_id_idx:
     fields: clientAlertId

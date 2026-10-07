@@ -34,6 +34,8 @@ abstract class SosAlert
     this.photoBase64,
     this.approximateLocationText,
     required this.clientAlertId,
+    this.pinAttempts,
+    this.pinLockedUntil,
   }) : isRescuerVerified = isRescuerVerified ?? false,
        isVisuallyVerified = isVisuallyVerified ?? false;
 
@@ -56,6 +58,8 @@ abstract class SosAlert
     String? photoBase64,
     String? approximateLocationText,
     required String clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   }) = _SosAlertImpl;
 
   factory SosAlert.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -89,6 +93,12 @@ abstract class SosAlert
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
       clientAlertId: jsonSerialization['clientAlertId'] as String,
+      pinAttempts: jsonSerialization['pinAttempts'] as int?,
+      pinLockedUntil: jsonSerialization['pinLockedUntil'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['pinLockedUntil'],
+            ),
     );
   }
 
@@ -133,6 +143,10 @@ abstract class SosAlert
 
   String clientAlertId;
 
+  int? pinAttempts;
+
+  DateTime? pinLockedUntil;
+
   @override
   _i1.Table<int?> get table => t;
 
@@ -158,6 +172,8 @@ abstract class SosAlert
     String? photoBase64,
     String? approximateLocationText,
     String? clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -182,6 +198,8 @@ abstract class SosAlert
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
+      if (pinAttempts != null) 'pinAttempts': pinAttempts,
+      if (pinLockedUntil != null) 'pinLockedUntil': pinLockedUntil?.toJson(),
     };
   }
 
@@ -208,6 +226,8 @@ abstract class SosAlert
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
       'clientAlertId': clientAlertId,
+      if (pinAttempts != null) 'pinAttempts': pinAttempts,
+      if (pinLockedUntil != null) 'pinLockedUntil': pinLockedUntil?.toJson(),
     };
   }
 
@@ -263,6 +283,8 @@ class _SosAlertImpl extends SosAlert {
     String? photoBase64,
     String? approximateLocationText,
     required String clientAlertId,
+    int? pinAttempts,
+    DateTime? pinLockedUntil,
   }) : super._(
          id: id,
          deviceId: deviceId,
@@ -282,6 +304,8 @@ class _SosAlertImpl extends SosAlert {
          photoBase64: photoBase64,
          approximateLocationText: approximateLocationText,
          clientAlertId: clientAlertId,
+         pinAttempts: pinAttempts,
+         pinLockedUntil: pinLockedUntil,
        );
 
   /// Returns a shallow copy of this [SosAlert]
@@ -307,6 +331,8 @@ class _SosAlertImpl extends SosAlert {
     Object? photoBase64 = _Undefined,
     Object? approximateLocationText = _Undefined,
     String? clientAlertId,
+    Object? pinAttempts = _Undefined,
+    Object? pinLockedUntil = _Undefined,
   }) {
     return SosAlert(
       id: id is int? ? id : this.id,
@@ -333,6 +359,10 @@ class _SosAlertImpl extends SosAlert {
           ? approximateLocationText
           : this.approximateLocationText,
       clientAlertId: clientAlertId ?? this.clientAlertId,
+      pinAttempts: pinAttempts is int? ? pinAttempts : this.pinAttempts,
+      pinLockedUntil: pinLockedUntil is DateTime?
+          ? pinLockedUntil
+          : this.pinLockedUntil,
     );
   }
 }
@@ -429,6 +459,17 @@ class SosAlertUpdateTable extends _i1.UpdateTable<SosAlertTable> {
         table.clientAlertId,
         value,
       );
+
+  _i1.ColumnValue<int, int> pinAttempts(int? value) => _i1.ColumnValue(
+    table.pinAttempts,
+    value,
+  );
+
+  _i1.ColumnValue<DateTime, DateTime> pinLockedUntil(DateTime? value) =>
+      _i1.ColumnValue(
+        table.pinLockedUntil,
+        value,
+      );
 }
 
 class SosAlertTable extends _i1.Table<int?> {
@@ -504,6 +545,14 @@ class SosAlertTable extends _i1.Table<int?> {
       'clientAlertId',
       this,
     );
+    pinAttempts = _i1.ColumnInt(
+      'pinAttempts',
+      this,
+    );
+    pinLockedUntil = _i1.ColumnDateTime(
+      'pinLockedUntil',
+      this,
+    );
   }
 
   late final SosAlertUpdateTable updateTable;
@@ -542,6 +591,10 @@ class SosAlertTable extends _i1.Table<int?> {
 
   late final _i1.ColumnString clientAlertId;
 
+  late final _i1.ColumnInt pinAttempts;
+
+  late final _i1.ColumnDateTime pinLockedUntil;
+
   @override
   List<_i1.Column> get columns => [
     id,
@@ -562,6 +615,8 @@ class SosAlertTable extends _i1.Table<int?> {
     photoBase64,
     approximateLocationText,
     clientAlertId,
+    pinAttempts,
+    pinLockedUntil,
   ];
 }
 

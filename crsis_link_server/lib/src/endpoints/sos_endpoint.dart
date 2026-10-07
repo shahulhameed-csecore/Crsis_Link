@@ -357,6 +357,15 @@ class SosEndpoint extends Endpoint {
     // Retrieve the fully deserialized object
     final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
     
+    // Schedule safety check future call
+    if (alert != null) {
+      await session.serverpod.futureCallWithDelay(
+        'safetyCheck',
+        alert,
+        const Duration(minutes: 30),
+      );
+    }
+    
     unawaited(session.messages.postMessage('sos_broadcasts', alert!));
     unawaited(session.messages.postMessage(
       'sos_broadcasts', 
@@ -389,23 +398,36 @@ class SosEndpoint extends Endpoint {
 
   /// Verifies the helper's PIN for an active SOS
   Future<SosAlert> verifyHelperPin(Session session, String clientAlertId, String pin) async {
-    // Atomic State Transition: Validates PIN and updates in a single database lock
-    final query = '''
-      UPDATE "sos_alert" 
-      SET "isRescuerVerified" = true 
-      WHERE "clientAlertId" = \$1 AND "status" = 'CLAIMED' AND "verificationPin" = \$2 AND "isRescuerVerified" = false 
-      RETURNING *;
-    ''';
-    
-    final result = await session.db.unsafeQuery(query, parameters: QueryParameters.positional([clientAlertId, pin]));
-    if (result.isEmpty) {
-      throw Exception('Incorrect PIN, Invalid SOS Request, or already verified.');
+    final alert = await SosAlert.db.findFirstRow(
+      session,
+      where: (t) => t.clientAlertId.equals(clientAlertId) & t.status.equals('CLAIMED') & t.isRescuerVerified.equals(false),
+    );
+
+    if (alert == null) {
+      throw Exception('Invalid SOS Request, or already verified.');
     }
-    
-    // Retrieve the fully deserialized object
-    final alert = await SosAlert.db.findFirstRow(session, where: (t) => t.clientAlertId.equals(clientAlertId));
-    
-    unawaited(session.messages.postMessage('sos_broadcasts', alert!));
+
+    if (alert.pinLockedUntil != null && alert.pinLockedUntil!.isAfter(DateTime.now().toUtc())) {
+      throw Exception('Too many failed attempts. Try again in 5 minutes.');
+    }
+
+    if (alert.verificationPin != pin) {
+      alert.pinAttempts = (alert.pinAttempts ?? 0) + 1;
+      if (alert.pinAttempts! >= 5) {
+        alert.pinLockedUntil = DateTime.now().toUtc().add(const Duration(minutes: 5));
+        alert.pinAttempts = 0;
+      }
+      await SosAlert.db.updateRow(session, alert);
+      throw Exception('Incorrect PIN.');
+    }
+
+    // Success
+    alert.isRescuerVerified = true;
+    alert.pinAttempts = 0;
+    alert.pinLockedUntil = null;
+    await SosAlert.db.updateRow(session, alert);
+
+    unawaited(session.messages.postMessage('sos_broadcasts', alert));
     return alert;
   }
 
