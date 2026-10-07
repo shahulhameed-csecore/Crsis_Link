@@ -76,14 +76,21 @@ class OfflineMeshService {
       Permission.nearbyWifiDevices,
     ].request();
 
-    bool hasEssential = await Permission.location.isGranted;
     statuses.forEach((permission, status) {
       if (!status.isGranted) {
         debugPrint('[P2P_DEBUG] Permission missing: $permission');
       }
     });
 
-    return hasEssential;
+    bool isLocationGranted = statuses[Permission.location]?.isGranted ?? false;
+    bool bluetoothGranted = statuses[Permission.bluetooth]?.isGranted ?? false;
+    
+    // For newer SDKs these are specific, for older SDKs fallback to general bluetooth.
+    bool bleScanGranted = statuses[Permission.bluetoothScan]?.isGranted ?? bluetoothGranted;
+    bool bleAdvGranted = statuses[Permission.bluetoothAdvertise]?.isGranted ?? bluetoothGranted;
+    bool bleConnGranted = statuses[Permission.bluetoothConnect]?.isGranted ?? bluetoothGranted;
+
+    return isLocationGranted && bleScanGranted && bleAdvGranted && bleConnGranted;
   }
 
   Future<bool> startMesh({bool isBackground = false}) async {
