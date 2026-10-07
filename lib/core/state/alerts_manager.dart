@@ -5,6 +5,7 @@ import 'package:crsis_link_client/crsis_link_client.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/offline_cache_manager.dart';
+import '../services/rescue_chat_session.dart';
 
 enum AlertType { sos, accepted, resolved, ignored }
 
@@ -116,6 +117,11 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
     });
   }
 
+  void releaseWakelockEarly() {
+    _wakelockTimer?.cancel();
+    WakelockPlus.disable();
+  }
+
   void addSosAlert(SosAlert alert) {
     final idx = value.indexWhere((n) => n.clientAlertId != null && n.clientAlertId == alert.clientAlertId);
     final notification = AlertNotification(
@@ -173,6 +179,8 @@ class AlertsManager extends ValueNotifier<List<AlertNotification>> {
       description: 'An emergency has been resolved safely.',
       type: AlertType.resolved,
     ));
+    
+    RescueChatSession().destroyChatForAlert(clientAlertId);
     
     _applyCapAndNotify(newList);
 

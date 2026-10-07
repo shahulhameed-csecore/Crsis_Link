@@ -146,7 +146,6 @@ class LocalSosAlertAdapter extends TypeAdapter<LocalSosAlert> {
       message: fields[3] as String,
       timestamp: fields[4] as int,
       isSynced: fields[5] as bool,
-      victimPhone: fields[6] as String? ?? 'URGENT-NO-NUMBER',
       approximateLocationText: fields[7] as String?,
       originalDeviceId: fields[8] as String? ?? 'unknown_device',
       originalSenderName: fields[9] as String? ?? 'Unknown Sender',
@@ -156,7 +155,7 @@ class LocalSosAlertAdapter extends TypeAdapter<LocalSosAlert> {
   @override
   void write(BinaryWriter writer, LocalSosAlert obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -170,7 +169,7 @@ class LocalSosAlertAdapter extends TypeAdapter<LocalSosAlert> {
       ..writeByte(5)
       ..write(obj.isSynced)
       ..writeByte(6)
-      ..write(obj.victimPhone)
+      ..write('') // Legacy victimPhone field stripped
       ..writeByte(7)
       ..write(obj.approximateLocationText)
       ..writeByte(8)

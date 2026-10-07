@@ -114,7 +114,7 @@ class SosEndpoint extends Endpoint {
   }
 
   /// Creates or updates an active SOS alert for the given device.
-  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String victimPhone, String? photoUrl, String? approximateLocationText, String clientAlertId) async {
+  Future<SosBroadcastResponse> broadcastSos(Session session, String deviceId, String senderName, double latitude, double longitude, String? message, String? audioUrl, String? photoUrl, String? approximateLocationText, String clientAlertId) async {
     if (latitude.isNaN || longitude.isNaN || latitude.isInfinite || longitude.isInfinite || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw ArgumentError('Invalid coordinates');
     }
@@ -124,7 +124,6 @@ class SosEndpoint extends Endpoint {
       throw ArgumentError('Audio URL exceeds maximum length');
     }
     if (message != null && message.length > 1000) message = message.substring(0, 1000);
-    if (victimPhone.length > 20) victimPhone = victimPhone.substring(0, 20);
     if (photoUrl != null && photoUrl.length > 500) { 
       throw ArgumentError('Photo URL exceeds maximum length');
     }
@@ -180,7 +179,6 @@ class SosEndpoint extends Endpoint {
         status: 'OPEN',
         senderName: senderName,
         audioUrl: audioUrl,
-        victimPhone: victimPhone,
         photoUrl: photoUrl,
         approximateLocationText: approximateLocationText,
         clientAlertId: clientAlertId,
@@ -284,7 +282,6 @@ class SosEndpoint extends Endpoint {
               isVisuallyVerified: alert.isVisuallyVerified,
               message: alert.message,
               // Intentionally stripped — private fields not needed for radar display
-              victimPhone: '',
               verificationPin: null,
               audioUrl: alert.audioUrl,
               photoUrl: alert.photoUrl,

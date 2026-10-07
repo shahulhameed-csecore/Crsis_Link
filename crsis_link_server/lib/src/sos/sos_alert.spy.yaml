@@ -14,7 +14,6 @@ fields:
   verificationPin: String?
   isRescuerVerified: bool, default=false
   isVisuallyVerified: bool, default=false
-  victimPhone: String
   photoUrl: String?
   approximateLocationText: String?
   clientAlertId: String

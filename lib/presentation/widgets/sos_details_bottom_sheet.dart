@@ -7,8 +7,9 @@ import '../../core/theme/design_system.dart';
 import '../../core/state/map_pins_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import 'capsule_button.dart';
-import 'audio_player_button.dart'; // We also need to extract AudioPlayerButton?
-// actually AudioPlayerButton is in home_map_screen.dart right now. Let's import it or extract it.
+import 'audio_player_button.dart';
+import '../../core/services/offline_mesh_service.dart';
+import '../../core/services/rescue_chat_session.dart';
 
 class SosDetailsBottomSheet extends StatefulWidget {
   final dynamic alert;
@@ -60,6 +61,9 @@ class _SosDetailsBottomSheetState extends State<SosDetailsBottomSheet> {
 
     return PopScope(
       canPop: !isSubmitting,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) AlertsManager().releaseWakelockEarly();
+      },
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
@@ -178,6 +182,7 @@ Row(
                                   return;
                                 }
                                 if (ctx.mounted) {
+                                  AlertsManager().releaseWakelockEarly();
                                   Navigator.pop(ctx);
                                   if (widget.onResolve != null) widget.onResolve!();
                                   ScaffoldMessenger.of(ctx).showSnackBar(
@@ -219,6 +224,7 @@ Row(
                               final alertId = alert.id;
                               if (alertId == null) return;
                               if (widget.onIgnore != null) widget.onIgnore!();
+                              AlertsManager().releaseWakelockEarly();
                               Navigator.pop(ctx);
                             },
                             style: OutlinedButton.styleFrom(
@@ -239,6 +245,7 @@ Row(
                               try {
                                 final expectedPayload = "claimRescue_${alert.clientAlertId!}";
                                 final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                OfflineMeshService().broadcastClaimRescue(alert.clientAlertId!);
                                 await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!, signature, P2pCryptoService().publicKey).timeout(const Duration(seconds: 10));
                                 if (ctx.mounted) {
                                   final updatedAlert = alert.copyWith(
@@ -292,21 +299,10 @@ Row(
                   children: [
                     if (!alert.isRescuerVerified) ...[
                       CapsuleButton(
-                        text: 'Contact Victim',
+                        text: 'Message Victim',
                         style: CapsuleStyle.secondary,
-                        onPressed: () async {
-                          try {
-                            final url = Uri.parse('tel:${alert.victimPhone}');
-                            bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-                            if (!launched) {
-                              throw Exception('Dialer not supported on this device.');
-                            }
-                          } catch (e) {
-                            if (!ctx.mounted) return;
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Could not open phone: $e'), backgroundColor: Colors.red),
-                            );
-                          }
+                        onPressed: () {
+                          _showChatDialog(context, alert);
                         },
                       ),
                       const SizedBox(height: 12),
@@ -416,7 +412,79 @@ Row(
             ],
           ),
         ),
-      ),
     );
   }
+
+  void _showChatDialog(BuildContext context, dynamic alert) {
+    final alertId = alert.clientAlertId ?? alert.id.toString();
+    final textController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Secure Chat'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ValueListenableBuilder<List<ChatMessage>>(
+                    valueListenable: RescueChatSession().messagesNotifier,
+                    builder: (context, messages, _) {
+                      final chatMsgs = messages.where((m) => m.alertId == alertId).toList();
+                      if (chatMsgs.isEmpty) {
+                        return const Center(child: Text('No messages yet', style: TextStyle(color: Colors.grey)));
+                      }
+                      return ListView.builder(
+                        itemCount: chatMsgs.length,
+                        itemBuilder: (context, index) {
+                          final m = chatMsgs[index];
+                          final isMe = m.senderId == AuthManager.deviceId;
+                          return Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.blue.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(m.text),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: textController,
+                        decoration: const InputDecoration(hintText: 'Type message...'),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: () {
+                        if (textController.text.trim().isNotEmpty) {
+                          // We pass an empty string for recipient pub key in this basic demo
+                          RescueChatSession().sendMessage(alertId, textController.text.trim(), "");
+                          textController.clear();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 }

@@ -29,7 +29,6 @@ abstract class SosAlert implements _i1.SerializableModel {
     this.verificationPin,
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
-    required this.victimPhone,
     this.photoUrl,
     this.approximateLocationText,
     required this.clientAlertId,
@@ -53,7 +52,6 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? verificationPin,
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
-    required String victimPhone,
     String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
@@ -87,7 +85,6 @@ abstract class SosAlert implements _i1.SerializableModel {
           : _i1.BoolJsonExtension.fromJson(
               jsonSerialization['isVisuallyVerified'],
             ),
-      victimPhone: jsonSerialization['victimPhone'] as String,
       photoUrl: jsonSerialization['photoUrl'] as String?,
       approximateLocationText:
           jsonSerialization['approximateLocationText'] as String?,
@@ -132,8 +129,6 @@ abstract class SosAlert implements _i1.SerializableModel {
 
   bool isVisuallyVerified;
 
-  String victimPhone;
-
   String? photoUrl;
 
   String? approximateLocationText;
@@ -162,7 +157,6 @@ abstract class SosAlert implements _i1.SerializableModel {
     String? verificationPin,
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
-    String? victimPhone,
     String? photoUrl,
     String? approximateLocationText,
     String? clientAlertId,
@@ -187,7 +181,6 @@ abstract class SosAlert implements _i1.SerializableModel {
       if (verificationPin != null) 'verificationPin': verificationPin,
       'isRescuerVerified': isRescuerVerified,
       'isVisuallyVerified': isVisuallyVerified,
-      'victimPhone': victimPhone,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (approximateLocationText != null)
         'approximateLocationText': approximateLocationText,
@@ -221,7 +214,6 @@ class _SosAlertImpl extends SosAlert {
     String? verificationPin,
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
-    required String victimPhone,
     String? photoUrl,
     String? approximateLocationText,
     required String clientAlertId,
@@ -242,7 +234,6 @@ class _SosAlertImpl extends SosAlert {
          verificationPin: verificationPin,
          isRescuerVerified: isRescuerVerified,
          isVisuallyVerified: isVisuallyVerified,
-         victimPhone: victimPhone,
          photoUrl: photoUrl,
          approximateLocationText: approximateLocationText,
          clientAlertId: clientAlertId,
@@ -269,7 +260,6 @@ class _SosAlertImpl extends SosAlert {
     Object? verificationPin = _Undefined,
     bool? isRescuerVerified,
     bool? isVisuallyVerified,
-    String? victimPhone,
     Object? photoUrl = _Undefined,
     Object? approximateLocationText = _Undefined,
     String? clientAlertId,
@@ -295,7 +285,6 @@ class _SosAlertImpl extends SosAlert {
           : this.verificationPin,
       isRescuerVerified: isRescuerVerified ?? this.isRescuerVerified,
       isVisuallyVerified: isVisuallyVerified ?? this.isVisuallyVerified,
-      victimPhone: victimPhone ?? this.victimPhone,
       photoUrl: photoUrl is String? ? photoUrl : this.photoUrl,
       approximateLocationText: approximateLocationText is String?
           ? approximateLocationText

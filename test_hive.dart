@@ -13,7 +13,6 @@ void main() async {
     lat: 10.0,
     lng: 10.0,
     message: 'test',
-    victimPhone: '1234',
     approximateLocationText: null,
     originalDeviceId: '123',
     originalSenderName: 'test',

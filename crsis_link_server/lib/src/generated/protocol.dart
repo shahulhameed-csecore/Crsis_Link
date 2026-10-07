@@ -132,12 +132,6 @@ class Protocol extends _i1.SerializationManagerServer {
           columnDefault: 'false',
         ),
         _i2.ColumnDefinition(
-          name: 'victimPhone',
-          columnType: _i2.ColumnType.text,
-          isNullable: false,
-          dartType: 'String',
-        ),
-        _i2.ColumnDefinition(
           name: 'photoUrl',
           columnType: _i2.ColumnType.text,
           isNullable: true,

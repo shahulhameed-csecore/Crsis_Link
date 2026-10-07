@@ -11,6 +11,7 @@ import 'offline_cache_manager.dart';
 import '../auth/auth_manager.dart';
 import '../state/alerts_manager.dart';
 import '../state/map_pins_manager.dart';
+import 'rescue_chat_session.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'p2p_crypto_service.dart';
@@ -288,7 +289,6 @@ class OfflineMeshService {
             "l": alert.lat,
             "g": alert.lng,
             "m": alert.message,
-            "v": alert.victimPhone,
             "a": alert.approximateLocationText,
             "d": alert.originalDeviceId,
             "n": alert.originalSenderName,
@@ -328,7 +328,6 @@ class OfflineMeshService {
         "l": alert.lat,
         "g": alert.lng,
         "m": alert.message,
-        "v": alert.victimPhone,
         "a": alert.approximateLocationText,
         "d": alert.originalDeviceId,
         "n": alert.originalSenderName,
@@ -354,6 +353,57 @@ class OfflineMeshService {
         debugPrint('[P2P_DEBUG] Platform fault broadcasting alert to $peerId: $e');
       } catch (e) {
         debugPrint('[P2P_DEBUG] Failed to broadcast alert to peer $peerId: $e');
+      }
+    }
+  }
+
+  Future<void> broadcastClaimRescue(String alertId) async {
+    final payloadData = jsonEncode({
+      "deviceId": AuthManager.deviceId,
+      "t": "CLAIM",
+      "i": alertId,
+      "ts": DateTime.now().millisecondsSinceEpoch,
+    });
+    
+    final signature = await P2pCryptoService().signPayload(payloadData);
+    final envelope = jsonEncode({
+      "p": payloadData,
+      "k": P2pCryptoService().publicKey,
+      "s": signature,
+    });
+    
+    final bytes = Uint8List.fromList(utf8.encode(envelope));
+    for (final peerId in _connectedEndpoints) {
+      try {
+        await Nearby().sendBytesPayload(peerId, bytes);
+      } catch (e) {
+        debugPrint('[P2P_DEBUG] Failed to broadcast claim to $peerId: $e');
+      }
+    }
+  }
+
+  Future<void> broadcastChatMessage(String alertId, String encryptedText, String recipientPubKey) async {
+    final payloadData = jsonEncode({
+      "deviceId": AuthManager.deviceId,
+      "t": "MSG",
+      "i": alertId,
+      "m": encryptedText,
+      "ts": DateTime.now().millisecondsSinceEpoch,
+    });
+    
+    final signature = await P2pCryptoService().signPayload(payloadData);
+    final envelope = jsonEncode({
+      "p": payloadData,
+      "k": P2pCryptoService().publicKey,
+      "s": signature,
+    });
+    
+    final bytes = Uint8List.fromList(utf8.encode(envelope));
+    for (final peerId in _connectedEndpoints) {
+      try {
+        await Nearby().sendBytesPayload(peerId, bytes);
+      } catch (e) {
+        debugPrint('[P2P_DEBUG] Failed to broadcast message to $peerId: $e');
       }
     }
   }
@@ -487,6 +537,31 @@ class OfflineMeshService {
           return;
         }
 
+        if (decodedData['t'] == 'CLAIM') {
+          final String alertId = decodedData['i'];
+          final String volunteerId = decodedData['deviceId'];
+          final existing = OfflineCacheManager.getAlert(alertId);
+          if (existing != null) {
+            // Only victim updates their own alert or peers relay
+            final alertNotification = AlertsManager().notifications.firstWhere((a) => a.clientAlertId == alertId, orElse: () => AlertNotification(clientAlertId: alertId, title: '', description: '', timestamp: DateTime.now(), type: AlertType.sos, latitude: 0, longitude: 0));
+            if (alertNotification.type != AlertType.resolved) {
+              AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                victimDeviceId: existing.originalDeviceId,
+                volunteerName: "Mesh Volunteer",
+                volunteerDeviceId: volunteerId,
+              ));
+            }
+          }
+          return;
+        }
+
+        if (decodedData['t'] == 'MSG') {
+          final String alertId = decodedData['i'];
+          final String encryptedText = decodedData['m'];
+          RescueChatSession().receiveMessagePayload(alertId, expectedDeviceId, encryptedText);
+          return;
+        }
+
         if (!decodedData.containsKey('alerts')) return;
         
         final List<dynamic> dataList = decodedData['alerts'];
@@ -514,9 +589,6 @@ class OfflineMeshService {
           
           final msg = (jsonMap['message'] ?? jsonMap['m'] ?? 'Emergency').toString();
           final String message = msg.length > 500 ? msg.substring(0, 500) : msg;
-          
-          final phone = (jsonMap['victimPhone'] ?? jsonMap['v'] ?? 'URGENT-NO-NUMBER').toString();
-          final String victimPhone = phone.length > 20 ? phone.substring(0, 20) : phone;
 
           final approxLoc = jsonMap['approximateLocationText'] ?? jsonMap['a'];
           final origDevId = jsonMap['originalDeviceId'] ?? jsonMap['d'] ?? 'unknown_device';
@@ -527,7 +599,6 @@ class OfflineMeshService {
             lat: clampedLat,
             lng: clampedLng,
             message: message,
-            victimPhone: victimPhone,
             approximateLocationText: approxLoc,
             originalDeviceId: origDevId,
             originalSenderName: origSender,
@@ -549,7 +620,6 @@ class OfflineMeshService {
               message: alert.message,
               status: 'OPEN',
               timestamp: DateTime.fromMillisecondsSinceEpoch(alert.timestamp),
-              victimPhone: alert.victimPhone,
               deviceId: alert.originalDeviceId,
               senderName: alert.originalSenderName,
               isActive: true,

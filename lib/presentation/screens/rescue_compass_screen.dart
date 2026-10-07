@@ -20,7 +20,7 @@ class RescueCompassScreen extends StatefulWidget {
   State<RescueCompassScreen> createState() => _RescueCompassScreenState();
 }
 
-class _RescueCompassScreenState extends State<RescueCompassScreen> {
+class _RescueCompassScreenState extends State<RescueCompassScreen> with WidgetsBindingObserver {
   StreamSubscription<Position>? _positionStream;
   StreamSubscription<CompassEvent>? _compassStream;
   
@@ -32,8 +32,18 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     OfflineMeshService().pauseDutyCycle();
     _initSensors();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      OfflineMeshService().resumeDutyCycle(); // Reactivate mesh when backgrounded
+    } else if (state == AppLifecycleState.resumed) {
+      OfflineMeshService().pauseDutyCycle(); // Prioritize compass again when opened
+    }
   }
 
   Future<void> _initSensors() async {
@@ -103,6 +113,7 @@ class _RescueCompassScreenState extends State<RescueCompassScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionStream?.cancel();
     _compassStream?.cancel();
     OfflineMeshService().resumeDutyCycle();

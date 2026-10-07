@@ -372,11 +372,6 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
-            'victimPhone': _i1.ParameterDescription(
-              name: 'victimPhone',
-              type: _i1.getType<String>(),
-              nullable: false,
-            ),
             'photoUrl': _i1.ParameterDescription(
               name: 'photoUrl',
               type: _i1.getType<String?>(),
@@ -405,7 +400,6 @@ class Endpoints extends _i1.EndpointDispatch {
                 params['longitude'],
                 params['message'],
                 params['audioUrl'],
-                params['victimPhone'],
                 params['photoUrl'],
                 params['approximateLocationText'],
                 params['clientAlertId'],

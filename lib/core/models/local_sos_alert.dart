@@ -5,7 +5,6 @@ class LocalSosAlert extends HiveObject {
   double lat;
   double lng;
   final String message;
-  final String victimPhone;
   final String? approximateLocationText;
   final String originalDeviceId;
   final String originalSenderName;
@@ -18,7 +17,6 @@ class LocalSosAlert extends HiveObject {
     required this.lat,
     required this.lng,
     required this.message,
-    required this.victimPhone,
     this.approximateLocationText,
     required this.originalDeviceId,
     required this.originalSenderName,
@@ -33,7 +31,6 @@ class LocalSosAlert extends HiveObject {
       'lat': lat,
       'lng': lng,
       'message': message,
-      'victimPhone': victimPhone,
       'approximateLocationText': approximateLocationText,
       'originalDeviceId': originalDeviceId,
       'originalSenderName': originalSenderName,
@@ -49,7 +46,6 @@ class LocalSosAlert extends HiveObject {
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
       message: json['message'] ?? 'Emergency',
-      victimPhone: json['victimPhone'] ?? 'URGENT-NO-NUMBER',
       approximateLocationText: json['approximateLocationText'],
       originalDeviceId: json['originalDeviceId'] ?? 'unknown_device',
       originalSenderName: json['originalSenderName'] ?? 'Unknown Sender',
