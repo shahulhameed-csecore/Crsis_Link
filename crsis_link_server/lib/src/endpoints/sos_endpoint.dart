@@ -146,11 +146,7 @@ class SosEndpoint extends Endpoint {
         transaction: transaction,
       );
       
-      if (existingAlerts.isNotEmpty) {
-        if (DateTime.now().toUtc().difference(existingAlerts.first.timestamp).inSeconds < 30) {
-          return existingAlerts.first;
-        }
-      }
+
 
       // Idempotency check: if we already have this exact offline alert, just return it
       final duplicateCheck = await SosAlert.db.findFirstRow(
