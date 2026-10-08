@@ -79,6 +79,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           _isConnected = connected;
         });
         OfflineMeshService().toggleOfflineMode(!connected);
+        if (connected) {
+          _fetchActiveSos();
+        }
       }
     });
     
@@ -1040,7 +1043,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     markers: [
                       // Render dropped SOS pins
                       ...MapPinsManager().pins
-                        .where((alert) => alert.deviceId == AuthManager.deviceId || alert.status != 'OPEN')
                         .map((alert) {
                         return Marker(
                           point: LatLng(alert.latitude, alert.longitude),

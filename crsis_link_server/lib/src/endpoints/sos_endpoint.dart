@@ -148,7 +148,7 @@ class SosEndpoint extends Endpoint {
       
       if (existingAlerts.isNotEmpty) {
         if (DateTime.now().toUtc().difference(existingAlerts.first.timestamp).inSeconds < 30) {
-          throw Exception('Rate limit exceeded. Please wait 30 seconds before broadcasting again.');
+          return existingAlerts.first;
         }
       }
 

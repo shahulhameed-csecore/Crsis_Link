@@ -155,8 +155,47 @@ class _SosScreenState extends State<SosScreen>
           );
           await OfflineCacheManager.saveAlert(alert);
 
-        if (OfflineMeshService().isOfflineModeEnabled) {
+        final connectivityResult = await Connectivity().checkConnectivity();
+        final isOffline = !connectivityResult.any((r) => 
+            r == ConnectivityResult.wifi || 
+            r == ConnectivityResult.mobile || 
+            r == ConnectivityResult.ethernet || 
+            r == ConnectivityResult.vpn);
+
+        if (isOffline) {
+          if (!OfflineMeshService().isOfflineModeEnabled) {
+            await OfflineMeshService().toggleOfflineMode(true);
+          }
           await OfflineMeshService().broadcastNewAlert(alert);
+          
+          final localUiAlert = SosAlert(
+            id: alert.id.hashCode,
+            clientAlertId: alert.id,
+            deviceId: AuthManager.deviceId,
+            senderName: AuthManager.displayName,
+            latitude: alert.lat,
+            longitude: alert.lng,
+            message: alert.message,
+            status: 'OPEN',
+            approximateLocationText: alert.approximateLocationText,
+            timestamp: DateTime.now(),
+            isActive: true,
+          );
+          MapPinsManager().addOrUpdatePin(localUiAlert);
+          AlertsManager().addSosAlert(localUiAlert);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Offline Mode: SOS broadcasted to nearby peers via Mesh'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
+            );
+            MainNavigation.jumpToMap();
+            globalHomeMapKey.currentState?.jumpToCurrentLocation();
+          }
+          return;
         }
 
         // FORWARD: Attempt to send to server
@@ -186,14 +225,10 @@ class _SosScreenState extends State<SosScreen>
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  response.notifiedCount == 0
-                      ? 'No one is available near you at the moment. Your request is still active.'
-                      : 'SOS Broadcasted successfully!',
-                ),
-                backgroundColor: AppColors.emergencyRed,
-                duration: const Duration(seconds: 5),
+              const SnackBar(
+                content: Text('Online SOS broadcasted to 5km radius!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 5),
               ),
             );
 
@@ -208,7 +243,7 @@ class _SosScreenState extends State<SosScreen>
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Server Online: Please wait 30s between SOS broadcasts.'),
+                  content: Text('SOS already active on server (wait 30s)'),
                   backgroundColor: Colors.blue,
                   duration: Duration(seconds: 5),
                 ),
@@ -219,6 +254,8 @@ class _SosScreenState extends State<SosScreen>
             return;
           }
           debugPrint('SOS Broadcast network failed, relying on store-and-forward: $e');
+          
+          await OfflineMeshService().broadcastNewAlert(alert);
           
           // Fallback: update local UI and rely on NetworkSyncManager
           final localUiAlert = SosAlert(
@@ -240,9 +277,7 @@ class _SosScreenState extends State<SosScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text(
-                  'Stored Offline. Will sync to server when connection is restored.',
-                ),
+                content: Text('Server unreachable. Broadcasted via Offline Mesh.'),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 5),
               ),

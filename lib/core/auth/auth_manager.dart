@@ -20,6 +20,9 @@ class AuthManager {
     if (serverUrl.isEmpty || serverUrl.contains('localhost')) {
       serverUrl = 'https://crsis-link-api.onrender.com/';
     }
+    if (!serverUrl.endsWith('/')) {
+      serverUrl += '/';
+    }
 
     client = Client(serverUrl);
 

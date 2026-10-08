@@ -433,6 +433,12 @@ class OfflineMeshService {
     final bytes = Uint8List.fromList(utf8.encode(envelope));
     print('[MESH_SEND] Packet encoded successfully: ${bytes.length} bytes');
 
+    if (_connectedEndpoints.isEmpty) {
+      String shortId = AuthManager.deviceId;
+      if (shortId.length > 31) shortId = shortId.substring(0, 31);
+      _executeDiscoveryCycle(shortId);
+    }
+
     for (final peerId in _connectedEndpoints) {
       try {
         _showDebugToast('Transmitting SOS to $peerId');
