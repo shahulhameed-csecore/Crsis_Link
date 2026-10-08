@@ -155,114 +155,85 @@ class _SosScreenState extends State<SosScreen>
           );
           await OfflineCacheManager.saveAlert(alert);
 
-          if (OfflineMeshService().isOfflineModeEnabled) {
-            await OfflineMeshService().broadcastNewAlert(alert);
+        if (OfflineMeshService().isOfflineModeEnabled) {
+          await OfflineMeshService().broadcastNewAlert(alert);
+        }
 
-            final localUiAlert = SosAlert(
-              id: alert.id.hashCode, // Unique temporary ID
-              clientAlertId: alert.id,
-              deviceId: AuthManager.deviceId,
-              senderName: AuthManager.displayName,
-              latitude: alert.lat,
-              longitude: alert.lng,
-              message: alert.message,
-              status: 'OPEN',
-              approximateLocationText: alert.approximateLocationText,
-              timestamp: DateTime.now(),
-              isActive: true,
+        // FORWARD: Attempt to send to server
+        try {
+          print('[ONLINE_SOS] Attempting Serverpod upload to ${AuthManager.client.host}...');
+          final response = await AuthManager.client.sos
+              .broadcastSos(
+                AuthManager.deviceId,
+                AuthManager.displayName,
+                position.latitude,
+                position.longitude,
+                alert.message,
+                null,
+                null,
+                approxLocation,
+                alert.id, // clientAlertId for idempotency
+              )
+              .timeout(const Duration(seconds: 5));
+
+          // Mark as synced upon success
+          await OfflineCacheManager.markAsSynced(alert.id);
+
+          final finalAlert = response.alert;
+          MapPinsManager().addOrUpdatePin(finalAlert);
+          AlertsManager().addSosAlert(finalAlert);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  response.notifiedCount == 0
+                      ? 'No one is available near you at the moment. Your request is still active.'
+                      : 'SOS Broadcasted successfully!',
+                ),
+                backgroundColor: AppColors.emergencyRed,
+                duration: const Duration(seconds: 5),
+              ),
             );
-            MapPinsManager().addOrUpdatePin(localUiAlert);
-            AlertsManager().addSosAlert(localUiAlert);
 
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Offline: SOS saved and broadcasting to nearby devices.',
-                  ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 5),
-                ),
-              );
-              MainNavigation.jumpToMap();
-              globalHomeMapKey.currentState?.jumpToCurrentLocation();
-            }
-            return;
+            MainNavigation.jumpToMap();
+            globalHomeMapKey.currentState?.jumpToCurrentLocation();
           }
+        } catch (e) {
+          print('[ONLINE_SOS] Upload error: $e');
+          debugPrint('SOS Broadcast network failed, relying on store-and-forward: $e');
+          
+          // Fallback: update local UI and rely on NetworkSyncManager
+          final localUiAlert = SosAlert(
+            id: alert.id.hashCode,
+            clientAlertId: alert.id,
+            deviceId: AuthManager.deviceId,
+            senderName: AuthManager.displayName,
+            latitude: alert.lat,
+            longitude: alert.lng,
+            message: alert.message,
+            status: 'OPEN',
+            approximateLocationText: alert.approximateLocationText,
+            timestamp: DateTime.now(),
+            isActive: true,
+          );
+          MapPinsManager().addOrUpdatePin(localUiAlert);
+          AlertsManager().addSosAlert(localUiAlert);
 
-          // FORWARD: Attempt to send to server
-          try {
-            final response = await AuthManager.client.sos
-                .broadcastSos(
-                  AuthManager.deviceId,
-                  AuthManager.displayName,
-                  position.latitude,
-                  position.longitude,
-                  alert.message,
-                  null,
-                  null,
-                  approxLocation,
-                  alert.id, // clientAlertId for idempotency
-                )
-                .timeout(const Duration(seconds: 10));
-
-            // Mark as synced upon success
-            await OfflineCacheManager.markAsSynced(alert.id);
-
-            final finalAlert = response.alert;
-            MapPinsManager().addOrUpdatePin(finalAlert);
-            AlertsManager().addSosAlert(finalAlert);
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    response.notifiedCount == 0
-                        ? 'No one is available near you at the moment. Your request is still active.'
-                        : 'SOS Broadcasted successfully!',
-                  ),
-                  backgroundColor: AppColors.emergencyRed,
-                  duration: const Duration(seconds: 5),
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Stored Offline. Will sync to server when connection is restored.',
                 ),
-              );
-
-              MainNavigation.jumpToMap();
-              globalHomeMapKey.currentState?.jumpToCurrentLocation();
-            }
-          } catch (e) {
-            debugPrint('SOS Broadcast network failed, relying on store-and-forward: $e');
-            
-            // Fallback: update local UI and rely on NetworkSyncManager
-            final localUiAlert = SosAlert(
-              id: alert.id.hashCode,
-              clientAlertId: alert.id,
-              deviceId: AuthManager.deviceId,
-              senderName: AuthManager.displayName,
-              latitude: alert.lat,
-              longitude: alert.lng,
-              message: alert.message,
-              status: 'OPEN',
-              approximateLocationText: alert.approximateLocationText,
-              timestamp: DateTime.now(),
-              isActive: true,
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
             );
-            MapPinsManager().addOrUpdatePin(localUiAlert);
-            AlertsManager().addSosAlert(localUiAlert);
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Saved offline. Will sync to server when connection is restored.',
-                  ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 5),
-                ),
-              );
-              MainNavigation.jumpToMap();
-              globalHomeMapKey.currentState?.jumpToCurrentLocation();
-            }
+            MainNavigation.jumpToMap();
+            globalHomeMapKey.currentState?.jumpToCurrentLocation();
           }
+        }
       }
     } catch (e) {
       debugPrint('Error: $e');
