@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -96,78 +97,80 @@ class _SosScreenState extends State<SosScreen>
       // INSTANT BROADCAST LOGIC
       if (mounted) {
         String? approxLocation;
-          try {
-            List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(
-              position.latitude,
-              position.longitude,
-            ).timeout(const Duration(seconds: 3));
-            if (placemarks.isNotEmpty) {
-              final place = placemarks.first;
-              approxLocation = place.subLocality?.isNotEmpty == true
-                  ? place.subLocality
-                  : (place.locality?.isNotEmpty == true
-                        ? place.locality
-                        : place.name);
-              if (approxLocation != null && approxLocation.isNotEmpty) {
-                approxLocation = 'Emergency in $approxLocation';
-              }
+        try {
+          List<Placemark> placemarks = await Geocoding()
+              .placemarkFromCoordinates(position.latitude, position.longitude)
+              .timeout(const Duration(seconds: 3));
+          if (placemarks.isNotEmpty) {
+            final place = placemarks.first;
+            approxLocation = place.subLocality?.isNotEmpty == true
+                ? place.subLocality
+                : (place.locality?.isNotEmpty == true
+                      ? place.locality
+                      : place.name);
+            if (approxLocation != null && approxLocation.isNotEmpty) {
+              approxLocation = 'Emergency in $approxLocation';
             }
-          } catch (e) {
-            debugPrint('Geocoding failed: $e');
           }
+        } catch (e) {
+          debugPrint('Geocoding failed: $e');
+        }
 
-          final prefs = await SharedPreferences.getInstance();
-          const secureStorage = FlutterSecureStorage();
-          String? securePhone = await secureStorage.read(
-            key: 'secure_victim_phone',
-          );
-          if (securePhone == null) {
-            String legacyPhone =
-                prefs.getString('phone') ??
-                prefs.getString('user_phone') ??
-                prefs.getString('phoneNumber') ??
-                '';
-            if (legacyPhone.isNotEmpty) {
-              await secureStorage.write(
-                key: 'secure_victim_phone',
-                value: legacyPhone,
-              );
-              await prefs.remove('phone');
-              await prefs.remove('user_phone');
-              await prefs.remove('phoneNumber');
-            }
-            securePhone = legacyPhone;
+        final prefs = await SharedPreferences.getInstance();
+        const secureStorage = FlutterSecureStorage();
+        String? securePhone = await secureStorage.read(
+          key: 'secure_victim_phone',
+        );
+        if (securePhone == null) {
+          String legacyPhone =
+              prefs.getString('phone') ??
+              prefs.getString('user_phone') ??
+              prefs.getString('phoneNumber') ??
+              '';
+          if (legacyPhone.isNotEmpty) {
+            await secureStorage.write(
+              key: 'secure_victim_phone',
+              value: legacyPhone,
+            );
+            await prefs.remove('phone');
+            await prefs.remove('user_phone');
+            await prefs.remove('phoneNumber');
           }
-          final victimPhone = securePhone.isNotEmpty
-              ? securePhone
-              : 'URGENT-NO-NUMBER';
+          securePhone = legacyPhone;
+        }
+        final victimPhone = securePhone.isNotEmpty
+            ? securePhone
+            : 'URGENT-NO-NUMBER';
 
-          // STORE: Always save to offline cache first
-          final alert = LocalSosAlert(
-            id: const Uuid().v4(),
-            lat: position.latitude,
-            lng: position.longitude,
-            message: 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
-            approximateLocationText: approxLocation,
-            originalDeviceId: AuthManager.deviceId,
-            originalSenderName: AuthManager.displayName,
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-          );
-          await OfflineCacheManager.saveAlert(alert);
+        // STORE: Always save to offline cache first
+        final alert = LocalSosAlert(
+          id: const Uuid().v4(),
+          lat: position.latitude,
+          lng: position.longitude,
+          message:
+              'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)',
+          approximateLocationText: approxLocation,
+          originalDeviceId: AuthManager.deviceId,
+          originalSenderName: AuthManager.displayName,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+        await OfflineCacheManager.saveAlert(alert);
 
         final connectivityResult = await Connectivity().checkConnectivity();
-        final isOffline = !connectivityResult.any((r) => 
-            r == ConnectivityResult.wifi || 
-            r == ConnectivityResult.mobile || 
-            r == ConnectivityResult.ethernet || 
-            r == ConnectivityResult.vpn);
+        final isOffline = !connectivityResult.any(
+          (r) =>
+              r == ConnectivityResult.wifi ||
+              r == ConnectivityResult.mobile ||
+              r == ConnectivityResult.ethernet ||
+              r == ConnectivityResult.vpn,
+        );
 
         if (isOffline) {
           if (!OfflineMeshService().isOfflineModeEnabled) {
             await OfflineMeshService().toggleOfflineMode(true);
           }
           await OfflineMeshService().broadcastNewAlert(alert);
-          
+
           final localUiAlert = SosAlert(
             id: alert.id.hashCode,
             clientAlertId: alert.id,
@@ -187,7 +190,9 @@ class _SosScreenState extends State<SosScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Offline Mode: SOS broadcasted to nearby peers via Mesh'),
+                content: Text(
+                  'Offline Mode: SOS broadcasted to nearby peers via Mesh',
+                ),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 5),
               ),
@@ -200,8 +205,18 @@ class _SosScreenState extends State<SosScreen>
 
         // FORWARD: Attempt to send to server
         try {
-          print('[ONLINE_SOS] Attempting Serverpod upload to ${AuthManager.client.host}...');
-          unawaited(AuthManager.client.sos.updateLocation(AuthManager.deviceId, position.latitude, position.longitude).catchError((_) {}));
+          print(
+            '[ONLINE_SOS] Attempting Serverpod upload to ${AuthManager.client.host}...',
+          );
+          unawaited(
+            AuthManager.client.sos
+                .updateLocation(
+                  AuthManager.deviceId,
+                  position.latitude,
+                  position.longitude,
+                )
+                .catchError((_) {}),
+          );
           final response = await AuthManager.client.sos
               .broadcastSos(
                 AuthManager.deviceId,
@@ -238,7 +253,8 @@ class _SosScreenState extends State<SosScreen>
         } catch (e) {
           print('[ONLINE_SOS] Upload error: $e');
           final errorStr = e.toString();
-          if (errorStr.contains('Rate limit') || errorStr.contains('30 seconds')) {
+          if (errorStr.contains('Rate limit') ||
+              errorStr.contains('30 seconds')) {
             await OfflineCacheManager.markAsSynced(alert.id);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -253,10 +269,12 @@ class _SosScreenState extends State<SosScreen>
             }
             return;
           }
-          debugPrint('SOS Broadcast network failed, relying on store-and-forward: $e');
-          
+          debugPrint(
+            'SOS Broadcast network failed, relying on store-and-forward: $e',
+          );
+
           await OfflineMeshService().broadcastNewAlert(alert);
-          
+
           // Fallback: update local UI and rely on NetworkSyncManager
           final localUiAlert = SosAlert(
             id: alert.id.hashCode,
@@ -277,7 +295,9 @@ class _SosScreenState extends State<SosScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Server unreachable. Broadcasted via Offline Mesh.'),
+                content: Text(
+                  'Server unreachable. Broadcasted via Offline Mesh.',
+                ),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 5),
               ),
