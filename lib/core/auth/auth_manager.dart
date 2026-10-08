@@ -16,7 +16,10 @@ class AuthManager {
     } catch (e) {
       debugPrint('No .env file found, using defaults.');
     }
-    String serverUrl = dotenv.env['API_URL'] ?? 'http://localhost:8080/';
+    String serverUrl = dotenv.env['API_URL'] ?? 'https://crsis-link-api.onrender.com/';
+    if (serverUrl.isEmpty || serverUrl.contains('localhost')) {
+      serverUrl = 'https://crsis-link-api.onrender.com/';
+    }
 
     client = Client(serverUrl);
 

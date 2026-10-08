@@ -162,6 +162,7 @@ class _SosScreenState extends State<SosScreen>
         // FORWARD: Attempt to send to server
         try {
           print('[ONLINE_SOS] Attempting Serverpod upload to ${AuthManager.client.host}...');
+          unawaited(AuthManager.client.sos.updateLocation(AuthManager.deviceId, position.latitude, position.longitude).catchError((_) {}));
           final response = await AuthManager.client.sos
               .broadcastSos(
                 AuthManager.deviceId,
@@ -174,7 +175,7 @@ class _SosScreenState extends State<SosScreen>
                 approxLocation,
                 alert.id, // clientAlertId for idempotency
               )
-              .timeout(const Duration(seconds: 5));
+              .timeout(const Duration(seconds: 15));
 
           // Mark as synced upon success
           await OfflineCacheManager.markAsSynced(alert.id);
@@ -201,6 +202,22 @@ class _SosScreenState extends State<SosScreen>
           }
         } catch (e) {
           print('[ONLINE_SOS] Upload error: $e');
+          final errorStr = e.toString();
+          if (errorStr.contains('Rate limit') || errorStr.contains('30 seconds')) {
+            await OfflineCacheManager.markAsSynced(alert.id);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Server Online: Please wait 30s between SOS broadcasts.'),
+                  backgroundColor: Colors.blue,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              MainNavigation.jumpToMap();
+              globalHomeMapKey.currentState?.jumpToCurrentLocation();
+            }
+            return;
+          }
           debugPrint('SOS Broadcast network failed, relying on store-and-forward: $e');
           
           // Fallback: update local UI and rely on NetworkSyncManager

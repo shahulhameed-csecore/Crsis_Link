@@ -65,6 +65,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
           _isConnected = connected;
         });
         OfflineMeshService().toggleOfflineMode(!connected);
+        if (connected) {
+          _fetchActiveSos();
+        }
       }
     });
 
@@ -80,9 +83,9 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     });
     
     // Start periodic heartbeat to prevent server-side TTL eviction (5 min)
-    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 12), (timer) async {
       // ignore: deprecated_member_use
-      if (_currentLocation != null && AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
+      if (_isConnected && _currentLocation != null && AuthManager.client.streamingConnectionStatus == StreamingConnectionStatus.connected) {
         AuthManager.client.sos.updateLocation(
           AuthManager.deviceId, 
           _currentLocation!.latitude, 
@@ -90,6 +93,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
         ).catchError((e) {
           debugPrint('Heartbeat failed: $e');
         });
+        await _fetchActiveSos();
       }
     });
   }
@@ -275,13 +279,18 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   }
 
   Future<void> _fetchActiveSos() async {
+    if (_currentLocation == null) return;
     try {
-      final lat = _currentLocation?.latitude ?? _mapCenter.latitude;
-      final lng = _currentLocation?.longitude ?? _mapCenter.longitude;
+      final lat = _currentLocation!.latitude;
+      final lng = _currentLocation!.longitude;
       
       final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng);
       if (mounted) {
-        MapPinsManager().setPins(alerts.where((a) => !_ignoredSosIds.contains(a.clientAlertId)).toList());
+        final filtered = alerts.where((a) => !_ignoredSosIds.contains(a.clientAlertId)).toList();
+        MapPinsManager().setPins(filtered);
+        for (var alert in filtered) {
+          AlertsManager().addSosAlert(alert);
+        }
       }
     } catch (e) {
       debugPrint('Error fetching SOS pins: $e');
@@ -1154,7 +1163,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                   MarkerLayer(
                     markers: [
                       ...MapPinsManager().pins
-                        .where((alert) => alert.deviceId == AuthManager.deviceId || alert.status != 'OPEN')
                         .map((alert) {
                         return Marker(
                           point: LatLng(alert.latitude, alert.longitude),
