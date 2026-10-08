@@ -58,15 +58,16 @@ class NetworkSyncManager {
     state.value = SyncState.onlineSyncing;
 
     try {
-      final pendingAlerts = OfflineCacheManager.getUnsyncedAlerts();
+      final unsynced = OfflineCacheManager.getUnsyncedAlerts();
+      print('[SYNC_BRIDGE] Syncing ${unsynced.length} offline alerts to Serverpod...');
       
       final stopwatch = Stopwatch()..start();
       const int batchSize = 5;
 
-      for (int i = 0; i < pendingAlerts.length; i += batchSize) {
-        final chunk = pendingAlerts.sublist(
+      for (int i = 0; i < unsynced.length; i += batchSize) {
+        final chunk = unsynced.sublist(
           i, 
-          i + batchSize > pendingAlerts.length ? pendingAlerts.length : i + batchSize
+          i + batchSize > unsynced.length ? unsynced.length : i + batchSize
         );
         
         await Future.wait(chunk.map((alert) async {
@@ -107,7 +108,7 @@ class NetworkSyncManager {
       await _fetchGlobalAlerts();
       
       stopwatch.stop();
-      debugPrint('[BENCHMARK] Uploaded ${pendingAlerts.length} backlog records in ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('[BENCHMARK] Uploaded ${unsynced.length} backlog records in ${stopwatch.elapsedMilliseconds}ms');
       _retryBackoffSeconds = 2; // Reset on success
       state.value = SyncState.idleOnline;
     } catch (e) {
