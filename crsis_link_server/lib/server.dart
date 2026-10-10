@@ -14,7 +14,16 @@ import 'src/future_calls/safety_check_future_call.dart';
 /// The starting point of the Serverpod server.
 void run(List<String> args) async {
   // Initialize Serverpod and connect it with your generated code.
-  final pod = Serverpod(args, Protocol(), Endpoints());
+  final pod = Serverpod(
+    args, 
+    Protocol(), 
+    Endpoints(),
+    httpResponseHeaders: {
+      'Access-Control-Allow-Origin': 'https://your-crsis-link-domain.com',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
+    },
+  );
 
   // Register future calls
   pod.registerFutureCall(SafetyCheckFutureCall(), 'safetyCheck');
