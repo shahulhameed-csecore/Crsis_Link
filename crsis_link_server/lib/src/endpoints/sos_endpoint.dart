@@ -134,19 +134,29 @@ class SosEndpoint extends Endpoint {
     session.log('SOS Triggered by $deviceId at $latitude, $longitude', level: LogLevel.info);
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
+    // 1. Check rate limit outside the transaction
+    final existingAlerts = await SosAlert.db.find(
+      session,
+      where: (t) => t.deviceId.equals(deviceId),
+      orderBy: (t) => t.timestamp,
+      orderDescending: true,
+    );
+    if (existingAlerts.isNotEmpty) {
+      if (DateTime.now().toUtc().difference(existingAlerts.first.timestamp).inSeconds < 30) {
+        return SosBroadcastResponse(alert: existingAlerts.first, notifiedCount: 0);
+      }
+    }
+
     // BUG-P3-03 FIX: Wrap deactivation and insertion in a single atomic transaction
     // to prevent phantom pins if the server crashes mid-operation.
     final savedAlert = await session.db.transaction((transaction) async {
-      // 1. Lock and check rate limit inside the transaction
-      final existingAlerts = await SosAlert.db.find(
+      final existingAlertsTx = await SosAlert.db.find(
         session,
         where: (t) => t.deviceId.equals(deviceId),
         orderBy: (t) => t.timestamp,
         orderDescending: true,
         transaction: transaction,
       );
-      
-
 
       // Idempotency check: if we already have this exact offline alert, just return it
       final duplicateCheck = await SosAlert.db.findFirstRow(
@@ -159,7 +169,7 @@ class SosEndpoint extends Endpoint {
       }
 
       // 2. Deactivate previous active pins
-      for (var alert in existingAlerts.where((a) => a.isActive)) {
+      for (var alert in existingAlertsTx.where((a) => a.isActive)) {
         alert.isActive = false;
         await SosAlert.db.updateRow(session, alert, transaction: transaction);
       }

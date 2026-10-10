@@ -620,7 +620,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
 
   void _showSosModal(LatLng position) {
     final TextEditingController messageController = TextEditingController();
-    final TextEditingController phoneController = TextEditingController();
     bool isSubmitting = false;
     String? pendingAudioUrl;
     String? pendingPhotoUrl;
@@ -698,25 +697,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Victim Phone (Required)',
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.1),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: AppColors.emergencyRed),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -842,6 +822,19 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         setModalState(() => isSubmitting = false);
                       } on ServerpodClientException catch (e) {
                         debugPrint('SOS Broadcast offline: $e');
+                        final errStr = e.toString();
+                        if (errStr.contains('Rate limit') || errStr.contains('30 seconds')) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('SOS already active on server. Please wait.'),
+                                backgroundColor: Colors.blueAccent,
+                              ),
+                            );
+                            Navigator.pop(ctx);
+                          }
+                          return;
+                        }
                         if (ctx.mounted) {
                           try {
                             final alert = LocalSosAlert(
@@ -858,8 +851,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               OfflineMeshService().broadcastNewAlert(alert);
                               if (!ctx.mounted) return;
                               ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                                SnackBar(
+                                  content: Text('Offline Fallback ($errStr): SOS saved and broadcasting to nearby devices.'),
                                   backgroundColor: Colors.orange,
                                 ),
                               );
@@ -891,6 +884,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         }
                       } on SocketException catch (e) {
                         debugPrint('SOS Broadcast offline (SocketException): $e');
+                        final errStr = e.toString();
                         if (ctx.mounted) {
                           try {
                             final alert = LocalSosAlert(
@@ -907,8 +901,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               OfflineMeshService().broadcastNewAlert(alert);
                               if (!ctx.mounted) return;
                               ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Offline: SOS saved and broadcasting to nearby devices.'),
+                                SnackBar(
+                                  content: Text('Offline Fallback ($errStr): SOS saved and broadcasting to nearby devices.'),
                                   backgroundColor: Colors.orange,
                                 ),
                               );
@@ -940,6 +934,19 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         }
                       } catch (e) {
                         debugPrint('SOS Broadcast failed: $e');
+                        final errStr = e.toString();
+                        if (errStr.contains('Rate limit') || errStr.contains('30 seconds')) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('SOS already active on server. Please wait.'),
+                                backgroundColor: Colors.blueAccent,
+                              ),
+                            );
+                            Navigator.pop(ctx);
+                          }
+                          return;
+                        }
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
@@ -962,7 +969,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       },
     ).then((_) {
       messageController.dispose();
-      phoneController.dispose();
     });
   }
 
