@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -142,6 +143,22 @@ class _SosScreenState extends State<SosScreen>
         final victimPhone = securePhone.isNotEmpty
             ? securePhone
             : 'URGENT-NO-NUMBER';
+
+        // Non-blocking background SMS trigger (silently fails if unable)
+        if (victimPhone != 'URGENT-NO-NUMBER') {
+          Future(() async {
+            try {
+              final message = 'CRITICAL EMERGENCY: Immediate assistance required. (Instant SOS)' + 
+                              (approxLocation != null ? ' Location: $approxLocation' : '');
+              final uri = Uri.parse('sms:$victimPhone?body=${Uri.encodeComponent(message)}');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
+              }
+            } catch (e) {
+              debugPrint('SMS launch failed: $e');
+            }
+          });
+        }
 
         final connectivityResult = await Connectivity().checkConnectivity();
         bool isOnline = connectivityResult.any((r) => 
