@@ -787,6 +787,17 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                             debugPrint('Photo upload failed: $e');
                           }
                         }
+                        bool isOnline = false;
+                        try {
+                          final lookup = await InternetAddress.lookup('google.com').timeout(const Duration(seconds: 3));
+                          isOnline = lookup.isNotEmpty && lookup.first.rawAddress.isNotEmpty;
+                        } catch (_) {
+                          isOnline = false;
+                        }
+
+                        if (!isOnline) {
+                          throw ServerpodClientException('Force Offline', 0);
+                        }
 
                         final response = await AuthManager.client.sos.broadcastSos(
                           AuthManager.deviceId,
