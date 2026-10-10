@@ -152,7 +152,7 @@ class _SosScreenState extends State<SosScreen>
 
         if (isOnline) {
           try {
-            final lookup = await InternetAddress.lookup('crsis-link-api.onrender.com').timeout(const Duration(seconds: 3));
+            final lookup = await InternetAddress.lookup('google.com').timeout(const Duration(seconds: 3));
             isOnline = lookup.isNotEmpty && lookup.first.rawAddress.isNotEmpty;
           } catch (_) {
             isOnline = false;
