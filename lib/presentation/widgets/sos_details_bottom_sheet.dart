@@ -9,7 +9,7 @@ import '../../core/state/alerts_manager.dart';
 import 'capsule_button.dart';
 import 'audio_player_button.dart';
 import '../../core/services/offline_mesh_service.dart';
-import '../../core/services/rescue_chat_session.dart';
+// import '../../core/services/rescue_chat_session.dart';
 
 class SosDetailsBottomSheet extends StatefulWidget {
   final dynamic alert;
@@ -298,13 +298,13 @@ Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (!alert.isRescuerVerified) ...[
-                      CapsuleButton(
-                        text: 'Message Victim',
-                        style: CapsuleStyle.secondary,
-                        onPressed: () {
-                          _showChatDialog(context, alert);
-                        },
-                      ),
+                      // CapsuleButton(
+                      //   text: 'Message Victim',
+                      //   style: CapsuleStyle.secondary,
+                      //   onPressed: () {
+                      //     _showChatDialog(context, alert);
+                      //   },
+                      // ),
                       const SizedBox(height: 12),
                       Text(
                         'Search the 200-meter area. Ask the victim for their 4-digit PIN to verify and reveal exact coordinates.',
@@ -416,6 +416,7 @@ Row(
     );
   }
 
+  /* 
   void _showChatDialog(BuildContext context, dynamic alert) {
     final alertId = alert.clientAlertId ?? alert.id.toString();
     final textController = TextEditingController();
@@ -487,4 +488,5 @@ Row(
       },
     );
   }
+  */
 }
