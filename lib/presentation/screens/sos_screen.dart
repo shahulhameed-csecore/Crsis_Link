@@ -194,7 +194,7 @@ class _SosScreenState extends State<SosScreen>
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('SOS Broadcasted Online!'),
+                  content: Text('SOS Broadcasted to Server'),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 5),
                 ),
@@ -205,11 +205,17 @@ class _SosScreenState extends State<SosScreen>
             }
           } catch (e) {
             print('[ONLINE_SOS] Upload error: $e');
-            isOnline = false; // Fallback to OFFLINE
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Server Error: $e'),
+                  backgroundColor: AppColors.emergencyRed,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
           }
-        }
-
-        if (!isOnline) {
+        } else {
           await OfflineCacheManager.saveAlert(alert);
 
           if (!OfflineMeshService().isOfflineModeEnabled) {
@@ -236,7 +242,7 @@ class _SosScreenState extends State<SosScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Offline Mode: Stored & Broadcasted to Nearby Peers'),
+                content: Text('Stored Offline. Broadcasting via P2P Mesh.'),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 5),
               ),

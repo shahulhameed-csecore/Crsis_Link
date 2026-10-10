@@ -1351,10 +1351,57 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
               ),
             ),
           ),
+          // NEW: Floating UI indicator at the top center of the screen
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.green.shade800 : Colors.orange.shade800,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isConnected ? Icons.cloud_done : Icons.wifi_off,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isConnected ? 'ONLINE (Server)' : 'OFFLINE (Mesh)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
           
           if (!_isConnected)
             Positioned(
-              top: 50,
+              top: 70, // Shifted down to not overlap with the new UI pill
               left: 20,
               right: 20,
               child: Container(
