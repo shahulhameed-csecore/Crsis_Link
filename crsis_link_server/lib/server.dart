@@ -18,11 +18,6 @@ void run(List<String> args) async {
     args, 
     Protocol(), 
     Endpoints(),
-    httpResponseHeaders: {
-      'Access-Control-Allow-Origin': 'https://your-crsis-link-domain.com',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
-    },
   );
 
   // Register future calls
