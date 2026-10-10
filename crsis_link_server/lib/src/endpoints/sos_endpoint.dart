@@ -134,7 +134,8 @@ class SosEndpoint extends Endpoint {
     session.log('SOS Triggered by $deviceId at $latitude, $longitude', level: LogLevel.info);
     session.log('Device $deviceId is broadcasting an SOS alert at ($latitude, $longitude).', level: LogLevel.warning);
 
-    // 1. Check rate limit outside the transaction
+    try {
+      // 1. Check rate limit outside the transaction
     final existingAlerts = await SosAlert.db.find(
       session,
       where: (t) => t.deviceId.equals(deviceId),
@@ -239,10 +240,14 @@ class SosEndpoint extends Endpoint {
     
     session.log('SOS broadcast successfully routed to $notifiedCount nearby devices.', level: LogLevel.info);
     
-    return SosBroadcastResponse(
-      alert: savedAlert,
-      notifiedCount: notifiedCount,
-    );
+      return SosBroadcastResponse(
+        alert: savedAlert,
+        notifiedCount: notifiedCount,
+      );
+    } catch (e, stackTrace) {
+      session.log('Internal Server Error in broadcastSos: $e', exception: e, stackTrace: stackTrace, level: LogLevel.error);
+      rethrow;
+    }
   }
 
   /// Retrieves all currently active SOS alerts within 5km.
