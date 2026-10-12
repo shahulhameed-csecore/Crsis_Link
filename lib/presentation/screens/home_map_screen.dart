@@ -482,11 +482,31 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.network(
-                            alert.photoUrl!,
+                            alert.photoUrl!.replaceAll('http://', 'https://'),
                             height: 200,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                height: 200,
+                                width: double.infinity,
+                                color: Colors.grey.withValues(alpha: 0.1),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.emergencyRed,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 200,
+                              width: double.infinity,
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              child: const Center(
+                                child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -696,19 +716,19 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     ),
                     maxLines: 3,
                   ),
-                  const SizedBox(height: 16),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.camera_alt, color: Colors.blue),
-                        onPressed: () => pickImage(setModalState),
-                      ),
-                      if (pendingPhotoFile != null)
-                        const Text('Photo attached', style: TextStyle(color: Colors.green)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  if (_isConnected) ...[
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.camera_alt, color: Colors.blue),
+                          onPressed: () => pickImage(setModalState),
+                        ),
+                        if (pendingPhotoFile != null)
+                          const Text('Photo attached', style: TextStyle(color: Colors.green)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Voice Note Recorder
                   VoiceNoteRecorder(
                     onRecorded: (url) {
@@ -737,7 +757,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           debugPrint('Geocoding failed: $e');
                         }
 
-                        if (pendingPhotoFile != null) {
+                        if (_isConnected && pendingPhotoFile != null) {
                           try {
                             final fileName = 'sos_photo_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
                             String uploadDesc = await AuthManager.client.sos.getPhotoUploadDescription(fileName).timeout(const Duration(seconds: 5));
@@ -761,7 +781,8 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               String publicUrl = await AuthManager.client.sos.verifyPhotoUpload(fileName);
                               pendingPhotoUrl = publicUrl
                                   .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com')
+                                  .replaceAll('http://', 'https://');
                             }
                           } catch (e) {
                             debugPrint('Photo upload failed: $e');
