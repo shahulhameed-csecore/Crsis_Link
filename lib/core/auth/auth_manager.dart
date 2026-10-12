@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/p2p_crypto_service.dart';
+import '../services/offline_cache_manager.dart';
 
 class AuthManager {
   static late Client client;
@@ -10,6 +11,14 @@ class AuthManager {
   static late String displayName;
 
   static Future<void> initialize() async {
+    // First-boot wipe to guarantee clean slate on fresh install
+    final prefs = await SharedPreferences.getInstance();
+    final bool? isFreshInstall = prefs.getBool('is_fresh_install');
+    if (isFreshInstall == null || isFreshInstall == true) {
+      await OfflineCacheManager.clearAllCache();
+      await prefs.setBool('is_fresh_install', false);
+    }
+
     // Load env securely
     try {
       await dotenv.load(fileName: ".env");
@@ -28,9 +37,6 @@ class AuthManager {
 
     // Ensure Crypto Service is ready
     await P2pCryptoService().init();
-    
-    final prefs = await SharedPreferences.getInstance();
-    
     // Secure Identity Binding (Threat Vector P2P-02)
     // The device identity is mathematically bound to the private key
     deviceId = P2pCryptoService.deriveDeviceIdFromKey(P2pCryptoService().publicKey);

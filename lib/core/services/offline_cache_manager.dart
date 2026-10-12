@@ -120,6 +120,21 @@ class OfflineCacheManager {
     }
   }
 
+  static Future<void> clearAllCache() async {
+    try {
+      if (!Hive.isBoxOpen(_boxName)) {
+        await init();
+      }
+      await _box.clear();
+      if (Hive.isBoxOpen(_notificationsBoxName)) {
+        await Hive.box<String>(_notificationsBoxName).clear();
+      }
+      debugPrint('[CACHE_NUKE] Successfully wiped all local offline cache.');
+    } catch (e) {
+      debugPrint('[CACHE_NUKE] Error clearing cache: $e');
+    }
+  }
+
   static Future<void> clearEntireCache() async {
     await _box.clear();
     if (Hive.isBoxOpen(_notificationsBoxName)) {
