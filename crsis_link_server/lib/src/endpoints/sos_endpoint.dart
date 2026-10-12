@@ -263,7 +263,7 @@ class SosEndpoint extends Endpoint {
     final minLng = lng - 0.045;
     final maxLng = lng + 0.045;
 
-    final staleThreshold = DateTime.now().toUtc().subtract(const Duration(hours: 4));
+    final staleThreshold = DateTime.now().toUtc().subtract(const Duration(hours: 24));
     try {
       await session.db.unsafeQuery(
         'UPDATE "sos_alert" SET "isActive" = false, "status" = \'EXPIRED\' WHERE "isActive" = true AND "timestamp" < \$1;',

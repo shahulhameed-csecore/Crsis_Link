@@ -291,7 +291,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       if (mounted) {
         final now = DateTime.now();
         final filtered = alerts.where((a) {
-          if (!_ignoredSosIds.contains(a.clientAlertId) && a.isActive && now.difference(a.timestamp).inHours < 4) {
+          if (!_ignoredSosIds.contains(a.clientAlertId) && a.isActive && now.difference(a.timestamp).inHours < 24) {
             return true;
           }
           return false;

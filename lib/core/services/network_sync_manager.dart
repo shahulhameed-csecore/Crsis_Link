@@ -138,7 +138,7 @@ class NetworkSyncManager {
       if (position != null) {
         final alerts = await AuthManager.client.sos.getActiveAlerts(position.latitude, position.longitude);
         final now = DateTime.now();
-        final freshAlerts = alerts.where((a) => a.isActive && now.difference(a.timestamp).inHours < 4).toList();
+        final freshAlerts = alerts.where((a) => a.isActive && now.difference(a.timestamp).inHours < 24).toList();
         MapPinsManager().setPins(freshAlerts);
         
         // Merge into AlertsManager ledger
