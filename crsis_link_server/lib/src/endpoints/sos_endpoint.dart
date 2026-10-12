@@ -263,10 +263,19 @@ class SosEndpoint extends Endpoint {
     final minLng = lng - 0.045;
     final maxLng = lng + 0.045;
 
+    final staleThreshold = DateTime.now().toUtc().subtract(const Duration(hours: 4));
+    try {
+      await session.db.unsafeQuery(
+        'UPDATE "sos_alert" SET "isActive" = false, "status" = \'EXPIRED\' WHERE "isActive" = true AND "timestamp" < \$1;',
+        parameters: QueryParameters.positional([staleThreshold]),
+      );
+    } catch (_) {}
+
     final alerts = await SosAlert.db.find(
       session,
       where: (t) =>
           t.isActive.equals(true) &
+          t.timestamp.greaterThan(staleThreshold) &
           t.latitude.between(minLat, maxLat) &
           t.longitude.between(minLng, maxLng),
     );

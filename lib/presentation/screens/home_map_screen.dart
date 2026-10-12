@@ -289,7 +289,13 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       
       final alerts = await AuthManager.client.sos.getActiveAlerts(lat, lng);
       if (mounted) {
-        final filtered = alerts.where((a) => !_ignoredSosIds.contains(a.clientAlertId)).toList();
+        final now = DateTime.now();
+        final filtered = alerts.where((a) {
+          if (!_ignoredSosIds.contains(a.clientAlertId) && a.isActive && now.difference(a.timestamp).inHours < 4) {
+            return true;
+          }
+          return false;
+        }).toList();
         MapPinsManager().setPins(filtered);
         for (var alert in filtered) {
           AlertsManager().addSosAlert(alert);
