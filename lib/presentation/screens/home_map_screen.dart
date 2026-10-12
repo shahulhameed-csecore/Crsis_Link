@@ -591,6 +591,65 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           ),
                         ],
                       ),
+                      if (alert.isActive && (AuthManager.deviceId == alert.deviceId || (alert.volunteerDeviceId != null && AuthManager.deviceId == alert.volunteerDeviceId))) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                            label: isSubmitting
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Complete Rescue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF28A745),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    setModalState(() => isSubmitting = true);
+                                    try {
+                                      if (_isConnected) {
+                                        final expectedPayload = "resolveSOS_${alert.clientAlertId}";
+                                        final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                        await AuthManager.client.sos.resolveSOS(
+                                          alert.clientAlertId,
+                                          AuthManager.deviceId,
+                                          signature,
+                                          P2pCryptoService().publicKey,
+                                        );
+                                        MapPinsManager().removePin(alert.clientAlertId);
+                                        AlertsManager().resolveSosAlert(alert.clientAlertId);
+                                      } else {
+                                        MapPinsManager().removePin(alert.clientAlertId);
+                                        AlertsManager().resolveSosAlert(alert.clientAlertId);
+                                        await OfflineMeshService().broadcastResolution(alert.clientAlertId);
+                                      }
+                                      if (ctx.mounted) {
+                                        Navigator.pop(ctx);
+                                      }
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Rescue Completed. Pin removed.'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(content: Text('Failed to complete rescue: $e')),
+                                        );
+                                      }
+                                      setModalState(() => isSubmitting = false);
+                                    }
+                                  },
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       TextButton(
                         onPressed: () {

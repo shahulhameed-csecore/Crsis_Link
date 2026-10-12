@@ -509,6 +509,31 @@ class OfflineMeshService {
     }
   }
 
+  Future<void> broadcastResolution(String clientAlertId) async {
+    final payloadData = jsonEncode({
+      "type": "resolve",
+      "clientAlertId": clientAlertId,
+    });
+
+    final bytes = Uint8List.fromList(utf8.encode(payloadData));
+    for (final peerId in _connectedEndpoints) {
+      try {
+        await Nearby().sendBytesPayload(peerId, bytes);
+      } catch (e) {
+        debugPrint('[P2P_DEBUG] Failed to broadcast resolution to $peerId: $e');
+      }
+    }
+
+    try {
+      final box = OfflineCacheManager.getBox();
+      if (box.containsKey(clientAlertId)) {
+        await box.delete(clientAlertId);
+      }
+    } catch (e) {
+      debugPrint('[P2P_DEBUG] Failed to update OfflineCacheManager for resolved alert: $e');
+    }
+  }
+
   void _startTelemetryBroadcast() {
     _telemetryTimer?.cancel();
     _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (
@@ -573,6 +598,31 @@ class OfflineMeshService {
       try {
         final str = utf8.decode(payload.bytes!);
         final dynamic envelopeData = jsonDecode(str);
+
+        if (envelopeData is Map && envelopeData['type'] == 'resolve') {
+          final String? extractedId = envelopeData['clientAlertId']?.toString();
+          if (extractedId != null && extractedId.isNotEmpty) {
+            MapPinsManager().removePin(extractedId);
+            AlertsManager().resolveSosAlert(extractedId);
+            try {
+              final box = OfflineCacheManager.getBox();
+              if (box.containsKey(extractedId)) {
+                await box.delete(extractedId);
+              }
+            } catch (_) {}
+
+            for (final peerId in _connectedEndpoints) {
+              if (peerId != endpointId) {
+                try {
+                  await Nearby().sendBytesPayload(peerId, payload.bytes!);
+                } catch (e) {
+                  debugPrint('[P2P_DEBUG] Failed to relay resolution to $peerId: $e');
+                }
+              }
+            }
+          }
+          return;
+        }
 
         final bool isValid =
             envelopeData is Map &&
