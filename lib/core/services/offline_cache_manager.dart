@@ -99,6 +99,20 @@ class OfflineCacheManager {
   static LocalSosAlert? getAlert(String id) {
     return _box.get(id);
   }
+
+  static Future<void> removeAlert(String alertId) async {
+    try {
+      if (!Hive.isBoxOpen(_boxName)) {
+        await init();
+      }
+      if (_box.containsKey(alertId)) {
+        await _box.delete(alertId);
+        debugPrint('[OFFLINE_CACHE] Successfully removed resolved alert: $alertId');
+      }
+    } catch (e) {
+      debugPrint('[OFFLINE_CACHE] Error removing alert: $e');
+    }
+  }
   
   static Future<void> clearExpiredAlerts(Duration threshold) async {
     final now = DateTime.now().millisecondsSinceEpoch;

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/services/p2p_crypto_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -831,7 +830,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                           debugPrint('Geocoding failed: $e');
                         }
 
-                        if (_isConnected && pendingPhotoFile != null) {
+                        if (pendingPhotoFile != null) {
                           try {
                             final bytes = await pendingPhotoFile!.readAsBytes();
                             final compressed = await FlutterImageCompress.compressWithList(
@@ -840,42 +839,15 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               minHeight: 600,
                               quality: 70,
                             );
-
-                            // Guaranteed Base64 Data URI fallback so photoUrl is 100% saved and sent
-                            final base64Fallback = 'data:image/jpeg;base64,${base64Encode(compressed)}';
-
-                            try {
-                              final fileName = 'sos_photo_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                              String uploadDesc = await AuthManager.client.sos.getPhotoUploadDescription(fileName).timeout(const Duration(seconds: 4));
-                              uploadDesc = uploadDesc
-                                  .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
-
-                              final byteData = ByteData.view(compressed.buffer);
-                              final uploader = FileUploader(uploadDesc);
-                              final success = await uploader.uploadByteData(byteData).timeout(const Duration(seconds: 6));
-                              
-                              if (success) {
-                                String publicUrl = await AuthManager.client.sos.verifyPhotoUpload(fileName).timeout(const Duration(seconds: 4));
-                                publicUrl = publicUrl
-                                    .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-                                    .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com')
-                                    .replaceAll('http://', 'https://');
-
-                                if (publicUrl.isNotEmpty && !publicUrl.contains('localhost') && !publicUrl.contains('127.0.0.1')) {
-                                  pendingPhotoUrl = publicUrl;
-                                } else {
-                                  pendingPhotoUrl = base64Fallback;
-                                }
-                              } else {
-                                pendingPhotoUrl = base64Fallback;
-                              }
-                            } catch (uploadErr) {
-                              debugPrint('Remote photo upload failed, using Base64 data URI fallback: $uploadErr');
-                              pendingPhotoUrl = base64Fallback;
-                            }
+                            pendingPhotoUrl = 'data:image/jpeg;base64,${base64Encode(compressed)}';
                           } catch (e) {
-                            debugPrint('Photo compression/processing failed: $e');
+                            debugPrint('Photo compression failed, falling back to raw bytes: $e');
+                            try {
+                              final bytes = await pendingPhotoFile!.readAsBytes();
+                              pendingPhotoUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+                            } catch (e2) {
+                              debugPrint('Failed to encode photo as base64: $e2');
+                            }
                           }
                         }
                         bool isOnline = false;

@@ -6,6 +6,7 @@ import '../../core/models/local_sos_alert.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/auth/auth_manager.dart';
 import '../screens/rescue_compass_screen.dart';
+import '../../core/services/offline_mesh_service.dart';
 
 class CachedRadarPin {
   final Offset offset;
@@ -164,6 +165,10 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
           return a.originalDeviceId != AuthManager.deviceId;
         }).toList();
 
+        final myOwnAlerts = rawAlerts.where((a) {
+          return a.originalDeviceId == AuthManager.deviceId;
+        }).toList();
+
         LocalSosAlert? nearestAlert;
         double nearestDist = double.infinity;
         double nearestBearing = 0.0;
@@ -249,6 +254,75 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                   ),
                 ),
                 
+              if (myOwnAlerts.isNotEmpty)
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161B22).withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.6), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.redAccent.withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.emergency, color: Colors.redAccent, size: 28),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'YOUR OFFLINE SOS IS ACTIVE',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Broadcasting via P2P Mesh',
+                                style: TextStyle(color: Colors.grey, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.withValues(alpha: 0.25),
+                            foregroundColor: Colors.greenAccent,
+                            side: const BorderSide(color: Colors.green),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            final alertId = myOwnAlerts.first.id;
+                            await OfflineMeshService().broadcastSosCleared(alertId);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('I AM SAFE'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               if (nearestAlert != null)
                 Positioned(
                   left: 20,
@@ -257,7 +331,7 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF161B22).withValues(alpha: 0.9),
+                      color: const Color(0xFF161B22).withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.5), width: 1),
                       boxShadow: [
@@ -268,58 +342,92 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                         )
                       ],
                     ),
-                    child: Row(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Transform.rotate(
-                          angle: nearestBearing * (math.pi / 180.0),
-                          child: const Icon(
-                            Icons.arrow_upward,
-                            color: Colors.tealAccent,
-                            size: 32,
-                          ),
+                        Row(
+                          children: [
+                            Transform.rotate(
+                              angle: nearestBearing * (math.pi / 180.0),
+                              child: const Icon(
+                                Icons.arrow_upward,
+                                color: Colors.tealAccent,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    nearestAlert.originalSenderName.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${nearestDist.toInt()}m AWAY',
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.tealAccent.withValues(alpha: 0.2),
+                                foregroundColor: Colors.tealAccent,
+                                side: const BorderSide(color: Colors.tealAccent),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RescueCompassScreen(victimAlert: nearestAlert!),
+                                  ),
+                                );
+                              },
+                              child: const Text('TRACK'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                nearestAlert.originalSenderName.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                '${nearestDist.toInt()}m AWAY',
-                                style: const TextStyle(
-                                  color: Colors.redAccent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 18),
+                            label: const Text(
+                              'VICTIM FOUND / CLEAR SOS',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.withValues(alpha: 0.2),
+                              foregroundColor: Colors.greenAccent,
+                              side: const BorderSide(color: Colors.green),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            onPressed: () async {
+                              await OfflineMeshService().broadcastSosCleared(nearestAlert!.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            },
                           ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.tealAccent.withValues(alpha: 0.2),
-                            foregroundColor: Colors.tealAccent,
-                            side: const BorderSide(color: Colors.tealAccent),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RescueCompassScreen(victimAlert: nearestAlert!),
-                              ),
-                            );
-                          },
-                          child: const Text('TRACK'),
                         ),
                       ],
                     ),

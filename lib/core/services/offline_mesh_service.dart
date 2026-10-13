@@ -509,29 +509,31 @@ class OfflineMeshService {
     }
   }
 
-  Future<void> broadcastResolution(String clientAlertId) async {
+  Future<void> broadcastSosCleared(String alertId) async {
+    await OfflineCacheManager.removeAlert(alertId);
+    MapPinsManager().removePin(alertId);
+    AlertsManager().resolveSosAlert(alertId);
+
     final payloadData = jsonEncode({
-      "type": "resolve",
-      "clientAlertId": clientAlertId,
+      'type': 'SOS_CLEARED',
+      'id': alertId,
+      'clientAlertId': alertId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 
     final bytes = Uint8List.fromList(utf8.encode(payloadData));
-    for (final peerId in _connectedEndpoints) {
+    for (final endpointId in _connectedEndpoints) {
       try {
-        await Nearby().sendBytesPayload(peerId, bytes);
+        await Nearby().sendBytesPayload(endpointId, bytes);
+        debugPrint('[P2P_MESH] Transmitted SOS_CLEARED ($alertId) to $endpointId');
       } catch (e) {
-        debugPrint('[P2P_DEBUG] Failed to broadcast resolution to $peerId: $e');
+        debugPrint('[P2P_MESH] Failed to send SOS_CLEARED to $endpointId: $e');
       }
     }
+  }
 
-    try {
-      final box = OfflineCacheManager.getBox();
-      if (box.containsKey(clientAlertId)) {
-        await box.delete(clientAlertId);
-      }
-    } catch (e) {
-      debugPrint('[P2P_DEBUG] Failed to update OfflineCacheManager for resolved alert: $e');
-    }
+  Future<void> broadcastResolution(String clientAlertId) async {
+    await broadcastSosCleared(clientAlertId);
   }
 
   void _startTelemetryBroadcast() {
@@ -599,24 +601,29 @@ class OfflineMeshService {
         final str = utf8.decode(payload.bytes!);
         final dynamic envelopeData = jsonDecode(str);
 
-        if (envelopeData is Map && envelopeData['type'] == 'resolve') {
-          final String? extractedId = envelopeData['clientAlertId']?.toString();
+        if (envelopeData is Map &&
+            (envelopeData['type'] == 'SOS_CLEARED' || envelopeData['type'] == 'resolve')) {
+          final String? extractedId =
+              (envelopeData['id'] ?? envelopeData['clientAlertId'])?.toString();
           if (extractedId != null && extractedId.isNotEmpty) {
+            await OfflineCacheManager.removeAlert(extractedId);
             MapPinsManager().removePin(extractedId);
             AlertsManager().resolveSosAlert(extractedId);
-            try {
-              final box = OfflineCacheManager.getBox();
-              if (box.containsKey(extractedId)) {
-                await box.delete(extractedId);
-              }
-            } catch (_) {}
+
+            globalMessengerKey.currentState?.showSnackBar(
+              const SnackBar(
+                content: Text('Victim Rescued! Offline SOS Cleared.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+              ),
+            );
 
             for (final peerId in _connectedEndpoints) {
               if (peerId != endpointId) {
                 try {
                   await Nearby().sendBytesPayload(peerId, payload.bytes!);
                 } catch (e) {
-                  debugPrint('[P2P_DEBUG] Failed to relay resolution to $peerId: $e');
+                  debugPrint('[P2P_DEBUG] Failed to relay clearance to $peerId: $e');
                 }
               }
             }

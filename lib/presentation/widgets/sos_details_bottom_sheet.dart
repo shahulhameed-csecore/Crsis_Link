@@ -8,6 +8,7 @@ import '../../core/state/alerts_manager.dart';
 import 'capsule_button.dart';
 import 'audio_player_button.dart';
 import 'sos_photo_viewer.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_mesh_service.dart';
 // import '../../core/services/rescue_chat_session.dart';
 
@@ -221,27 +222,50 @@ Row(
                         Expanded(
                           child: ElevatedButton(
                             onPressed: isSubmitting ? null : () async {
-                              final alertId = alert.id;
-                              if (alertId == null || alert.clientAlertId == null) return;
+                              final targetId = alert.clientAlertId ?? alert.id?.toString();
+                              if (targetId == null) return;
                               setModalState(() => isSubmitting = true);
                               try {
-                                final expectedPayload = "resolveSOS_${alert.clientAlertId!}";
-                                final signature = await P2pCryptoService().signPayload(expectedPayload);
-                                final success = await AuthManager.client.sos.resolveSOS(alert.clientAlertId!, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
-                                if (!success) {
-                                  if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
+                                final connectivity = await Connectivity().checkConnectivity();
+                                final isOnline = connectivity.any((r) =>
+                                    r == ConnectivityResult.wifi ||
+                                    r == ConnectivityResult.mobile ||
+                                    r == ConnectivityResult.ethernet ||
+                                    r == ConnectivityResult.vpn);
+
+                                if (isOnline) {
+                                  final expectedPayload = "resolveSOS_$targetId";
+                                  final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                  final success = await AuthManager.client.sos.resolveSOS(targetId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
+                                  if (!success) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed to resolve: Not found or unauthorized.')));
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                    return;
                                   }
-                                  setModalState(() => isSubmitting = false);
-                                  return;
-                                }
-                                if (ctx.mounted) {
-                                  AlertsManager().releaseWakelockEarly();
-                                  Navigator.pop(ctx);
-                                  if (widget.onResolve != null) widget.onResolve!();
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(content: Text('SOS Resolved / Cleared.')),
-                                  );
+                                  if (ctx.mounted) {
+                                    AlertsManager().releaseWakelockEarly();
+                                    Navigator.pop(ctx);
+                                    if (widget.onResolve != null) widget.onResolve!();
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(content: Text('SOS Resolved / Cleared.')),
+                                    );
+                                  }
+                                } else {
+                                  // STRICT OFFLINE RESOLVE (NO SERVER CALLS)
+                                  await OfflineMeshService().broadcastSosCleared(targetId);
+                                  if (ctx.mounted) {
+                                    AlertsManager().releaseWakelockEarly();
+                                    Navigator.pop(ctx);
+                                    if (widget.onResolve != null) widget.onResolve!();
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
                                 }
                               } catch (e) {
                                 if (ctx.mounted) {
@@ -269,79 +293,141 @@ Row(
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              final alertId = alert.id;
-                              if (alertId == null) return;
-                              if (widget.onIgnore != null) widget.onIgnore!();
-                              AlertsManager().releaseWakelockEarly();
-                              Navigator.pop(ctx);
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: const Text('DENY / IGNORE'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isSubmitting ? null : () async {
-                              final alertId = alert.id;
-                              if (alertId == null || alert.clientAlertId == null) return;
-                              setModalState(() => isSubmitting = true);
-                              try {
-                                final expectedPayload = "claimRescue_${alert.clientAlertId!}";
-                                final signature = await P2pCryptoService().signPayload(expectedPayload);
-                                OfflineMeshService().broadcastClaimRescue(alert.clientAlertId!);
-                                await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!, signature, P2pCryptoService().publicKey).timeout(const Duration(seconds: 10));
-                                if (ctx.mounted) {
-                                  final updatedAlert = alert.copyWith(
-                                    status: 'CLAIMED',
-                                    volunteerDeviceId: AuthManager.deviceId,
-                                  );
-                                  MapPinsManager().addOrUpdatePin(updatedAlert);
-                                  
-                                  AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
-                                    victimDeviceId: alert.deviceId,
-                                    volunteerName: AuthManager.displayName,
-                                    volunteerDeviceId: AuthManager.deviceId,
-                                  ));
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  final alertId = alert.id;
+                                  if (alertId == null) return;
+                                  if (widget.onIgnore != null) widget.onIgnore!();
+                                  AlertsManager().releaseWakelockEarly();
                                   Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Rescue Claimed Successfully!'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                  if (widget.onClaimRescue != null) widget.onClaimRescue!();
-                                  if (widget.onTrack != null) widget.onTrack!();
-                                }
-                              } catch (e) {
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(content: Text('Failed to claim: $e')),
-                                  );
-                                }
-                                setModalState(() => isSubmitting = false);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: const Text('DENY / IGNORE'),
+                              ),
                             ),
-                            child: isSubmitting 
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
-                              : const Text('ACCEPT RESCUE'),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting ? null : () async {
+                                  final alertId = alert.id;
+                                  if (alertId == null || alert.clientAlertId == null) return;
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    final expectedPayload = "claimRescue_${alert.clientAlertId!}";
+                                    final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                    OfflineMeshService().broadcastClaimRescue(alert.clientAlertId!);
+                                    await AuthManager.client.sos.claimRescue(AuthManager.deviceId, AuthManager.displayName, alert.clientAlertId!, signature, P2pCryptoService().publicKey).timeout(const Duration(seconds: 10));
+                                    if (ctx.mounted) {
+                                      final updatedAlert = alert.copyWith(
+                                        status: 'CLAIMED',
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      );
+                                      MapPinsManager().addOrUpdatePin(updatedAlert);
+                                      
+                                      AlertsManager().addSelfRescueEvent(RescueAcceptedEvent(
+                                        victimDeviceId: alert.deviceId,
+                                        volunteerName: AuthManager.displayName,
+                                        volunteerDeviceId: AuthManager.deviceId,
+                                      ));
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Rescue Claimed Successfully!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                      if (widget.onClaimRescue != null) widget.onClaimRescue!();
+                                      if (widget.onTrack != null) widget.onTrack!();
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        SnackBar(content: Text('Failed to claim: $e')),
+                                      );
+                                    }
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                child: isSubmitting 
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                                  : const Text('ACCEPT RESCUE'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                          label: const Text('VICTIM FOUND / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           ),
+                          onPressed: isSubmitting ? null : () async {
+                            final targetId = alert.clientAlertId ?? alert.id?.toString();
+                            if (targetId == null) return;
+                            setModalState(() => isSubmitting = true);
+                            try {
+                              final connectivity = await Connectivity().checkConnectivity();
+                              final isOnline = connectivity.any((r) =>
+                                  r == ConnectivityResult.wifi ||
+                                  r == ConnectivityResult.mobile ||
+                                  r == ConnectivityResult.ethernet ||
+                                  r == ConnectivityResult.vpn);
+
+                              if (isOnline) {
+                                final expectedPayload = "resolveSOS_$targetId";
+                                final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                await AuthManager.client.sos.resolveSOS(targetId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
+                              } else {
+                                // STRICT OFFLINE RESOLVE
+                                await OfflineMeshService().broadcastSosCleared(targetId);
+                              }
+                              if (ctx.mounted) {
+                                AlertsManager().releaseWakelockEarly();
+                                Navigator.pop(ctx);
+                                if (widget.onResolve != null) widget.onResolve!();
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              await OfflineMeshService().broadcastSosCleared(targetId);
+                              if (ctx.mounted) {
+                                AlertsManager().releaseWakelockEarly();
+                                Navigator.pop(ctx);
+                                if (widget.onResolve != null) widget.onResolve!();
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -434,17 +520,30 @@ Row(
                         style: CapsuleStyle.primary,
                         isLoading: isSubmitting,
                         onPressed: () async {
-                          final alertId = alert.id;
-                          if (alertId == null || alert.clientAlertId == null) return;
+                          final targetId = alert.clientAlertId ?? alert.id?.toString();
+                          if (targetId == null) return;
                           setModalState(() => isSubmitting = true);
                           try {
-                            await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.clientAlertId!).timeout(const Duration(seconds: 10));
+                            final connectivity = await Connectivity().checkConnectivity();
+                            final isOnline = connectivity.any((r) =>
+                                r == ConnectivityResult.wifi ||
+                                r == ConnectivityResult.mobile ||
+                                r == ConnectivityResult.ethernet ||
+                                r == ConnectivityResult.vpn);
+
+                            if (isOnline) {
+                              if (alert.clientAlertId == null) return;
+                              await AuthManager.client.sos.completeRescue(AuthManager.deviceId, alert.clientAlertId!).timeout(const Duration(seconds: 10));
+                            } else {
+                              await OfflineMeshService().broadcastSosCleared(targetId);
+                            }
+
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               if (widget.onResolve != null) widget.onResolve!();
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Rescue Completed Successfully!'),
+                                  content: Text('Victim Rescued! Rescue Completed Successfully.'),
                                   backgroundColor: Colors.green,
                                 ),
                               );

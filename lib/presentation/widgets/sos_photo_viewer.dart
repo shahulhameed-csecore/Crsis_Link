@@ -35,7 +35,8 @@ class SosPhotoViewer extends StatelessWidget {
     try {
       final base64Content =
           photoUrl.contains(',') ? photoUrl.split(',').last : photoUrl;
-      return base64Decode(base64Content.trim());
+      final clean = base64Content.replaceAll(RegExp(r'\s+'), '');
+      return base64Decode(clean);
     } catch (e) {
       debugPrint('Failed to decode base64 SOS photo: $e');
       return null;

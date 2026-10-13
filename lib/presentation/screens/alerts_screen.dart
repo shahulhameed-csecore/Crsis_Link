@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/theme/design_system.dart';
 import '../../core/state/alerts_manager.dart';
 import 'package:latlong2/latlong.dart';
 import 'main_navigation.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/map_pins_manager.dart';
+import '../../core/services/offline_mesh_service.dart';
+import '../../core/services/offline_cache_manager.dart';
+import '../../core/services/p2p_crypto_service.dart';
 import '../widgets/sos_details_bottom_sheet.dart';
 import '../widgets/sos_photo_viewer.dart';
 
@@ -40,14 +44,91 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Future<void> _fetchLatestSOS() async {
     try {
-      final sos = await AuthManager.client.sos.getMyActiveSos(AuthManager.deviceId);
-      if (mounted) {
-        setState(() {
-          _myLatestSos = sos;
-        });
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = connectivity.any((r) =>
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet ||
+          r == ConnectivityResult.vpn);
+
+      if (isOnline) {
+        final sos = await AuthManager.client.sos.getMyActiveSos(AuthManager.deviceId);
+        if (mounted) {
+          setState(() {
+            _myLatestSos = sos;
+          });
+        }
+      } else {
+        // Offline check
+        final rawAlerts = OfflineCacheManager.getUnsyncedAlerts();
+        final myAlerts = rawAlerts.where((a) => a.originalDeviceId == AuthManager.deviceId).toList();
+        if (myAlerts.isNotEmpty) {
+          final first = myAlerts.first;
+          if (mounted) {
+            setState(() {
+              _myLatestSos = SosAlert(
+                id: null,
+                clientAlertId: first.id,
+                deviceId: first.originalDeviceId,
+                latitude: first.lat,
+                longitude: first.lng,
+                timestamp: DateTime.fromMillisecondsSinceEpoch(first.timestamp),
+                isActive: true,
+                status: 'ACTIVE',
+                senderName: first.originalSenderName,
+                message: first.message,
+                approximateLocationText: first.approximateLocationText,
+              );
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _myLatestSos = null;
+            });
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error fetching SOS: $e');
+    }
+  }
+
+  Future<void> _resolveSos(String clientAlertId) async {
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOnline = connectivity.any((r) =>
+        r == ConnectivityResult.wifi ||
+        r == ConnectivityResult.mobile ||
+        r == ConnectivityResult.ethernet ||
+        r == ConnectivityResult.vpn);
+
+    if (isOnline) {
+      try {
+        final expectedPayload = "resolveSOS_$clientAlertId";
+        final signature = await P2pCryptoService().signPayload(expectedPayload);
+        await AuthManager.client.sos.resolveSOS(clientAlertId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
+      } catch (e) {
+        debugPrint('Online resolve error: $e');
+      }
+    } else {
+      // STRICT OFFLINE RESOLVE (NO SERVER CALLS)
+      await OfflineMeshService().broadcastSosCleared(clientAlertId);
+    }
+    AlertsManager().resolveSosAlert(clientAlertId);
+    MapPinsManager().removePin(clientAlertId);
+    if (mounted) {
+      setState(() {
+        if (_myLatestSos?.clientAlertId == clientAlertId) {
+          _myLatestSos = null;
+        }
+      });
+      _fetchLatestSOS();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Victim Rescued! Offline SOS Cleared.'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
@@ -187,6 +268,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     ],
                                   ),
                                 ],
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                                    label: const Text('I AM SAFE / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green.shade700,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => _resolveSos(_myLatestSos!.clientAlertId),
+                                  ),
+                                ),
                               ],
                             ),
                           )
@@ -246,6 +342,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     ],
                                   ),
                                 ],
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                                    label: const Text('VICTIM FOUND / RESCUE COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green.shade700,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => _resolveSos(_myLatestSos!.clientAlertId),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -321,6 +432,39 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 ),
                               ),
                             ),
+                            if (alert.type == AlertType.sos && alert.clientAlertId != null) ...[
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.map, size: 16),
+                                      label: const Text('MAP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.pitchBlack,
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () => _handleAlertTap(alert),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                                      label: const Text('VICTIM FOUND', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () => _resolveSos(alert.clientAlertId!),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
