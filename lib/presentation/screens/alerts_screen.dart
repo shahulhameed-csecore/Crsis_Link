@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import 'main_navigation.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/state/map_pins_manager.dart';
+import '../widgets/sos_details_bottom_sheet.dart';
+import '../widgets/sos_photo_viewer.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -108,68 +110,146 @@ class _AlertsScreenState extends State<AlertsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 if (_myLatestSos != null)
-                  _myLatestSos!.volunteerDeviceId == null
-                      ? Container(
-                          margin: const EdgeInsets.only(bottom: 24),
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
-                          ),
-                          child: Row(
-                            children: [
-                              const CircularProgressIndicator(color: Colors.orange),
-                              const SizedBox(width: 16),
-                              const Expanded(
-                                child: Text(
-                                  'Searching for nearby rescuers...',
-                                  style: TextStyle(color: Colors.orange, fontSize: 18, fontWeight: FontWeight.bold),
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: AppColors.pitchBlack,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        isScrollControlled: true,
+                        builder: (ctx) => SosDetailsBottomSheet(
+                          alert: _myLatestSos!,
+                          isOwnPin: true,
+                          onResolve: () {
+                            setState(() {
+                              _myLatestSos = null;
+                            });
+                            _fetchLatestSOS();
+                          },
+                        ),
+                      );
+                    },
+                    child: _myLatestSos!.volunteerDeviceId == null
+                        ? Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(color: Colors.orange, strokeWidth: 2.5),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Text(
+                                        'Searching for nearby rescuers...',
+                                        style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const Icon(Icons.touch_app, color: Colors.orange, size: 20),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Container(
-                          margin: const EdgeInsets.only(bottom: 24),
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF198754), width: 1.5),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.verified_user, color: Color(0xFF0F5132), size: 40),
-                              const SizedBox(height: 8),
-                              const Text('RESCUER ASSIGNED!', style: TextStyle(color: Color(0xFF0F5132), fontSize: 16, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0F5132),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _myLatestSos!.verificationPin ?? '----',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 4.0,
+                                if (_myLatestSos!.message != null && _myLatestSos!.message!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _myLatestSos!.message!,
+                                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                                if (_myLatestSos!.photoUrl != null && _myLatestSos!.photoUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      SosPhotoViewer(
+                                        photoUrl: _myLatestSos!.photoUrl!,
+                                        height: 56,
+                                        width: 56,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Attached Photo (Tap to view details)',
+                                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          )
+                        : Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF198754), width: 1.5),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.verified_user, color: Color(0xFF0F5132), size: 40),
+                                const SizedBox(height: 8),
+                                const Text('RESCUER ASSIGNED!', style: TextStyle(color: Color(0xFF0F5132), fontSize: 16, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F5132),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _myLatestSos!.verificationPin ?? '----',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 4.0,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Give this PIN to your rescuer when they call or arrive.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-                              ),
-                            ],
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Give this PIN to your rescuer when they call or arrive.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
+                                ),
+                                if (_myLatestSos!.photoUrl != null && _myLatestSos!.photoUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SosPhotoViewer(
+                                        photoUrl: _myLatestSos!.photoUrl!,
+                                        height: 50,
+                                        width: 50,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Tap card to view SOS details',
+                                        style: TextStyle(color: Color(0xFF0F5132), fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
+                  ),
                 
                 if (notifications.isEmpty)
                   Center(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/services/p2p_crypto_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/theme/design_system.dart';
@@ -8,6 +7,7 @@ import '../../core/state/map_pins_manager.dart';
 import '../../core/state/alerts_manager.dart';
 import 'capsule_button.dart';
 import 'audio_player_button.dart';
+import 'sos_photo_viewer.dart';
 import '../../core/services/offline_mesh_service.dart';
 // import '../../core/services/rescue_chat_session.dart';
 
@@ -92,27 +92,81 @@ Row(
               ),
               const SizedBox(height: 16),
               Text(
-                'Victim: ${alert.senderName}',
+                isOwnPin ? 'Sender: You (${alert.senderName})' : 'Victim: ${alert.senderName}',
                 style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              Text(
-                alert.message?.isNotEmpty == true ? alert.message! : 'No additional details provided.',
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
+              if (alert.approximateLocationText != null && alert.approximateLocationText!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        alert.approximateLocationText!,
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (alert.message != null && alert.message!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'EMERGENCY SITUATION DETAILS',
+                        style: TextStyle(
+                          color: AppColors.emergencyRed,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        alert.message!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'No additional details provided.',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ],
               if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: 220,
-                    width: double.infinity,
-                    child: Image.network(
-                      alert.photoUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 48),
-                    ),
+                const Text(
+                  'ATTACHED PHOTO',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
                   ),
+                ),
+                const SizedBox(height: 8),
+                SosPhotoViewer(
+                  photoUrl: alert.photoUrl!,
+                  height: 220,
                 ),
               ],
               if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[

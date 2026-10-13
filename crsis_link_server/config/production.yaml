@@ -33,7 +33,7 @@ redis:
   host: ${REDIS_HOST}
   port: 6379
 
-maxRequestSize: 524288
+maxRequestSize: 2097152
 
 sessionLogs:
   consoleEnabled: true

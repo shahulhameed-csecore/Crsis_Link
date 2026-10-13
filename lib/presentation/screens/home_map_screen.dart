@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/services/p2p_crypto_service.dart';
@@ -26,6 +27,7 @@ import '../widgets/disaster_radar_view.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_mesh_service.dart';
 import '../widgets/sos_details_bottom_sheet.dart';
+import '../widgets/sos_photo_viewer.dart';
 
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
@@ -484,36 +486,10 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                       if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         const Text('ATTACHED PHOTO', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            alert.photoUrl!.replaceAll('http://', 'https://'),
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                height: 200,
-                                width: double.infinity,
-                                color: Colors.grey.withValues(alpha: 0.1),
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.emergencyRed,
-                                  ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              height: 200,
-                              width: double.infinity,
-                              color: Colors.grey.withValues(alpha: 0.1),
-                              child: const Center(
-                                child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
-                              ),
-                            ),
-                          ),
+                        const SizedBox(height: 8),
+                        SosPhotoViewer(
+                          photoUrl: alert.photoUrl!,
+                          height: 200,
                         ),
                       ],
                       if (alert.audioUrl != null && alert.audioUrl!.isNotEmpty) ...[
@@ -785,11 +761,44 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.camera_alt, color: Colors.blue),
+                          icon: const Icon(Icons.camera_alt, color: Colors.blue, size: 28),
                           onPressed: () => pickImage(setModalState),
+                          tooltip: 'Take Photo',
                         ),
-                        if (pendingPhotoFile != null)
-                          const Text('Photo attached', style: TextStyle(color: Colors.green)),
+                        const SizedBox(width: 8),
+                        if (pendingPhotoFile != null) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              pendingPhotoFile!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Photo attached',
+                              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                            onPressed: () {
+                              setModalState(() {
+                                pendingPhotoFile = null;
+                                pendingPhotoUrl = null;
+                              });
+                            },
+                            tooltip: 'Remove photo',
+                          ),
+                        ] else ...[
+                          const Text(
+                            'Take Photo',
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -824,12 +833,6 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
 
                         if (_isConnected && pendingPhotoFile != null) {
                           try {
-                            final fileName = 'sos_photo_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                            String uploadDesc = await AuthManager.client.sos.getPhotoUploadDescription(fileName).timeout(const Duration(seconds: 5));
-                            uploadDesc = uploadDesc
-                                .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-                                .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
-
                             final bytes = await pendingPhotoFile!.readAsBytes();
                             final compressed = await FlutterImageCompress.compressWithList(
                               bytes,
@@ -838,19 +841,41 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                               quality: 70,
                             );
 
-                            final byteData = ByteData.view(compressed.buffer);
-                            final uploader = FileUploader(uploadDesc);
-                            final success = await uploader.uploadByteData(byteData);
-                            
-                            if (success) {
-                              String publicUrl = await AuthManager.client.sos.verifyPhotoUpload(fileName);
-                              pendingPhotoUrl = publicUrl
+                            // Guaranteed Base64 Data URI fallback so photoUrl is 100% saved and sent
+                            final base64Fallback = 'data:image/jpeg;base64,${base64Encode(compressed)}';
+
+                            try {
+                              final fileName = 'sos_photo_${AuthManager.deviceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                              String uploadDesc = await AuthManager.client.sos.getPhotoUploadDescription(fileName).timeout(const Duration(seconds: 4));
+                              uploadDesc = uploadDesc
                                   .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
-                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com')
-                                  .replaceAll('http://', 'https://');
+                                  .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+
+                              final byteData = ByteData.view(compressed.buffer);
+                              final uploader = FileUploader(uploadDesc);
+                              final success = await uploader.uploadByteData(byteData).timeout(const Duration(seconds: 6));
+                              
+                              if (success) {
+                                String publicUrl = await AuthManager.client.sos.verifyPhotoUpload(fileName).timeout(const Duration(seconds: 4));
+                                publicUrl = publicUrl
+                                    .replaceAll('\${public_host}', 'crsis-link-api.onrender.com')
+                                    .replaceAll('\$%7Bpublic_host%7D', 'crsis-link-api.onrender.com')
+                                    .replaceAll('http://', 'https://');
+
+                                if (publicUrl.isNotEmpty && !publicUrl.contains('localhost') && !publicUrl.contains('127.0.0.1')) {
+                                  pendingPhotoUrl = publicUrl;
+                                } else {
+                                  pendingPhotoUrl = base64Fallback;
+                                }
+                              } else {
+                                pendingPhotoUrl = base64Fallback;
+                              }
+                            } catch (uploadErr) {
+                              debugPrint('Remote photo upload failed, using Base64 data URI fallback: $uploadErr');
+                              pendingPhotoUrl = base64Fallback;
                             }
                           } catch (e) {
-                            debugPrint('Photo upload failed: $e');
+                            debugPrint('Photo compression/processing failed: $e');
                           }
                         }
                         bool isOnline = false;

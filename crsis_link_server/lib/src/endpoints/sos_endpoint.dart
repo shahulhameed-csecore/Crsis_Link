@@ -124,7 +124,7 @@ class SosEndpoint extends Endpoint {
       throw ArgumentError('Audio URL exceeds maximum length');
     }
     if (message != null && message.length > 1000) message = message.substring(0, 1000);
-    if (photoUrl != null && photoUrl.length > 500) { 
+    if (photoUrl != null && photoUrl.length > 2000000) { 
       throw ArgumentError('Photo URL exceeds maximum length');
     }
     if (approximateLocationText != null && approximateLocationText.length > 200) {
@@ -275,7 +275,7 @@ class SosEndpoint extends Endpoint {
       session,
       where: (t) =>
           t.isActive.equals(true) &
-          t.timestamp.greaterThan(staleThreshold) &
+          (t.timestamp > staleThreshold) &
           t.latitude.between(minLat, maxLat) &
           t.longitude.between(minLng, maxLng),
     );
@@ -536,7 +536,10 @@ class SosEndpoint extends Endpoint {
         storageId: 'public',
         path: 'sos_photo/$fileName',
       );
-      return uploadDescription ?? '';
+      if (uploadDescription == null) return '';
+      return uploadDescription
+          .replaceAll(r'${public_host}', 'crsis-link-api.onrender.com')
+          .replaceAll(r'$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
     } catch (e) {
       session.log('Operation failed: $e', level: LogLevel.error);
       throw Exception('Operation failed: $e');
@@ -566,7 +569,11 @@ class SosEndpoint extends Endpoint {
       if (publicUrl == null) {
         throw Exception('Failed to get public URL after upload.');
       }
-      return publicUrl.toString();
+      var urlStr = publicUrl.toString();
+      urlStr = urlStr
+          .replaceAll(r'${public_host}', 'crsis-link-api.onrender.com')
+          .replaceAll(r'$%7Bpublic_host%7D', 'crsis-link-api.onrender.com');
+      return urlStr;
     } catch (e) {
       session.log('Operation failed: $e', level: LogLevel.error);
       throw Exception('Operation failed: $e');
