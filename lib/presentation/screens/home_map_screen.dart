@@ -706,15 +706,17 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                  left: 24,
+                  right: 24,
+                  top: 24,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1046,9 +1048,10 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
                 ],
               ),
             ),
-          );
-          },
+          ),
         );
+      },
+    );
       },
     ).then((_) {
       messageController.dispose();

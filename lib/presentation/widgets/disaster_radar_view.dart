@@ -327,7 +327,7 @@ class _DisasterRadarViewState extends State<DisasterRadarView> with SingleTicker
                 Positioned(
                   left: 20,
                   right: 20,
-                  bottom: 40,
+                  bottom: 24 + MediaQuery.of(context).padding.bottom,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(

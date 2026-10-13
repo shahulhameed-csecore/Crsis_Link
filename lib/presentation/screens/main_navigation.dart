@@ -53,51 +53,57 @@ class MainNavigationState extends State<MainNavigation> {
         children: _screens,
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppColors.surfaceBorder, width: 1),
+        color: AppColors.surfaceCards,
+        child: SafeArea(
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppColors.surfaceBorder, width: 1),
+              ),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: _onTabTapped,
+              backgroundColor: AppColors.surfaceCards,
+              selectedItemColor: AppColors.emergencyRed,
+              unselectedItemColor: AppColors.pitchBlack.withValues(alpha: 0.5),
+              showSelectedLabels: true,
+              showUnselectedLabels: true,
+              selectedLabelStyle: AppTypography.body.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+              unselectedLabelStyle: AppTypography.body.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+              elevation: 0,
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.emergency),
+                  activeIcon: Icon(Icons.emergency),
+                  label: 'SOS',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.map_outlined),
+                  activeIcon: Icon(Icons.map_outlined),
+                  label: 'Map',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.notifications_outlined),
+                  activeIcon: Icon(Icons.notifications_outlined),
+                  label: 'Alerts',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_outline),
+                  activeIcon: Icon(Icons.person_outline),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onTabTapped,
-          backgroundColor: AppColors.surfaceCards,
-          selectedItemColor: AppColors.emergencyRed,
-          unselectedItemColor: AppColors.pitchBlack.withValues(alpha: 0.5),
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedLabelStyle: AppTypography.body.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: AppTypography.body.copyWith(
-            fontWeight: FontWeight.w500,
-            fontSize: 12,
-          ),
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.emergency),
-              activeIcon: Icon(Icons.emergency),
-              label: 'SOS',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map_outlined),
-              label: 'Map',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_outlined),
-              activeIcon: Icon(Icons.notifications_outlined),
-              label: 'Alerts',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person_outline),
-              label: 'Profile',
-            ),
-          ],
         ),
       ),
     );

@@ -65,15 +65,17 @@ class _SosDetailsBottomSheetState extends State<SosDetailsBottomSheet> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) AlertsManager().releaseWakelockEarly();
       },
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          left: 24,
-          right: 24,
-          top: 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -566,8 +568,9 @@ Row(
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /* 
   void _showChatDialog(BuildContext context, dynamic alert) {
