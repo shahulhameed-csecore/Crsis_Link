@@ -24,12 +24,24 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   Timer? _pollingTimer;
   SosAlert? _myLatestSos;
+  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     MapPinsManager().addListener(_onPinsChanged);
     _fetchLatestSOS();
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      if (mounted) {
+        final online = results.any((r) =>
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.mobile ||
+            r == ConnectivityResult.ethernet ||
+            r == ConnectivityResult.vpn);
+        setState(() => _isOnline = online);
+      }
+    });
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchLatestSOS();
     });
@@ -37,6 +49,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     _pollingTimer?.cancel();
     MapPinsManager().removeListener(_onPinsChanged);
     super.dispose();
@@ -50,6 +63,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
           r == ConnectivityResult.mobile ||
           r == ConnectivityResult.ethernet ||
           r == ConnectivityResult.vpn);
+      if (mounted) {
+        setState(() {
+          _isOnline = isOnline;
+        });
+      }
 
       if (isOnline) {
         final sos = await AuthManager.client.sos.getMyActiveSos(AuthManager.deviceId);
@@ -268,21 +286,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                                    label: const Text('I AM SAFE / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green.shade700,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                if (!_isOnline) ...[
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                                      label: const Text('I AM SAFE / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: () => _resolveSos(_myLatestSos!.clientAlertId),
                                     ),
-                                    onPressed: () => _resolveSos(_myLatestSos!.clientAlertId),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           )
@@ -342,21 +362,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                                    label: const Text('VICTIM FOUND / RESCUE COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green.shade700,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    ),
-                                    onPressed: () => _resolveSos(_myLatestSos!.clientAlertId),
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -448,20 +453,22 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                       onPressed: () => _handleAlertTap(alert),
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                                      label: const Text('VICTIM FOUND', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green.shade700,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 10),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  if (!_isOnline) ...[
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        icon: const Icon(Icons.check_circle_outline, size: 16),
+                                        label: const Text('VICTIM FOUND', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green.shade700,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => _resolveSos(alert.clientAlertId!),
                                       ),
-                                      onPressed: () => _resolveSos(alert.clientAlertId!),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ],

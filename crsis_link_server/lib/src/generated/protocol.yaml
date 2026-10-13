@@ -12,6 +12,8 @@ jwtRefresh:
 audio:
   - getUploadDescription:
   - verifyUpload:
+config:
+  - getAppUpdateInfo:
 sos:
   - updateLocation:
   - broadcastSos:

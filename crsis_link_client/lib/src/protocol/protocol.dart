@@ -96,6 +96,12 @@ class Protocol extends _i1.SerializationManager {
     if (t == _i1.getType<_i6.SosResolvedEvent?>()) {
       return (data != null ? _i6.SosResolvedEvent.fromJson(data) : null) as T;
     }
+    if (t == Map<String, String>) {
+      return (data as Map).map(
+            (k, v) => MapEntry(deserialize<String>(k), deserialize<String>(v)),
+          )
+          as T;
+    }
     if (t == List<_i7.SosAlert>) {
       return (data as List).map((e) => deserialize<_i7.SosAlert>(e)).toList()
           as T;

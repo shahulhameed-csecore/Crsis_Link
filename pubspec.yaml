@@ -66,6 +66,7 @@ dependencies:
   flutter_compass: ^0.8.1
   crypto: ^3.0.7
   cryptography: ^2.9.0
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:

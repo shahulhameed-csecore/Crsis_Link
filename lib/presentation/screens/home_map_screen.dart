@@ -27,6 +27,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_mesh_service.dart';
 import '../widgets/sos_details_bottom_sheet.dart';
 import '../widgets/sos_photo_viewer.dart';
+import '../../core/services/update_service.dart';
 
 class HomeMapScreen extends StatefulWidget {
   const HomeMapScreen({super.key});
@@ -57,6 +58,7 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
     MapPinsManager().addListener(_onPinsChanged);
     _determinePosition().whenComplete(() => _fetchActiveSos());
     _initStreaming();
+    _checkAppUpdate();
     
     // Instant offline detection via connectivity_plus
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
@@ -117,6 +119,67 @@ class HomeMapScreenState extends State<HomeMapScreen> with WidgetsBindingObserve
   Future<void> _saveIgnoredIds() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ignoredSosIds', _ignoredSosIds.toList());
+  }
+
+  Future<void> _checkAppUpdate() async {
+    final updateInfo = await UpdateService.checkForUpdate();
+    if (!mounted || updateInfo == null || !updateInfo.isUpdateRequired) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: AppColors.pitchBlack,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppColors.emergencyRed, width: 1.5),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.system_update, color: AppColors.emergencyRed),
+              SizedBox(width: 10),
+              Text(
+                'Update Required',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'A new version is available! Please update to continue using Crsis_Link.',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Current: v${updateInfo.currentVersion}  →  Latest: v${updateInfo.latestVersion}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.emergencyRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final uri = Uri.tryParse(updateInfo.apkDownloadUrl);
+                if (uri != null) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: const Text('Update Now', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onPinsChanged() {

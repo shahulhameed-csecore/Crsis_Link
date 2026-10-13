@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/services/p2p_crypto_service.dart';
 import 'package:crsis_link_client/crsis_link_client.dart';
@@ -37,15 +38,41 @@ class SosDetailsBottomSheet extends StatefulWidget {
 class _SosDetailsBottomSheetState extends State<SosDetailsBottomSheet> {
   bool isSubmitting = false;
   late final TextEditingController pinController;
+  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     pinController = TextEditingController();
+    _checkConnectivity();
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      if (mounted) {
+        final online = results.any((r) =>
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.mobile ||
+            r == ConnectivityResult.ethernet ||
+            r == ConnectivityResult.vpn);
+        setState(() => _isOnline = online);
+      }
+    });
+  }
+
+  Future<void> _checkConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    if (mounted) {
+      final online = results.any((r) =>
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet ||
+          r == ConnectivityResult.vpn);
+      setState(() => _isOnline = online);
+    }
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     pinController.dispose();
     super.dispose();
   }
@@ -112,6 +139,17 @@ Row(
                       ),
                     ),
                   ],
+                ),
+              ],
+              if (isOwnPin && isClaimed) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Rescuer on the way: ${(alert is SosAlert ? alert.volunteerName : null) ?? 'A volunteer'}',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
               if (alert.message != null && alert.message!.isNotEmpty) ...[
@@ -374,63 +412,65 @@ Row(
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                          label: const Text('VICTIM FOUND / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          ),
-                          onPressed: isSubmitting ? null : () async {
-                            final targetId = alert.clientAlertId ?? alert.id?.toString();
-                            if (targetId == null) return;
-                            setModalState(() => isSubmitting = true);
-                            try {
-                              final connectivity = await Connectivity().checkConnectivity();
-                              final isOnline = connectivity.any((r) =>
-                                  r == ConnectivityResult.wifi ||
-                                  r == ConnectivityResult.mobile ||
-                                  r == ConnectivityResult.ethernet ||
-                                  r == ConnectivityResult.vpn);
+                        if (!_isOnline && !isOwnPin) ...[
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                            label: const Text('VICTIM FOUND / CLEAR SOS', style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                            ),
+                            onPressed: isSubmitting ? null : () async {
+                              final targetId = alert.clientAlertId ?? alert.id?.toString();
+                              if (targetId == null) return;
+                              setModalState(() => isSubmitting = true);
+                              try {
+                                final connectivity = await Connectivity().checkConnectivity();
+                                final isOnline = connectivity.any((r) =>
+                                    r == ConnectivityResult.wifi ||
+                                    r == ConnectivityResult.mobile ||
+                                    r == ConnectivityResult.ethernet ||
+                                    r == ConnectivityResult.vpn);
 
-                              if (isOnline) {
-                                final expectedPayload = "resolveSOS_$targetId";
-                                final signature = await P2pCryptoService().signPayload(expectedPayload);
-                                await AuthManager.client.sos.resolveSOS(targetId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
-                              } else {
-                                // STRICT OFFLINE RESOLVE
+                                if (isOnline) {
+                                  final expectedPayload = "resolveSOS_$targetId";
+                                  final signature = await P2pCryptoService().signPayload(expectedPayload);
+                                  await AuthManager.client.sos.resolveSOS(targetId, AuthManager.deviceId, signature, P2pCryptoService().publicKey);
+                                } else {
+                                  // STRICT OFFLINE RESOLVE
+                                  await OfflineMeshService().broadcastSosCleared(targetId);
+                                }
+                                if (ctx.mounted) {
+                                  AlertsManager().releaseWakelockEarly();
+                                  Navigator.pop(ctx);
+                                  if (widget.onResolve != null) widget.onResolve!();
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (_) {
                                 await OfflineMeshService().broadcastSosCleared(targetId);
+                                if (ctx.mounted) {
+                                  AlertsManager().releaseWakelockEarly();
+                                  Navigator.pop(ctx);
+                                  if (widget.onResolve != null) widget.onResolve!();
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Victim Rescued! Offline SOS Cleared.'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
                               }
-                              if (ctx.mounted) {
-                                AlertsManager().releaseWakelockEarly();
-                                Navigator.pop(ctx);
-                                if (widget.onResolve != null) widget.onResolve!();
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Victim Rescued! Offline SOS Cleared.'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (_) {
-                              await OfflineMeshService().broadcastSosCleared(targetId);
-                              if (ctx.mounted) {
-                                AlertsManager().releaseWakelockEarly();
-                                Navigator.pop(ctx);
-                                if (widget.onResolve != null) widget.onResolve!();
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Victim Rescued! Offline SOS Cleared.'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                        ),
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -646,3 +686,20 @@ Row(
   }
   */
 }
+
+extension SosAlertRescuerExtension on SosAlert {
+  String? get volunteerName {
+    for (final notification in AlertsManager().value) {
+      if (notification.type == AlertType.accepted &&
+          notification.description.contains(' has accepted your request')) {
+        final name = notification.description
+            .split(' has accepted your request')
+            .first
+            .trim();
+        if (name.isNotEmpty) return name;
+      }
+    }
+    return null;
+  }
+}
+

@@ -271,6 +271,23 @@ class EndpointAudio extends _i2.EndpointRef {
       );
 }
 
+/// Endpoint providing app version configuration for in-app updates.
+/// {@category Endpoint}
+class EndpointConfig extends _i2.EndpointRef {
+  EndpointConfig(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'config';
+
+  /// Returns the latest app version and APK download URL.
+  _i3.Future<Map<String, String>> getAppUpdateInfo() =>
+      caller.callServerEndpoint<Map<String, String>>(
+        'config',
+        'getAppUpdateInfo',
+        {},
+      );
+}
+
 /// Endpoint for handling SOS Alerts.
 /// {@category Endpoint}
 class EndpointSos extends _i2.EndpointRef {
@@ -507,6 +524,7 @@ class Client extends _i2.ServerpodClientShared {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
     audio = EndpointAudio(this);
+    config = EndpointConfig(this);
     sos = EndpointSos(this);
     greeting = EndpointGreeting(this);
     modules = Modules(this);
@@ -517,6 +535,8 @@ class Client extends _i2.ServerpodClientShared {
   late final EndpointJwtRefresh jwtRefresh;
 
   late final EndpointAudio audio;
+
+  late final EndpointConfig config;
 
   late final EndpointSos sos;
 
@@ -529,6 +549,7 @@ class Client extends _i2.ServerpodClientShared {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
     'audio': audio,
+    'config': config,
     'sos': sos,
     'greeting': greeting,
   };

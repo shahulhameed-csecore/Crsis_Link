@@ -33,8 +33,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Future<void> _saveName() async {
     HapticFeedback.lightImpact();
+    if (_nameController.text.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Name cannot be empty'),
+            backgroundColor: AppColors.emergencyRed,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
     final newName = _nameController.text.trim();
-    if (newName.isNotEmpty && newName != AuthManager.displayName) {
+    if (newName != AuthManager.displayName) {
       await AuthManager.updateDisplayName(newName);
       if (mounted) {
         setState(() {});
